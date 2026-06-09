@@ -1,0 +1,19 @@
+{
+  "saleMode": "QUICK_SALE",
+  "customerName": "Khach le",
+  "customerPhone": null,
+  "note": "Test checkout",
+  "discountAmount": 0,
+  "paymentMethod": "CASH",
+  "customerPaidAmount": 200000,
+  "items": [
+    {
+      "productId": 1,
+      "productUnitId": 1,
+      "quantity": 2,
+      "unitPrice": 13000,
+      "discountAmount": 0,
+      "note": null
+    }
+  ]
+}
