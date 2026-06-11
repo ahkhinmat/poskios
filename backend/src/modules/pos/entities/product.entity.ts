@@ -29,6 +29,14 @@ export class Product {
   @Column({ name: 'Name', type: 'nvarchar', length: 255 })
   name!: string;
 
+  @Column({
+    name: 'VariantGroupCode',
+    type: 'nvarchar',
+    length: 100,
+    nullable: true,
+  })
+  variantGroupCode!: string | null;
+
   @Column({ name: 'CostPrice', type: 'decimal', precision: 18, scale: 2 })
   costPrice!: string;
 

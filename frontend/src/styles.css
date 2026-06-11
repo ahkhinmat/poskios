@@ -462,13 +462,13 @@ button {
   width: 76mm;
   max-width: 100%;
   margin: 0 auto;
-  padding: 8px;
+  padding: 6px 7px;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   background: #fff;
   color: #111827;
   font-family: Arial, sans-serif;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .receipt-modal .ant-modal-content {
@@ -495,35 +495,42 @@ button {
 }
 
 .receipt-store {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .receipt-dash {
   border-top: 1px dashed #6b7280;
-  margin: 6px 0;
+  margin: 5px 0;
 }
 
 .receipt-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+  align-items: end;
+}
+
+.receipt-row > :last-child {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .receipt-muted {
-  color: #6b7280;
+  color: #111827;
 }
 
 .receipt-item {
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
 .receipt-item-name {
   font-weight: 600;
+  word-break: break-word;
 }
 
 .receipt-total {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 

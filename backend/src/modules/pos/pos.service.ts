@@ -710,12 +710,20 @@ export class PosService {
         productCode,
         barcode: getCellText('Mã vạch') || null,
         productName,
+        variantGroupCode: this.resolveVariantGroupCode({
+          productCode,
+          barcode: getCellText('Mã vạch') || null,
+          relatedProductCode: this.emptyToNull(getCellText('Mã HH Liên quan')),
+          baseUnitCode: this.emptyToNull(getCellText('Mã ĐVT Cơ bản')),
+          productName,
+        }),
         salePrice: this.toDecimalString(getCellText('Giá bán'), 2),
         costPrice: this.toDecimalString(getCellText('Giá vốn'), 2),
         stockOnHand: this.toDecimalString(getCellText('Tồn kho'), 3),
         minStock: this.toDecimalString(getCellText('Tồn nhỏ nhất'), 3),
         maxStock: this.toDecimalString(getCellText('Tồn lớn nhất'), 3),
         unitName: getCellText('ĐVT') || 'Cái',
+        conversionValue: this.toDecimalString(getCellText('Quy đổi') || '1', 3),
         description: this.emptyToNull(getCellText('Mô tả')),
         noteTemplate: this.emptyToNull(getCellText('Mẫu ghi chú')),
         location: this.emptyToNull(getCellText('Vị trí')),
@@ -768,6 +776,7 @@ export class PosService {
           productCode: row.productCode,
           barcode: row.barcode,
           name: row.productName,
+          variantGroupCode: row.variantGroupCode,
           costPrice: row.costPrice,
           salePrice: row.salePrice,
           stockOnHand: row.stockOnHand,
@@ -787,6 +796,7 @@ export class PosService {
         product.unitId = unit.id;
         product.barcode = row.barcode;
         product.name = row.productName;
+        product.variantGroupCode = row.variantGroupCode;
         product.costPrice = row.costPrice;
         product.salePrice = row.salePrice;
         product.stockOnHand = row.stockOnHand;
@@ -819,22 +829,22 @@ export class PosService {
           productId: product.id,
           unitId: unit.id,
           barcode: row.barcode,
-          conversionValue: '1.000',
+          conversionValue: row.conversionValue,
           costPrice: row.costPrice,
           salePrice: row.salePrice,
           allowDirectSale: row.allowDirectSale,
-          isDefaultForPos: true,
-          isSmallestUnit: true,
+          isDefaultForPos: this.toNumber(row.conversionValue) <= 1,
+          isSmallestUnit: this.toNumber(row.conversionValue) <= 1,
           isActive: row.isActive,
         });
       } else {
         productUnit.barcode = row.barcode;
-        productUnit.conversionValue = '1.000';
+        productUnit.conversionValue = row.conversionValue;
         productUnit.costPrice = row.costPrice;
         productUnit.salePrice = row.salePrice;
         productUnit.allowDirectSale = row.allowDirectSale;
-        productUnit.isDefaultForPos = true;
-        productUnit.isSmallestUnit = true;
+        productUnit.isDefaultForPos = this.toNumber(row.conversionValue) <= 1;
+        productUnit.isSmallestUnit = this.toNumber(row.conversionValue) <= 1;
         productUnit.isActive = row.isActive;
       }
 
@@ -846,6 +856,8 @@ export class PosService {
         updatedProductUnits += 1;
       }
     }
+
+    await this.syncVariantGroupProductUnits(rows);
 
     return {
       fileName: file.originalname,
@@ -874,9 +886,6 @@ export class PosService {
       .andWhere('productUnit.allowDirectSale = :productUnitAllowDirectSale', {
         productUnitAllowDirectSale: true,
       })
-      .andWhere('productUnit.isSmallestUnit = :isSmallestUnit', {
-        isSmallestUnit: true,
-      })
       .andWhere(
         new Brackets((qb) => {
           qb.where('productUnit.barcode = :keyword', { keyword })
@@ -897,11 +906,13 @@ export class PosService {
       )
       .addOrderBy('product.name', 'ASC')
       .setParameter('keyword', keyword)
-      .limit(query.limit)
+      .limit(query.limit * 5)
       .getMany();
 
+    const grouped = this.pickDefaultUnitsForGroups(items);
+
     return {
-      items: items.map((item) => this.toPosProductResponse(item)),
+      items: grouped.slice(0, query.limit).map((item) => this.toPosProductResponse(item)),
     };
   }
 
@@ -920,9 +931,6 @@ export class PosService {
       })
       .andWhere('productUnit.allowDirectSale = :productUnitAllowDirectSale', {
         productUnitAllowDirectSale: true,
-      })
-      .andWhere('productUnit.isSmallestUnit = :isSmallestUnit', {
-        isSmallestUnit: true,
       })
       .andWhere(
         new Brackets((qb) => {
@@ -946,37 +954,57 @@ export class PosService {
       throw new NotFoundException('Product not found');
     }
 
-    return this.toPosProductResponse(productUnit);
+    return this.toPosProductResponse(
+      await this.getDefaultProductUnitForGroup(productUnit),
+    );
   }
 
   async listProductUnits(productId: number) {
-    const productUnits = await this.productUnitRepository.find({
-      where: {
-        productId,
-        isActive: true,
-        allowDirectSale: true,
-      },
+    const selectedProductUnit = await this.productUnitRepository.findOne({
+      where: { productId, isActive: true, allowDirectSale: true },
       relations: {
         product: true,
         unit: true,
       },
       order: {
+        isDefaultForPos: 'DESC',
         isSmallestUnit: 'DESC',
-        conversionValue: 'ASC',
         id: 'ASC',
       },
     });
 
-    const filteredItems = productUnits.filter(
-      (item) => item.product.isActive && item.product.allowDirectSale,
-    );
-
-    if (!filteredItems.length) {
+    if (!selectedProductUnit?.product) {
       throw new NotFoundException('Product units not found');
     }
 
+    const groupCode =
+      selectedProductUnit.product.variantGroupCode ??
+      selectedProductUnit.product.productCode;
+
+    const productUnits = await this.productUnitRepository
+      .createQueryBuilder('productUnit')
+      .innerJoinAndSelect('productUnit.product', 'product')
+      .innerJoinAndSelect('productUnit.unit', 'unit')
+      .where('productUnit.isActive = :isActive', { isActive: true })
+      .andWhere('productUnit.allowDirectSale = :allowDirectSale', {
+        allowDirectSale: true,
+      })
+      .andWhere('product.isActive = :productIsActive', { productIsActive: true })
+      .andWhere('product.allowDirectSale = :productAllowDirectSale', {
+        productAllowDirectSale: true,
+      })
+      .andWhere(
+        '(product.variantGroupCode = :groupCode OR (product.variantGroupCode IS NULL AND product.productCode = :groupCode))',
+        { groupCode },
+      )
+      .orderBy('productUnit.isDefaultForPos', 'DESC')
+      .addOrderBy('productUnit.isSmallestUnit', 'DESC')
+      .addOrderBy('productUnit.conversionValue', 'ASC')
+      .addOrderBy('product.id', 'ASC')
+      .getMany();
+
     return {
-      items: filteredItems.map((item) => this.toPosProductUnitResponse(item)),
+      items: productUnits.map((item) => this.toPosProductUnitResponse(item)),
     };
   }
 
@@ -1079,6 +1107,70 @@ export class PosService {
     };
   }
 
+  private getVariantGroupCodeFromProductUnit(productUnit: ProductUnit) {
+    return productUnit.product.variantGroupCode ?? productUnit.product.productCode;
+  }
+
+  private pickDefaultUnitsForGroups(productUnits: ProductUnit[]) {
+    const grouped = new Map<string, ProductUnit>();
+
+    for (const item of productUnits) {
+      const groupCode = this.getVariantGroupCodeFromProductUnit(item);
+      const current = grouped.get(groupCode);
+
+      if (!current || this.compareProductUnitsForDefault(item, current) < 0) {
+        grouped.set(groupCode, item);
+      }
+    }
+
+    return [...grouped.values()];
+  }
+
+  private compareProductUnitsForDefault(left: ProductUnit, right: ProductUnit) {
+    const leftDefaultScore = left.isDefaultForPos ? 0 : 1;
+    const rightDefaultScore = right.isDefaultForPos ? 0 : 1;
+    if (leftDefaultScore !== rightDefaultScore) {
+      return leftDefaultScore - rightDefaultScore;
+    }
+
+    const leftSmallestScore = left.isSmallestUnit ? 0 : 1;
+    const rightSmallestScore = right.isSmallestUnit ? 0 : 1;
+    if (leftSmallestScore !== rightSmallestScore) {
+      return leftSmallestScore - rightSmallestScore;
+    }
+
+    const conversionDiff =
+      Number(left.conversionValue) - Number(right.conversionValue);
+    if (conversionDiff !== 0) {
+      return conversionDiff;
+    }
+
+    return left.id - right.id;
+  }
+
+  private async getDefaultProductUnitForGroup(productUnit: ProductUnit) {
+    const groupCode = this.getVariantGroupCodeFromProductUnit(productUnit);
+    const siblingUnits = await this.productUnitRepository
+      .createQueryBuilder('productUnit')
+      .innerJoinAndSelect('productUnit.product', 'product')
+      .innerJoinAndSelect('productUnit.unit', 'unit')
+      .where('productUnit.isActive = :isActive', { isActive: true })
+      .andWhere('productUnit.allowDirectSale = :allowDirectSale', {
+        allowDirectSale: true,
+      })
+      .andWhere('product.isActive = :productIsActive', { productIsActive: true })
+      .andWhere('product.allowDirectSale = :productAllowDirectSale', {
+        productAllowDirectSale: true,
+      })
+      .andWhere(
+        '(product.variantGroupCode = :groupCode OR (product.variantGroupCode IS NULL AND product.productCode = :groupCode))',
+        { groupCode },
+      )
+      .getMany();
+
+    return this.pickDefaultUnitsForGroups(siblingUnits)[0] ?? productUnit;
+  }
+
   private toPosProductResponse(productUnit: ProductUnit) {
     return {
       id: productUnit.product.id,
@@ -1101,6 +1193,8 @@ export class PosService {
     return {
       productUnitId: productUnit.id,
       productId: productUnit.product.id,
+      productCode: productUnit.product.productCode,
+      productName: productUnit.product.name,
       unitId: productUnit.unit.id,
       unitName: productUnit.unit.name,
       barcode: productUnit.barcode ?? productUnit.product.barcode,
@@ -1345,6 +1439,52 @@ export class PosService {
     return map;
   }
 
+  private async syncVariantGroupProductUnits(rows: ImportProductRow[]) {
+    const groupCodes = [
+      ...new Set(rows.map((row) => row.variantGroupCode).filter(Boolean)),
+    ];
+
+    if (!groupCodes.length) {
+      return;
+    }
+
+    for (const chunk of this.chunkArray(groupCodes, 200)) {
+      const items = await this.productUnitRepository
+        .createQueryBuilder('productUnit')
+        .innerJoinAndSelect('productUnit.product', 'product')
+        .where(
+          '(product.variantGroupCode IN (:...groupCodes) OR product.productCode IN (:...groupCodes))',
+          { groupCodes: chunk },
+        )
+        .getMany();
+
+      const grouped = new Map<string, ProductUnit[]>();
+      for (const item of items) {
+        const groupCode =
+          item.product.variantGroupCode ?? item.product.productCode;
+        const current = grouped.get(groupCode) ?? [];
+        current.push(item);
+        grouped.set(groupCode, current);
+      }
+
+      for (const productUnits of grouped.values()) {
+        const sorted = [...productUnits].sort((left, right) =>
+          this.compareProductUnitsForDefault(left, right),
+        );
+
+        for (let index = 0; index < sorted.length; index += 1) {
+          const productUnit = sorted[index];
+          productUnit.isDefaultForPos = index === 0;
+          productUnit.isSmallestUnit =
+            Number(productUnit.conversionValue) ===
+            Number(sorted[0].conversionValue);
+        }
+      }
+
+      await this.productUnitRepository.save(items);
+    }
+  }
+
   private chunkArray<T>(items: T[], size: number) {
     const chunks: T[][] = [];
 
@@ -1386,6 +1526,22 @@ export class PosService {
     return trimmed ? trimmed : null;
   }
 
+  private resolveVariantGroupCode(input: {
+    productCode: string;
+    barcode: string | null;
+    relatedProductCode: string | null;
+    baseUnitCode: string | null;
+    productName: string;
+  }) {
+    return (
+      input.relatedProductCode ??
+      input.barcode ??
+      input.baseUnitCode ??
+      input.productCode ??
+      this.normalizeLookupKey(input.productName)
+    );
+  }
+
   private normalizeLookupKey(value: string) {
     return value.trim().toLocaleLowerCase('vi-VN');
   }
@@ -1406,6 +1562,62 @@ export class PosService {
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
+  // ── Category CRUD ──
+
+  async searchCategories(keyword?: string) {
+    if (!keyword || keyword.trim() === '') {
+      return this.categoryRepository.find({
+        order: { name: 'ASC' },
+      });
+    }
+
+    return this.categoryRepository
+      .createQueryBuilder('c')
+      .where('c.Name LIKE :keyword', { keyword: `%${keyword}%` })
+      .orderBy('c.Name', 'ASC')
+      .getMany();
+  }
+
+  async createCategory(data: { name: string; isActive?: boolean }) {
+    const category = this.categoryRepository.create({
+      name: data.name,
+      isActive: data.isActive ?? true,
+    });
+    return this.categoryRepository.save(category);
+  }
+
+  async updateCategory(
+    id: number,
+    data: { name?: string; isActive?: boolean },
+  ) {
+    const category = await this.categoryRepository.findOneBy({ id });
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    if (data.name !== undefined) category.name = data.name;
+    if (data.isActive !== undefined) category.isActive = data.isActive;
+
+    return this.categoryRepository.save(category);
+  }
+
+  async deleteCategory(id: number) {
+    const category = await this.categoryRepository.findOneBy({ id });
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    const productCount = await this.productRepository.countBy({ categoryId: id });
+    if (productCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete category with ${productCount} product(s) linked`,
+      );
+    }
+
+    await this.categoryRepository.remove(category);
+    return { deleted: true };
+  }
+
   private async generateSalesOrderCode(manager: DataSource['manager'], prefix: 'HD' | 'TH') {
     const latest = await manager.findOne(SalesOrder, {
       where: {},
@@ -1423,12 +1635,14 @@ type ImportProductRow = {
   productCode: string;
   barcode: string | null;
   productName: string;
+  variantGroupCode: string;
   salePrice: string;
   costPrice: string;
   stockOnHand: string;
   minStock: string;
   maxStock: string;
   unitName: string;
+  conversionValue: string;
   description: string | null;
   noteTemplate: string | null;
   location: string | null;

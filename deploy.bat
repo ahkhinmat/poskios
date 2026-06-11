@@ -1,70 +1,59 @@
 @echo off
-title POS Kiosk - Deploy
+setlocal EnableExtensions
+title KA MART - Deploy
 cd /D "%~dp0"
 
-echo ================================
-echo  POS Kiosk - Cap nhat code
-echo ================================
+set "APP_ROOT=%~dp0"
+set "NGINX_HOME=D:\nginx"
+set "NGINX_HTML=%NGINX_HOME%\html\poskios"
+set "BACKEND_ENTRY=%APP_ROOT%backend\dist\main.js"
 
-if not exist "backend\.env" (
-  echo.
-  echo  *** Canh bao: Thieu file backend\.env ***
-  echo  Tao file backend\.env:
-  echo.
-  echo  DB_HOST=localhost
-  echo  DB_USERNAME=sa
-  echo  DB_PASSWORD=matkhau
-  echo  DB_NAME=POS
-  echo.
+echo === KA MART - Deploy ===
+echo.
+echo Script nay dung cho may khach da co Node.js, PM2, Nginx va SQL Server.
+echo Khong can Git, npm install hay npm build tren may khach.
+echo.
+
+if not exist "%APP_ROOT%frontend\dist\index.html" (
+  echo Loi: Frontend chua duoc build: "%APP_ROOT%frontend\dist\index.html"
   pause
+  exit /b 1
 )
 
-echo [0/5] Copy frontend to Nginx...
-xcopy /y /s /e /q "%~dp0frontend\dist\*" D:\nginx\html\poskios\ >nul 2>&1
-
-echo [1/5] Pull code tu GitHub...
-git pull
-if %errorlevel% neq 0 (
-  echo Loi: Khong pull duoc code.
+if not exist "%BACKEND_ENTRY%" (
+  echo Loi: Backend chua duoc build: "%BACKEND_ENTRY%"
   pause
-  exit /b
+  exit /b 1
 )
 
-echo [2/5] Cai dependencies Backend...
-cd backend
-call npm install
-
-echo [3/5] Build Backend...
-call npx tsc
-if %errorlevel% neq 0 (
-  echo Loi: Build backend that bai.
+if not exist "%APP_ROOT%backend\.env" (
+  echo Loi: Thieu file backend\.env: "%APP_ROOT%backend\.env"
   pause
-  exit /b
+  exit /b 1
 )
 
-echo [4/5] Build Frontend...
-cd ..\frontend
-call npm install
-call npm run build
-if %errorlevel% neq 0 (
-  echo Loi: Build frontend that bai.
-  pause
-  exit /b
+if not exist "%NGINX_HTML%" (
+  mkdir "%NGINX_HTML%" >nul 2>nul
 )
 
-:: Copy frontend sau khi build
-xcopy /y /s /e /q "dist\*" D:\nginx\html\poskios\ >nul 2>&1
+echo [1/2] Copy frontend dist vao D:\nginx\html\poskios...
+xcopy /y /s /e /i /q "%APP_ROOT%frontend\dist\*" "%NGINX_HTML%\" >nul
+if errorlevel 1 (
+  echo Loi: Copy frontend that bai.
+  pause
+  exit /b 1
+)
 
-echo [5/5] Restart Backend...
-cd ..\
-taskkill /f /im node.exe 2>nul
-timeout /t 2 /nobreak >nul
-
-cd backend
-start /B "" npm run start:prod
+echo [2/2] Restart he thong...
+call "%APP_ROOT%start.bat" /silent
+if errorlevel 1 (
+  echo Loi: Khoi dong lai he thong that bai.
+  pause
+  exit /b 1
+)
 
 echo.
-echo ======== HOAN TAT ========
-echo Frontend: http://localhost
-echo.
+echo Deploy hoan tat.
 pause
+endlocal
+exit /b 0

@@ -1,3 +1,9 @@
+export type Category = {
+  id: number;
+  name: string;
+  isActive: boolean;
+};
+
 export type PosProduct = {
   id: number;
   productUnitId: number;
@@ -35,6 +41,8 @@ export type PosDraftItem = {
 export type PosProductUnitOption = {
   productUnitId: number;
   productId: number;
+  productCode: string;
+  productName: string;
   unitId: number;
   unitName: string;
   barcode: string | null;

@@ -14,22 +14,26 @@ import { Unit } from './modules/pos/entities/unit.entity';
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'mssql' as const,
-        host: configService.get<string>('DB_HOST', '10.22.10.22'),
-        port: configService.get<number>('DB_PORT', 1433),
-        username: configService.get<string>('DB_USERNAME', 'sa'),
-        password: configService.get<string>('DB_PASSWORD', 'abc1234!'),
-        database: configService.get<string>('DB_NAME', 'POS'),
-        options: {
-          encrypt: configService.get<string>('DB_ENCRYPT', 'false') === 'true',
-          trustServerCertificate:
-            configService.get<string>('DB_TRUST_CERT', 'true') === 'true',
-        },
-        synchronize: false,
-        autoLoadEntities: true,
-        entities: [Product, ProductUnit, Unit],
-      }),
+      useFactory: (configService: ConfigService) => {
+        const dbPort = Number(configService.get<string>('DB_PORT', '1433'));
+
+        return {
+          type: 'mssql' as const,
+          host: configService.get<string>('DB_HOST', '10.22.10.22'),
+          port: Number.isNaN(dbPort) ? 1433 : dbPort,
+          username: configService.get<string>('DB_USERNAME', 'sa'),
+          password: configService.get<string>('DB_PASSWORD', 'abc1234!'),
+          database: configService.get<string>('DB_NAME', 'POS'),
+          options: {
+            encrypt: configService.get<string>('DB_ENCRYPT', 'false') === 'true',
+            trustServerCertificate:
+              configService.get<string>('DB_TRUST_CERT', 'true') === 'true',
+          },
+          synchronize: false,
+          autoLoadEntities: true,
+          entities: [Product, ProductUnit, Unit],
+        };
+      },
     }),
     PosModule,
   ],

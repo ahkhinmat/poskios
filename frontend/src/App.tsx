@@ -12,6 +12,7 @@ import {
   Radio,
   Select,
   Spin,
+  Table,
   Tag,
   Typography,
   theme,
@@ -29,7 +30,9 @@ import {
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
+import { LANG } from './lang';
 import type {
+  Category,
   CheckoutResponse,
   InvoiceSearchItem,
   PosDraftItem,
@@ -60,10 +63,10 @@ type ProductUnitOptionsResponse = {
 };
 
 const paymentOptions = [
-  { label: 'Tiền mặt', value: 'CASH' },
-  { label: 'Chuyển khoản', value: 'BANK_TRANSFER' },
-  { label: 'Thẻ', value: 'CARD' },
-  { label: 'Ví', value: 'EWALLET' },
+  { label: LANG.cash, value: 'CASH' },
+  { label: LANG.bankTransfer, value: 'BANK_TRANSFER' },
+  { label: LANG.card, value: 'CARD' },
+  { label: LANG.ewallet, value: 'EWALLET' },
 ];
 
 type InvoiceSearchResponse = {
@@ -145,9 +148,18 @@ function PosPage() {
   );
   const [foundInvoices, setFoundInvoices] = useState<InvoiceSearchItem[]>([]);
   const [invoiceSearching, setInvoiceSearching] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryKeyword, setCategoryKeyword] = useState('');
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryFormOpen, setCategoryFormOpen] = useState(false);
+  const [categoryFormName, setCategoryFormName] = useState('');
+  const [categorySaving, setCategorySaving] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
   const searchInputRef = useRef<InputRef>(null);
   const searchKeywordRef = useRef('');
+  const saleListRef = useRef<HTMLDivElement>(null);
 
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.id === activeTabId) ?? null,
@@ -249,6 +261,12 @@ function PosPage() {
     }, 0);
   }
 
+  function scrollSaleListToTop() {
+    window.setTimeout(() => {
+      saleListRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 0);
+  }
+
   async function loadProductUnitOptions(productId: number) {
     if (productUnitOptionsMap[productId]) {
       return productUnitOptionsMap[productId];
@@ -259,10 +277,13 @@ function PosPage() {
     );
     const items = response.data.data.items;
 
-    setProductUnitOptionsMap((current) => ({
-      ...current,
-      [productId]: items,
-    }));
+    setProductUnitOptionsMap((current) => {
+      const nextMap = { ...current, [productId]: items };
+      for (const item of items) {
+        nextMap[item.productId] = items;
+      }
+      return nextMap;
+    });
 
     return items;
   }
@@ -278,6 +299,8 @@ function PosPage() {
       {
         productUnitId: item.productUnitId,
         productId: item.productId,
+        productCode: item.productCode,
+        productName: item.productName,
         unitId: item.unitId,
         unitName: item.unitName,
         barcode: item.barcode,
@@ -315,7 +338,7 @@ function PosPage() {
         setActiveTabId(created.id);
       }
     } catch {
-      message.error('Không tải được tab POS');
+      message.error(LANG.errLoadTab);
     } finally {
       setLoading(false);
     }
@@ -335,7 +358,7 @@ function PosPage() {
     title?: string,
     tabType: 'SALE' | 'RETURN' = 'SALE',
   ) {
-    const label = tabType === 'RETURN' ? 'Trả hàng' : 'Hóa đơn';
+    const label = tabType === 'RETURN' ? LANG.tabReturn : LANG.tabSale;
     const response = await api.post<ApiEnvelope<PosDraftTab>>('/pos/draft-tabs', {
       tabType,
       title: title ?? `${label} ${getNextTabNumber(tabs, label)}`,
@@ -378,7 +401,7 @@ function PosPage() {
         })),
       });
     } catch {
-      message.error('Không lưu được tab tạm');
+      message.error(LANG.errSaveTab);
     } finally {
       setSaving(false);
     }
@@ -390,13 +413,13 @@ function PosPage() {
       setTabs((current) => [...current, created]);
       setActiveTabId(created.id);
     } catch {
-      message.error(tabType === 'RETURN' ? 'Không tạo được tab trả hàng' : 'Không tạo được tab mới');
+      message.error(tabType === 'RETURN' ? LANG.errCreateReturnTab : LANG.errCreateTab);
     }
   }
 
   async function handleCloseTab(targetId: number) {
     if (tabs.length === 1) {
-      message.warning('Cần ít nhất một tab POS');
+      message.warning(LANG.warnNeedTab);
       return;
     }
 
@@ -408,7 +431,7 @@ function PosPage() {
         setActiveTabId(next?.id ?? null);
       }
     } catch {
-      message.error('Không đóng được tab');
+      message.error(LANG.errCloseTab);
     }
   }
 
@@ -461,11 +484,11 @@ function PosPage() {
       setHighlightedSearchIndex(items.length ? 0 : -1);
 
       if (notifyWhenEmpty && !items.length) {
-        message.error('Không tìm thấy sản phẩm');
+        message.error(LANG.errProductNotFound);
       }
     } catch {
       if (notifyWhenEmpty) {
-        message.error('Không tìm thấy sản phẩm');
+        message.error(LANG.errProductNotFound);
       }
     }
   }
@@ -477,7 +500,7 @@ function PosPage() {
     const hasToDate = !!invoiceToDate;
 
     if (!hasKeyword && !hasFromDate && !hasToDate) {
-      message.warning('Nhập thông tin tìm kiếm hoặc chọn khoảng ngày');
+      message.warning(LANG.searchInvoiceHint);
       return;
     }
 
@@ -498,10 +521,10 @@ function PosPage() {
       setFoundInvoices(response.data.data.items);
 
       if (!response.data.data.items.length) {
-        message.error('Không tìm thấy hóa đơn');
+        message.error(LANG.errInvoiceNotFound);
       }
     } catch {
-      message.error('Lỗi tra cứu hóa đơn');
+      message.error(LANG.errLoadInvoice);
     } finally {
       setInvoiceSearching(false);
     }
@@ -547,9 +570,9 @@ function PosPage() {
       setInvoiceFromDate(today);
       setInvoiceToDate(today);
 
-      message.success(`Đã tải hóa đơn ${data.salesOrderCode}`);
+      message.success(LANG.loadedInvoice(data.salesOrderCode));
     } catch {
-      message.error('Không tải được chi tiết hóa đơn');
+      message.error(LANG.errLoadInvoiceDetail);
     } finally {
       setInvoiceSearching(false);
     }
@@ -571,16 +594,18 @@ function PosPage() {
         );
 
         if (existingItem) {
-          const nextItems = tab.items.map((item) =>
-            item.productUnitId === product.productUnitId
-              ? {
-                  ...item,
-                  quantity: item.quantity + 1,
-                  lineTotal:
-                    (item.quantity + 1) * item.unitPrice - item.discountAmount,
-                }
-              : item,
-          );
+          const nextItems = [
+            {
+              ...existingItem,
+              quantity: existingItem.quantity + 1,
+              lineTotal:
+                (existingItem.quantity + 1) * existingItem.unitPrice -
+                existingItem.discountAmount,
+            },
+            ...tab.items.filter(
+              (item) => item.productUnitId !== product.productUnitId,
+            ),
+          ].map((item, index) => ({ ...item, sortOrder: index + 1 }));
           return { ...tab, items: nextItems };
         }
 
@@ -599,14 +624,21 @@ function PosPage() {
           discountAmount: 0,
           lineTotal: product.salePrice,
           note: null,
-          sortOrder: tab.items.length + 1,
+          sortOrder: 1,
         };
 
-        return { ...tab, items: [...tab.items, newItem] };
+        return {
+          ...tab,
+          items: [newItem, ...tab.items].map((item, index) => ({
+            ...item,
+            sortOrder: index + 1,
+          })),
+        };
       }),
     );
 
     setHighlightedSearchIndex(-1);
+    scrollSaleListToTop();
   }
 
   function updateActiveTab(patch: Partial<PosDraftTab>) {
@@ -655,15 +687,74 @@ function PosPage() {
       return;
     }
 
-    updateItem(item.productUnitId, {
-      productUnitId: nextUnit.productUnitId,
-      unitId: nextUnit.unitId,
-      unitName: nextUnit.unitName,
-      barcode: nextUnit.barcode,
-      conversionValue: nextUnit.conversionValue,
-      unitPrice: nextUnit.salePrice,
-      stockOnHand: nextUnit.stockOnHand,
-    });
+    if (!activeTab) {
+      return;
+    }
+
+    setTabs((current) =>
+      current.map((tab) => {
+        if (tab.id !== activeTab.id) {
+          return tab;
+        }
+
+        const existingTarget = tab.items.find(
+          (tabItem) =>
+            tabItem.productUnitId === nextUnit.productUnitId &&
+            tabItem.productUnitId !== item.productUnitId,
+        );
+
+        if (existingTarget) {
+          const mergedItems = tab.items
+            .filter((tabItem) => tabItem.productUnitId !== item.productUnitId)
+            .map((tabItem) => {
+              if (tabItem.productUnitId !== nextUnit.productUnitId) {
+                return tabItem;
+              }
+
+              const quantity = tabItem.quantity + item.quantity;
+              const discountAmount = tabItem.discountAmount + item.discountAmount;
+              return {
+                ...tabItem,
+                quantity,
+                discountAmount,
+                lineTotal: quantity * tabItem.unitPrice - discountAmount,
+              };
+            })
+            .map((tabItem, index) => ({ ...tabItem, sortOrder: index + 1 }));
+
+          return {
+            ...tab,
+            items: mergedItems,
+          };
+        }
+
+        return {
+          ...tab,
+          items: tab.items.map((tabItem) => {
+            if (tabItem.productUnitId !== item.productUnitId) {
+              return tabItem;
+            }
+
+            const nextItem = {
+              ...tabItem,
+              productId: nextUnit.productId,
+              productUnitId: nextUnit.productUnitId,
+              productCode: nextUnit.productCode,
+              productName: nextUnit.productName,
+              unitId: nextUnit.unitId,
+              unitName: nextUnit.unitName,
+              barcode: nextUnit.barcode,
+              conversionValue: nextUnit.conversionValue,
+              unitPrice: nextUnit.salePrice,
+              stockOnHand: nextUnit.stockOnHand,
+            };
+            nextItem.lineTotal =
+              nextItem.quantity * nextItem.unitPrice - nextItem.discountAmount;
+            return nextItem;
+          }),
+        };
+      }),
+    );
   }
 
   function removeItem(productUnitId: number) {
@@ -701,117 +792,151 @@ function PosPage() {
       const returnFee = activeTab.customerPaidAmount ?? 0;
       const refundAmount = Math.max(0, summary.subtotal - (activeTab.discountAmount ?? 0) - returnFee);
       const returnReceipt: ReturnReceiptData = {
-        storeName: 'KA MARK',
-        storeAddress: null,
-        storePhoneNumber: null,
+        storeName: LANG.storeNameReceipt,
+        storeAddress: LANG.storeAddress,
+        storePhoneNumber: LANG.storePhoneNumber,
         salesOrderCode: activeTab.title,
         soldAt: new Date().toISOString(),
-        cashierName: 'Thu ngân',
+        cashierName: LANG.cashier,
         items,
         subtotalAmount: summary.subtotal,
         discountAmount: activeTab.discountAmount,
         returnFeeAmount: returnFee,
         totalAmount: refundAmount,
         customerRefundAmount: refundAmount,
-        footerMessage: 'Hẹn gặp lại',
+        footerMessage: LANG.receiptFooter,
       };
       return returnReceipt;
     }
 
     const customerPaidAmount = summary.total;
     const saleReceipt: SaleReceiptData = {
-      storeName: 'KA MARK',
-      storeAddress: null,
-      storePhoneNumber: null,
+      storeName: LANG.storeNameReceipt,
+      storeAddress: LANG.storeAddress,
+      storePhoneNumber: LANG.storePhoneNumber,
       salesOrderCode: activeTab.title,
       soldAt: new Date().toISOString(),
-      cashierName: 'Thu ngân',
+      cashierName: LANG.cashier,
       items,
       subtotalAmount: summary.subtotal,
       discountAmount: activeTab.discountAmount,
       totalAmount: summary.total,
       customerPaidAmount,
       changeAmount: Math.max(0, customerPaidAmount - summary.total),
-      footerMessage: 'Hẹn gặp lại',
+      footerMessage: LANG.receiptFooter,
     };
     return saleReceipt;
   }
 
-  function handlePreviewReceipt() {
-    const draftReceipt = buildDraftReceipt();
+  function handlePrintReceipt(receiptSource?: ReceiptPreviewData | null) {
+    const receipt = receiptSource ?? receiptPreview;
 
-    if (!draftReceipt) {
-      message.warning('Gio hang dang trong');
-      return;
-    }
-
-    setReceiptPreview(draftReceipt);
-  }
-
-  function handlePrintReceipt() {
-    if (!receiptPreview) {
+    if (!receipt) {
       return;
     }
 
     const printWindow = window.open('', '_blank', 'width=420,height=720');
     if (!printWindow) {
-      message.error('Khong mo duoc cua so in');
+      message.error(LANG.errPrintWindow);
       return;
     }
+
+    const summaryRows = 'returnFeeAmount' in receipt
+      ? `
+          <div class="summary-row"><span>${LANG.receiptProductTotal}:</span><span>${receipt.subtotalAmount.toLocaleString('vi-VN')}</span></div>
+          <div class="summary-row"><span>${LANG.discount}:</span><span>${receipt.discountAmount.toLocaleString('vi-VN')}</span></div>
+          <div class="summary-row total"><span>${LANG.totalReturn}:</span><span>${receipt.totalAmount.toLocaleString('vi-VN')}</span></div>
+          <div class="summary-row"><span>${LANG.refund}:</span><span>${receipt.customerRefundAmount.toLocaleString('vi-VN')}</span></div>`
+      : `
+          <div class="summary-row"><span>${LANG.receiptProductTotal}:</span><span>${receipt.subtotalAmount.toLocaleString('vi-VN')}</span></div>
+          <div class="summary-row"><span>${LANG.discount}:</span><span>${receipt.discountAmount.toLocaleString('vi-VN')}</span></div>
+          <div class="summary-row total"><span>${LANG.totalPayment}:</span><span>${receipt.totalAmount.toLocaleString('vi-VN')}</span></div>`;
+
+    const itemsHtml = receipt.items
+      .map(
+        (item) => `
+          <div class="item">
+            <div class="item-name">${item.productName}</div>
+            <div class="item-row">
+              <div class="item-price">${item.unitPrice.toLocaleString('vi-VN')}</div>
+              <div class="item-qty">${item.quantity}</div>
+              <div class="item-total">${item.lineTotal.toLocaleString('vi-VN')}</div>
+            </div>
+          </div>
+        `,
+      )
+      .join('');
+
+    const soldAtText = new Date(receipt.soldAt)
+      .toLocaleString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+      .replace(',', '');
 
     printWindow.document.write(`
       <!doctype html>
       <html>
         <head>
-          <title>${receiptPreview.salesOrderCode}</title>
+          <meta charset="utf-8" />
+          <title>${receipt.salesOrderCode}</title>
           <style>
-            @page { size: 80mm auto; margin: 4mm; }
+            @page { size: 80mm auto; margin: 3mm; }
             * { box-sizing: border-box; }
-            body { width: 72mm; margin: 0; font-family: Arial, sans-serif; font-size: 12px; color: #111; }
+            html, body { margin: 0; padding: 0; width: 100%; font-family: Arial, sans-serif; color: #111; }
+            body { font-size: 10px; line-height: 1.25; }
+            .receipt { width: 74mm; margin: 0 auto; padding: 0 1mm; }
             .center { text-align: center; }
-            .store { font-size: 16px; font-weight: 700; }
-            .muted { color: #555; }
-            .line { border-top: 1px dashed #777; margin: 8px 0; }
-            .row { display: flex; justify-content: space-between; gap: 8px; }
-            .item { margin-bottom: 6px; }
-            .item-name { font-weight: 600; }
-            .total { font-size: 15px; font-weight: 700; }
+            .store { margin: 1mm 0 1.5mm; font-size: 16px; font-weight: 700; }
+            .subcenter { text-align: center; }
+            .header-title { margin: 2.5mm 0 1mm; font-size: 15px; font-weight: 700; }
+            .line { border-top: 1px solid #999; margin: 2mm 0; }
+            .table-head { display: grid; grid-template-columns: minmax(0, 1fr) 28px 72px; column-gap: 3mm; font-size: 10px; font-weight: 700; padding-bottom: 1mm; }
+            .table-head > :nth-child(2) { text-align: center; }
+            .table-head > :last-child { text-align: right; }
+            .item { margin-bottom: 1.8mm; padding-bottom: 1.8mm; border-bottom: 1px dashed #999; }
+            .item-name { font-size: 10px; font-weight: 400; word-break: break-word; }
+            .item-row { display: grid; grid-template-columns: minmax(0, 1fr) 28px 72px; column-gap: 3mm; margin-top: 0.8mm; }
+            .item-qty { text-align: center; }
+            .item-total { text-align: right; white-space: nowrap; }
+            .summary { margin-top: 5mm; }
+            .summary-row { display: grid; grid-template-columns: minmax(0, 1fr) 72px; column-gap: 3mm; margin-top: 0.8mm; font-size: 10px; }
+            .summary-row > :first-child { text-align: right; font-weight: 700; }
+            .summary-row > :last-child { text-align: right; white-space: nowrap; font-weight: 700; }
+            .summary-row:not(.total) > :first-child, .summary-row:not(.total) > :last-child { font-weight: 400; }
+            .summary-row.total { font-size: 11px; }
+            .footer { margin-top: 24mm; text-align: center; }
+            .footer-secondary { margin-top: 1mm; text-align: center; font-size: 10px; }
           </style>
         </head>
         <body>
-          <div class="center">
-            <div class="store">${receiptPreview.storeName}</div>
-            ${receiptPreview.storeAddress ? `<div>${receiptPreview.storeAddress}</div>` : ''}
-            ${receiptPreview.storePhoneNumber ? `<div>${receiptPreview.storePhoneNumber}</div>` : ''}
+          <div class="receipt">
+            <div class="center">
+              <div class="store">${LANG.storeNameReceipt}</div>
+              <div class="subcenter">${LANG.storeAddress}</div>
+              <div class="subcenter">${LANG.storePhoneNumber}</div>
+              <div class="header-title">${LANG.receiptTitle}</div>
+              <div class="subcenter">${LANG.receiptCode}: ${receipt.salesOrderCode}</div>
+              <div class="subcenter">${soldAtText}</div>
+            </div>
+            <div class="line"></div>
+            <div class="table-head">
+              <div>${LANG.receiptUnitPrice}</div>
+              <div>${LANG.receiptQty}</div>
+              <div>${LANG.receiptTotal}</div>
+            </div>
+            <div class="line"></div>
+            ${itemsHtml}
+            <div class="summary">
+              ${summaryRows}
+            </div>
+            <div class="footer">${LANG.receiptFooter}</div>
+            <div class="footer-secondary">${LANG.receiptPoweredBy}</div>
           </div>
-          <div class="line"></div>
-          <div class="row"><span>Hóa đơn</span><strong>${receiptPreview.salesOrderCode}</strong></div>
-          <div class="row"><span>Thu ngân</span><span>${receiptPreview.cashierName}</span></div>
-          <div class="row"><span>Ngày</span><span>${new Date(receiptPreview.soldAt).toLocaleString('vi-VN')}</span></div>
-          <div class="line"></div>
-          ${receiptPreview.items
-            .map(
-              (item) => `
-                <div class="item">
-                  <div class="item-name">${item.productName}</div>
-                  <div class="row muted">
-                    <span>${item.quantity} x ${item.unitPrice.toLocaleString('vi-VN')}</span>
-                    <span>${item.lineTotal.toLocaleString('vi-VN')}</span>
-                  </div>
-                </div>
-              `,
-            )
-            .join('')}
-          <div class="line"></div>
-          <div class="row"><span>Tiền hàng</span><span>${receiptPreview.subtotalAmount.toLocaleString('vi-VN')}</span></div>
-          <div class="row"><span>Giảm giá</span><span>${receiptPreview.discountAmount.toLocaleString('vi-VN')}</span></div>
-          ${'returnFeeAmount' in receiptPreview ? `<div class="row"><span>Phí trả hàng</span><span>${receiptPreview.returnFeeAmount.toLocaleString('vi-VN')}</span></div>` : ''}
-          <div class="row total"><span>${'returnFeeAmount' in receiptPreview ? 'Tổng trả' : 'Thanh toán'}</span><span>${receiptPreview.totalAmount.toLocaleString('vi-VN')}</span></div>
-          ${'customerRefundAmount' in receiptPreview
-            ? `<div class="row"><span>Hoàn tiền</span><span>${receiptPreview.customerRefundAmount.toLocaleString('vi-VN')}</span></div>`
-            : `<div class="row"><span>Khách đưa</span><span>${(receiptPreview).customerPaidAmount.toLocaleString('vi-VN')}</span></div><div class="row"><span>Tiền thối</span><span>${(receiptPreview).changeAmount.toLocaleString('vi-VN')}</span></div>`}
-          <div class="line"></div>
-          <div class="center">${receiptPreview.footerMessage ?? ''}</div>
           <script>
             window.onload = function() {
               window.print();
@@ -826,7 +951,7 @@ function PosPage() {
 
   async function handleCheckout() {
     if (!activeTab || !activeTab.items.length) {
-      message.warning('Giỏ hàng đang trống');
+      message.warning(LANG.emptyCartCheckout);
       return;
     }
 
@@ -855,7 +980,7 @@ function PosPage() {
           })),
         });
 
-        message.success(`Đã trả hàng - ${response.data.data.salesOrderCode}`);
+        message.success(LANG.returnCreated(response.data.data.salesOrderCode));
         setReceiptPreview(response.data.data.receiptData);
       } else {
         const response = await api.post<ApiEnvelope<CheckoutResponse>>('/pos/checkout', {
@@ -879,10 +1004,13 @@ function PosPage() {
           })),
         });
 
-        message.success(`Đã tạo ${response.data.data.salesOrderCode}`);
+        message.success(LANG.saleCreated(response.data.data.salesOrderCode));
         setReceiptPreview({
           ...response.data.data.receiptData,
-          storeName: 'KA MARK',
+          storeName: LANG.storeNameReceipt,
+          storeAddress: LANG.storeAddress,
+          storePhoneNumber: LANG.storePhoneNumber,
+          footerMessage: LANG.receiptFooter,
         });
       }
 
@@ -911,12 +1039,96 @@ function PosPage() {
         'message' in error.response.data
           ? String(error.response.data.message)
           : isReturnTab
-            ? 'Trả hàng thất bại'
-            : 'Thanh toán thất bại';
+            ? LANG.errReturnFailed
+            : LANG.errPaymentFailed;
       message.error(apiMessage);
     } finally {
       setCheckingOut(false);
     }
+  }
+
+  // ── Category CRUD ──
+
+  async function loadCategories(keyword?: string) {
+    setCategoryLoading(true);
+    try {
+      const params = keyword?.trim() ? `?keyword=${encodeURIComponent(keyword.trim())}` : '';
+      const res = await api.get<ApiEnvelope<Category[]>>(`/pos/categories${params}`);
+      setCategories(res.data.data);
+    } catch {
+      message.error('Không tải được danh mục');
+    } finally {
+      setCategoryLoading(false);
+    }
+  }
+
+  function openCategoryModal() {
+    setCategoryKeyword('');
+    setCategories([]);
+    setCategoryModalOpen(true);
+    void loadCategories();
+  }
+
+  function openCategoryForm(category?: Category) {
+    setEditingCategory(category ?? null);
+    setCategoryFormName(category?.name ?? '');
+    setCategoryFormOpen(true);
+  }
+
+  async function handleSaveCategory() {
+    const name = categoryFormName.trim();
+    if (!name) {
+      message.warning('Vui lòng nhập tên danh mục');
+      return;
+    }
+    setCategorySaving(true);
+    try {
+      if (editingCategory) {
+        await api.put<ApiEnvelope<Category>>(`/pos/categories/${editingCategory.id}`, { name });
+        message.success('Đã cập nhật danh mục');
+      } else {
+        await api.post<ApiEnvelope<Category>>('/pos/categories', { name });
+        message.success('Đã thêm danh mục');
+      }
+      setCategoryFormOpen(false);
+      setEditingCategory(null);
+      void loadCategories(categoryKeyword);
+    } catch {
+      message.error('Lỗi lưu danh mục');
+    } finally {
+      setCategorySaving(false);
+    }
+  }
+
+  async function handleDeleteCategory(category: Category) {
+    Modal.confirm({
+      title: LANG.confirmDelete,
+      content: `"${category.name}"`,
+      okText: LANG.deleteCategory,
+      okType: 'danger',
+      cancelText: LANG.cancel,
+      onOk: async () => {
+        try {
+          await api.delete(`/pos/categories/${category.id}`);
+          message.success('Đã xóa danh mục');
+          void loadCategories(categoryKeyword);
+        } catch (error: unknown) {
+          const apiMsg =
+            typeof error === 'object' &&
+            error !== null &&
+            'response' in error &&
+            typeof error.response === 'object' &&
+            error.response !== null &&
+            'data' in error.response &&
+            typeof error.response.data === 'object' &&
+            error.response.data !== null &&
+            'message' in error.response.data
+              ? String(error.response.data.message)
+              : 'Không xóa được danh mục';
+          message.error(apiMsg);
+        }
+      },
+    });
   }
 
   if (loading) {
@@ -938,7 +1150,7 @@ function PosPage() {
                 size="middle"
                 prefix={<SearchOutlined />}
                 suffix={searching ? <Spin size="small" /> : null}
-                placeholder="Quét mã vạch hoặc nhập mã hàng, tên hàng"
+                placeholder={LANG.placeholderSearch}
                 value={searchValue}
                 onChange={(event) => setSearchValue(event.target.value)}
                 onKeyDown={(event) => {
@@ -1000,7 +1212,7 @@ function PosPage() {
 
             <div className="topbar-actions">
               <Tag color={saving ? 'processing' : 'success'}>
-                {saving ? 'Đang lưu' : 'Đã đồng bộ'}
+                {saving ? LANG.saving : LANG.synced}
               </Tag>
             </div>
           </div>
@@ -1028,13 +1240,13 @@ function PosPage() {
                           focusSearchInput();
                         }}
                       >
-                        Chọn
+                        {LANG.select}
                       </Button>,
                     ]}
                   >
                     <List.Item.Meta
                       title={`${product.name} (${product.unitName})`}
-                      description={`${product.productCode} · Tồn ${product.stockOnHand.toLocaleString('vi-VN')} · ${product.salePrice.toLocaleString('vi-VN')} đ`}
+                      description={`${product.productCode} ${LANG.productUnitSep} ${LANG.stockLabel} ${product.stockOnHand.toLocaleString('vi-VN')} ${LANG.productUnitSep} ${product.salePrice.toLocaleString('vi-VN')}đ`}
                     />
                   </List.Item>
                 )}
@@ -1051,12 +1263,12 @@ function PosPage() {
                   size="small"
                   style={{ width: 120 }}
                   options={[
-                    { label: 'Số hóa đơn', value: 'code' },
-                    { label: 'Mã hàng', value: 'product' },
+                    { label: LANG.searchTypeInvoiceCode, value: 'code' },
+                    { label: LANG.searchTypeProductCode, value: 'product' },
                   ]}
                 />
                 <Input
-                  placeholder={invoiceSearchType === 'code' ? 'Nhập mã hóa đơn...' : 'Nhập mã hàng...'}
+                  placeholder={invoiceSearchType === 'code' ? LANG.placeholderInvoiceCode : LANG.placeholderProductCode}
                   value={invoiceSearchValue}
                   onChange={(e) => setInvoiceSearchValue(e.target.value)}
                   onPressEnter={() => void searchInvoice()}
@@ -1067,14 +1279,14 @@ function PosPage() {
                   loading={invoiceSearching}
                   onClick={() => void searchInvoice()}
                 >
-                  Tìm
+                  {LANG.searchBtn}
                 </Button>
               </div>
               <div className="return-search-row" style={{ marginTop: 6 }}>
                 <DatePicker.RangePicker
                   size="small"
                   style={{ flex: 1 }}
-                  placeholder={['Từ ngày', 'Đến ngày']}
+                  placeholder={[LANG.placeholderFromDate, LANG.placeholderToDate]}
                   format="DD/MM/YYYY"
                   defaultValue={[dayjs(), dayjs()]}
                   onChange={(dates) => {
@@ -1109,14 +1321,14 @@ function PosPage() {
                     </div>
                   ))}
                   <div className="found-invoice-note">
-                    Chọn hóa đơn để tải danh sách hàng cần trả, sau đó quét mã vạch ở ô tìm kiếm phía trên
+                    {LANG.foundInvoiceNote}
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          <div className="sale-list">
+          <div className="sale-list" ref={saleListRef}>
             {activeTab?.items.length ? (
               activeTab.items.map((item, index) => (
                 <div key={item.productUnitId} className="sale-row">
@@ -1209,14 +1421,14 @@ function PosPage() {
               ))
             ) : (
               <div className="empty-stage">
-                <Empty description="Chưa có sản phẩm trong tab này" />
+                <Empty description={LANG.emptyCart} />
               </div>
             )}
           </div>
 
           <div className="sale-footer">
             <Input
-              placeholder="Ghi chú đơn hàng"
+              placeholder={LANG.orderNote}
               value={activeTab?.note ?? ''}
               onChange={(event) => updateActiveTab({ note: event.target.value || null })}
             />
@@ -1228,7 +1440,7 @@ function PosPage() {
                   if (isReturnTab) { void handleCreateTab('SALE'); }
                 }}
               >
-                Bán hàng
+                {LANG.modeSale}
               </button>
               <button
                 type="button"
@@ -1237,14 +1449,28 @@ function PosPage() {
                   if (!isReturnTab) { void handleCreateTab('RETURN'); }
                 }}
               >
-                Trả hàng
+                {LANG.modeReturn}
               </button>
               <button
                 type="button"
                 className="sale-mode"
-                onClick={() => message.info('Chức năng đang phát triển')}
+                onClick={() => message.info(LANG.errFeatureDev)}
               >
-                Nhập hàng
+                {LANG.modeImport}
+              </button>
+              <button
+                type="button"
+                className="sale-mode"
+                onClick={openCategoryModal}
+              >
+                {LANG.modeCategory}
+              </button>
+              <button
+                type="button"
+                className="sale-mode"
+                onClick={() => message.info(LANG.errFeatureDev)}
+              >
+                {LANG.modeOverview}
               </button>
             </div>
           </div>
@@ -1252,18 +1478,18 @@ function PosPage() {
 
         <aside className="checkout-panel">
           <div className="checkout-header">
-            <div className="checkout-user">Thu ngân</div>
-            <div className="checkout-time">KA MARK</div>
+            <div className="checkout-user">{LANG.cashier}</div>
+            <div className="checkout-time">{LANG.storeNameSale}</div>
           </div>
 
           <Form layout="vertical" className="checkout-form">
-            <Form.Item label="Khách hàng">
+            <Form.Item label={LANG.customer}>
               <Input
                 value={activeTab?.customerName ?? ''}
                 onChange={(event) =>
                   updateActiveTab({ customerName: event.target.value || null })
                 }
-                placeholder="Tìm khách hàng"
+                placeholder={LANG.placeholderCustomer}
               />
             </Form.Item>
 
@@ -1271,11 +1497,11 @@ function PosPage() {
               {isReturnTab ? (
                 <>
                   <div className="summary-row">
-                    <Text>Tiền trả hàng</Text>
+                    <Text>{LANG.subtotalReturn}</Text>
                     <Text>{summary.subtotal.toLocaleString('vi-VN')}</Text>
                   </div>
                   <div className="summary-row">
-                    <Text>Giảm giá</Text>
+                    <Text>{LANG.discount}</Text>
                     <InputNumber
                       min={0}
                       controls={false}
@@ -1286,7 +1512,7 @@ function PosPage() {
                     />
                   </div>
                   <div className="summary-row">
-                    <Text>Phí trả hàng</Text>
+                    <Text>{LANG.returnFee}</Text>
                     <InputNumber
                       min={0}
                       controls={false}
@@ -1297,7 +1523,7 @@ function PosPage() {
                     />
                   </div>
                   <div className="summary-row summary-row-primary">
-                    <Text>Hoàn tiền</Text>
+                    <Text>{LANG.refund}</Text>
                     <Text>
                       {Math.max(0, summary.subtotal - (activeTab?.discountAmount ?? 0) - (activeTab?.customerPaidAmount ?? 0)).toLocaleString('vi-VN')}
                     </Text>
@@ -1306,11 +1532,11 @@ function PosPage() {
               ) : (
                 <>
                   <div className="summary-row">
-                    <Text>Tổng tiền hàng</Text>
+                    <Text>{LANG.subtotalSale}</Text>
                     <Text>{summary.subtotal.toLocaleString('vi-VN')}</Text>
                   </div>
                   <div className="summary-row">
-                    <Text>Giảm giá</Text>
+                    <Text>{LANG.discount}</Text>
                     <InputNumber
                       min={0}
                       controls={false}
@@ -1321,11 +1547,11 @@ function PosPage() {
                     />
                   </div>
                   <div className="summary-row summary-row-primary">
-                    <Text>Khách cần trả</Text>
+                    <Text>{LANG.customerPay}</Text>
                     <Text>{summary.total.toLocaleString('vi-VN')}</Text>
                   </div>
                   <div className="summary-row">
-                    <Text>Khách thanh toán</Text>
+                    <Text>{LANG.customerPaid}</Text>
                     <InputNumber
                       min={0}
                       controls={false}
@@ -1337,7 +1563,7 @@ function PosPage() {
               )}
             </div>
 
-            <Form.Item label="Phương thức thanh toán">
+            <Form.Item label={LANG.paymentMethod}>
               <Radio.Group
                 className="payment-methods"
                 value={activeTab?.paymentMethod ?? 'CASH'}
@@ -1356,8 +1582,11 @@ function PosPage() {
           </div>
 
           <div className="checkout-actions">
-            <Button className="print-button" onClick={handlePreviewReceipt}>
-              IN
+            <Button
+              className="print-button"
+              onClick={() => handlePrintReceipt(buildDraftReceipt())}
+            >
+              {LANG.print}
             </Button>
             {isReturnTab ? (
               <Button
@@ -1368,7 +1597,7 @@ function PosPage() {
                 loading={checkingOut}
                 onClick={() => void handleCheckout()}
               >
-                HOÀN TẤT TRẢ HÀNG
+                {LANG.completeReturn}
               </Button>
             ) : (
               <Button
@@ -1378,7 +1607,7 @@ function PosPage() {
                 loading={checkingOut}
                 onClick={() => void handleCheckout()}
               >
-                THANH TOÁN
+                {LANG.completePayment}
               </Button>
             )}
           </div>
@@ -1393,10 +1622,10 @@ function PosPage() {
         onCancel={() => setReceiptPreview(null)}
         footer={[
           <Button key="close" onClick={() => setReceiptPreview(null)}>
-            Đóng
+            {LANG.close}
           </Button>,
-          <Button key="print" type="primary" onClick={handlePrintReceipt}>
-            In hóa đơn
+          <Button key="print" type="primary" onClick={() => handlePrintReceipt()}>
+            {LANG.printInvoice}
           </Button>,
         ]}
         width={360}
@@ -1412,15 +1641,15 @@ function PosPage() {
             </div>
             <div className="receipt-dash" />
             <div className="receipt-row">
-              <span>Hóa đơn</span>
+              <span>{LANG.receiptInvoice}</span>
               <strong>{receiptPreview.salesOrderCode}</strong>
             </div>
             <div className="receipt-row">
-              <span>Thu ngân</span>
+              <span>{LANG.cashier}</span>
               <span>{receiptPreview.cashierName}</span>
             </div>
             <div className="receipt-row">
-              <span>Ngày</span>
+              <span>{LANG.receiptDate}</span>
               <span>{new Date(receiptPreview.soldAt).toLocaleString('vi-VN')}</span>
             </div>
             <div className="receipt-dash" />
@@ -1437,36 +1666,36 @@ function PosPage() {
             ))}
             <div className="receipt-dash" />
             <div className="receipt-row">
-              <span>Tiền hàng</span>
+              <span>{LANG.receiptProductTotal}</span>
               <span>{receiptPreview.subtotalAmount.toLocaleString('vi-VN')}</span>
             </div>
             <div className="receipt-row">
-              <span>Giảm giá</span>
+              <span>{LANG.discount}</span>
               <span>{receiptPreview.discountAmount.toLocaleString('vi-VN')}</span>
             </div>
             {'returnFeeAmount' in receiptPreview && (
               <div className="receipt-row">
-                <span>Phí trả hàng</span>
+                <span>{LANG.returnFee}</span>
                 <span>{receiptPreview.returnFeeAmount.toLocaleString('vi-VN')}</span>
               </div>
             )}
             <div className="receipt-row receipt-total">
-              <span>{'returnFeeAmount' in receiptPreview ? 'Tổng trả' : 'Thanh toán'}</span>
+              <span>{'returnFeeAmount' in receiptPreview ? LANG.totalReturn : LANG.totalPayment}</span>
               <span>{receiptPreview.totalAmount.toLocaleString('vi-VN')}</span>
             </div>
             {'customerRefundAmount' in receiptPreview ? (
               <div className="receipt-row">
-                <span>Hoàn tiền</span>
+                <span>{LANG.refund}</span>
                 <span>{receiptPreview.customerRefundAmount.toLocaleString('vi-VN')}</span>
               </div>
             ) : (
               <>
                 <div className="receipt-row">
-                  <span>Khách đưa</span>
+                  <span>{LANG.customerGiven}</span>
                   <span>{(receiptPreview as SaleReceiptData).customerPaidAmount.toLocaleString('vi-VN')}</span>
                 </div>
                 <div className="receipt-row">
-                  <span>Tiền thối</span>
+                  <span>{LANG.changeAmount}</span>
                   <span>{(receiptPreview as SaleReceiptData).changeAmount.toLocaleString('vi-VN')}</span>
                 </div>
               </>
@@ -1476,6 +1705,107 @@ function PosPage() {
           </div>
         )}
       </Modal>
+
+      {/* ── Category Manager Modal ── */}
+      <Modal
+        title={LANG.categoryTitle}
+        open={categoryModalOpen}
+        onCancel={() => setCategoryModalOpen(false)}
+        footer={null}
+        width={640}
+      >
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <Input.Search
+            placeholder={LANG.searchCategories}
+            allowClear
+            value={categoryKeyword}
+            onChange={(e) => setCategoryKeyword(e.target.value)}
+            onSearch={(value) => {
+              setCategoryKeyword(value);
+              void loadCategories(value);
+            }}
+            style={{ flex: 1 }}
+          />
+          <Button type="primary" onClick={() => openCategoryForm()}>
+            {LANG.addCategory}
+          </Button>
+        </div>
+
+        <Table
+          dataSource={categories}
+          rowKey="id"
+          loading={categoryLoading}
+          locale={{ emptyText: LANG.noCategoriesFound }}
+          pagination={false}
+          columns={[
+            {
+              title: LANG.categoryName,
+              dataIndex: 'name',
+              key: 'name',
+            },
+            {
+              title: 'Trạng thái',
+              dataIndex: 'isActive',
+              key: 'isActive',
+              width: 100,
+              render: (isActive: boolean) =>
+                isActive ? (
+                  <Tag color="green">Hoạt động</Tag>
+                ) : (
+                  <Tag color="red">Ngưng</Tag>
+                ),
+            },
+            {
+              title: LANG.categoryActions,
+              key: 'actions',
+              width: 160,
+              render: (_: unknown, record: Category) => (
+                <span style={{ display: 'flex', gap: 8 }}>
+                  <Button
+                    size="small"
+                    onClick={() => openCategoryForm(record)}
+                  >
+                    {LANG.editCategory}
+                  </Button>
+                  <Button
+                    size="small"
+                    danger
+                    onClick={() => void handleDeleteCategory(record)}
+                  >
+                    {LANG.deleteCategory}
+                  </Button>
+                </span>
+              ),
+            },
+          ]}
+        />
+
+        <Modal
+          title={editingCategory ? LANG.editCategory : LANG.addCategory}
+          open={categoryFormOpen}
+          onCancel={() => {
+            setCategoryFormOpen(false);
+            setEditingCategory(null);
+          }}
+          onOk={() => void handleSaveCategory()}
+          confirmLoading={categorySaving}
+          okText={LANG.saveCategory}
+          cancelText={LANG.cancel}
+          destroyOnClose
+        >
+          <div style={{ marginTop: 16 }}>
+            <div style={{ marginBottom: 4, fontWeight: 500 }}>{LANG.categoryName}</div>
+            <Input
+              value={categoryFormName}
+              onChange={(e) => setCategoryFormName(e.target.value)}
+              placeholder="Nhập tên danh mục"
+              onPressEnter={() => void handleSaveCategory()}
+              autoFocus
+            />
+          </div>
+        </Modal>
+      </Modal>
     </div>
   );
 }
+

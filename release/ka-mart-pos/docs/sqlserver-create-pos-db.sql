@@ -1,0 +1,7 @@
+IF DB_ID(N'POS') IS NULL
+BEGIN
+    CREATE DATABASE [POS];
+END;
+GO
+
+PRINT N'Database POS da san sang.';

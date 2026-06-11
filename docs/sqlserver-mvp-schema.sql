@@ -121,6 +121,7 @@ CREATE TABLE dbo.Products (
     ProductCode NVARCHAR(50) NOT NULL,
     Barcode NVARCHAR(50) NULL,
     Name NVARCHAR(255) NOT NULL,
+    VariantGroupCode NVARCHAR(100) NULL,
     CostPrice DECIMAL(18,2) NOT NULL CONSTRAINT DF_Products_CostPrice DEFAULT (0),
     SalePrice DECIMAL(18,2) NOT NULL CONSTRAINT DF_Products_SalePrice DEFAULT (0),
     StockOnHand DECIMAL(18,3) NOT NULL CONSTRAINT DF_Products_StockOnHand DEFAULT (0),
@@ -442,6 +443,10 @@ WHERE Code IS NOT NULL;
 GO
 
 CREATE INDEX IX_Products_Name ON dbo.Products (Name);
+GO
+
+CREATE INDEX IX_Products_VariantGroupCode
+ON dbo.Products (VariantGroupCode);
 GO
 
 CREATE INDEX IX_ProductUnits_ProductId_IsActive

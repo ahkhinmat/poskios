@@ -161,6 +161,56 @@ export class PosController {
     };
   }
 
+  // ── Category CRUD ──
+
+  @Get('categories')
+  async searchCategories(@Query('keyword') keyword?: string) {
+    const data = await this.posService.searchCategories(keyword);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Post('categories')
+  async createCategory(@Body() body: { name: string; isActive?: boolean }) {
+    const data = await this.posService.createCategory(body);
+
+    return {
+      success: true,
+      message: 'Category created',
+      data,
+    };
+  }
+
+  @Put('categories/:id')
+  async updateCategory(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { name?: string; isActive?: boolean },
+  ) {
+    const data = await this.posService.updateCategory(id, body);
+
+    return {
+      success: true,
+      message: 'Category updated',
+      data,
+    };
+  }
+
+  @Delete('categories/:id')
+  @HttpCode(HttpStatus.OK)
+  async deleteCategory(@Param('id', ParseIntPipe) id: number) {
+    const data = await this.posService.deleteCategory(id);
+
+    return {
+      success: true,
+      message: 'Category deleted',
+      data,
+    };
+  }
+
   private resolveUserId(userIdHeader?: string) {
     const parsed = Number(userIdHeader);
 
