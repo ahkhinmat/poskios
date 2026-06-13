@@ -1847,13 +1847,11 @@ export class PosService {
     const purchaseOrders = await this.purchaseOrderRepository.find({
       where: { isActive: true },
       order: { orderedAt: 'DESC', id: 'DESC' },
-      take: 200,
     });
 
     const salesOrders = await this.salesOrderRepository.find({
       where: { isActive: true },
       order: { soldAt: 'DESC', id: 'DESC' },
-      take: 200,
     });
 
     const purchaseItems = await this.purchaseOrderItemRepository.find({

@@ -40,7 +40,7 @@ export const LANG = {
   overviewFilterType: 'Lo\u1ea1i phi\u1ebfu',
   overviewTotalValue: 'T\u1ed5ng ti\u1ec1n h\u00e0ng',
   overviewTotalRecords: 'T\u1ed5ng s\u1ed1 phi\u1ebfu',
-  overviewGrossProfit: 'T\u1ed5ng l\u1ee3i nhu\u1eadn g\u1ed9p',
+  overviewGrossProfit: 'L\u1ee3i nhu\u1eadn',
   overviewTotalDiscount: 'T\u1ed5ng gi\u1ea3m gi\u00e1',
   overviewTotalCost: 'T\u1ed5ng gi\u00e1 v\u1ed1n',
   overviewTotalRevenue: 'T\u1ed5ng doanh thu',

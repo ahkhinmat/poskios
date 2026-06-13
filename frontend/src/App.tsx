@@ -134,8 +134,8 @@ function PosPage() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewRecords, setOverviewRecords] = useState<OverviewRecord[]>([]);
   const [overviewDetail, setOverviewDetail] = useState<OverviewDetail | null>(null);
-  const [overviewFromDate, setOverviewFromDate] = useState(new Date().toISOString().slice(0, 10));
-  const [overviewToDate, setOverviewToDate] = useState(new Date().toISOString().slice(0, 10));
+  const [overviewFromDate, setOverviewFromDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [overviewToDate, setOverviewToDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [overviewRecordTypeFilter, setOverviewRecordTypeFilter] = useState<'ALL' | 'SALE' | 'RETURN' | 'PURCHASE'>('SALE');
   const showProfit = overviewRecordTypeFilter === 'ALL' || overviewRecordTypeFilter === 'SALE';
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -528,13 +528,13 @@ function PosPage() {
     await handleCreateTab(tabType);
   }
 
-  async function loadOverview(selectRecord = true) {
+  async function loadOverview(selectRecord = true, fromDate?: string, toDate?: string) {
     setOverviewLoading(true);
     try {
       const response = await api.get<ApiEnvelope<{ items: OverviewRecord[] }>>('/pos/overview', {
         params: {
-          fromDate: overviewFromDate,
-          toDate: overviewToDate,
+          fromDate: fromDate ?? overviewFromDate,
+          toDate: toDate ?? overviewToDate,
         },
       });
       const items = response.data.data.items;
@@ -1437,21 +1437,21 @@ function PosPage() {
                   <DatePicker
                     value={dayjs(overviewFromDate)}
                     format="DD/MM/YYYY"
-                    onChange={(date) =>
-                      setOverviewFromDate(
-                        date ? date.format('YYYY-MM-DD') : new Date().toISOString().slice(0, 10),
-                      )
-                    }
+                    onChange={(date) => {
+                      const v = date ? date.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+                      setOverviewFromDate(v);
+                      void loadOverview(false, v, undefined);
+                    }}
                   />
                   <span>{LANG.overviewToDate}</span>
                   <DatePicker
                     value={dayjs(overviewToDate)}
                     format="DD/MM/YYYY"
-                    onChange={(date) =>
-                      setOverviewToDate(
-                        date ? date.format('YYYY-MM-DD') : new Date().toISOString().slice(0, 10),
-                      )
-                    }
+                    onChange={(date) => {
+                      const v = date ? date.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+                      setOverviewToDate(v);
+                      void loadOverview(false, undefined, v);
+                    }}
                   />
                   <Button type="primary" onClick={() => void loadOverview()}>
                     {LANG.overviewRefresh}

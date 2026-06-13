@@ -252,7 +252,7 @@ button {
 .overview-grid-head,
 .overview-grid-foot {
   display: grid;
-  grid-template-columns: minmax(70px, 1fr) minmax(88px, 1fr) repeat(5, minmax(50px, 1fr));
+  grid-template-columns: minmax(105px, 1fr) minmax(88px, 1fr) repeat(5, minmax(50px, 1fr));
   gap: 4px;
   padding: 4px 6px;
   flex-shrink: 0;
@@ -276,7 +276,7 @@ button {
 
 .overview-grid-row {
   display: grid;
-  grid-template-columns: minmax(70px, 1fr) minmax(88px, 1fr) repeat(5, minmax(50px, 1fr));
+  grid-template-columns: minmax(105px, 1fr) minmax(88px, 1fr) repeat(5, minmax(50px, 1fr));
   gap: 4px;
   padding: 5px 6px;
   border: 1px solid #d7dfeb;
@@ -393,7 +393,7 @@ button {
 .overview-grid-hide-profit.overview-grid-head,
 .overview-grid-hide-profit.overview-grid-row,
 .overview-grid-hide-profit.overview-grid-foot {
-  grid-template-columns: minmax(70px, 1fr) minmax(88px, 1fr) repeat(4, minmax(50px, 1fr));
+  grid-template-columns: minmax(105px, 1fr) minmax(88px, 1fr) repeat(4, minmax(50px, 1fr));
 }
 
 .sale-list {
