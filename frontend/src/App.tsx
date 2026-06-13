@@ -35,17 +35,15 @@ import dayjs from 'dayjs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
 import { LANG } from './lang';
-import { CategoryManager } from './components/CategoryManager';
 import { ReceiptModal } from './components/ReceiptModal';
+import { ProductManager } from './components/ProductManager';
 import { extractApiErrorMessage } from './utils/error';
 import { formatPurchaseDate } from './utils/format';
 import { createDefaultPurchaseMeta, getNextTabNumber } from './utils/purchase';
 import type {
   ApiEnvelope,
-  Category,
   CheckoutResponse,
   DraftTabsResponse,
-  InvoiceItemData,
   InvoiceItemsResponse,
   InvoiceSearchItem,
   InvoiceSearchResponse,
@@ -128,7 +126,7 @@ function PosPage() {
   );
   const [foundInvoices, setFoundInvoices] = useState<InvoiceSearchItem[]>([]);
   const [invoiceSearching, setInvoiceSearching] = useState(false);
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [productManagerOpen, setProductManagerOpen] = useState(false);
   const [purchaseMetaMap, setPurchaseMetaMap] = useState<Record<number, PurchaseMeta>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
@@ -375,13 +373,7 @@ function PosPage() {
     try {
       const response = await api.get<ApiEnvelope<DraftTabsResponse>>('/pos/draft-tabs');
       const loadedTabs = response.data.data.items;
-      const hydratedTabs = loadedTabs.map((tab) => ({
-        ...tab,
-        items: tab.items.map((item) => ({
-          ...item,
-          stockOnHand: 0,
-        })),
-      }));
+      const hydratedTabs = loadedTabs;
 
       if (hydratedTabs.length) {
         setTabs(hydratedTabs);
@@ -522,20 +514,18 @@ function PosPage() {
     }
   }
 
-  async function ensureSaleTab() {
+  async function ensureTabOfType(tabType: 'SALE' | 'RETURN' | 'PURCHASE') {
     setCurrentView('POS');
 
-    if (activeTab?.tabType === 'SALE') {
+    if (activeTab?.tabType === tabType) return;
+
+    const existing = tabs.find((tab) => tab.tabType === tabType);
+    if (existing) {
+      setActiveTabId(existing.id);
       return;
     }
 
-    const existingSaleTab = tabs.find((tab) => tab.tabType === 'SALE');
-    if (existingSaleTab) {
-      setActiveTabId(existingSaleTab.id);
-      return;
-    }
-
-    await handleCreateTab('SALE');
+    await handleCreateTab(tabType);
   }
 
   async function loadOverview(selectRecord = true) {
@@ -570,12 +560,26 @@ function PosPage() {
     }
   }
 
+  const [closeTabTarget, setCloseTabTarget] = useState<number | null>(null);
+
   async function handleCloseTab(targetId: number) {
     if (tabs.length === 1) {
       message.warning(LANG.warnNeedTab);
       return;
     }
 
+    const target = tabs.find((t) => t.id === targetId);
+    if (!target) return;
+
+    if (target.items.length) {
+      setCloseTabTarget(targetId);
+      return;
+    }
+
+    await doDeleteTab(targetId);
+  }
+
+  async function doDeleteTab(targetId: number) {
     try {
       await api.delete(`/pos/draft-tabs/${targetId}`);
       setTabs((current) => current.filter((tab) => tab.id !== targetId));
@@ -1309,8 +1313,8 @@ function PosPage() {
     }
   }
 
-  function openCategoryModal() {
-    setCategoryModalOpen(true);
+  function openProductManager() {
+    setProductManagerOpen(true);
   }
 
   function handleOpenOverview() {
@@ -1340,7 +1344,7 @@ function PosPage() {
 
   return (
     <div className="pos-shell">
-      <div className="pos-grid">
+      <div className={`pos-grid${currentView !== 'OVERVIEW' ? ' pos-grid-sale-mode' : ''}`}>
         <section className="sale-stage">
           <div className="sale-topbar">
             <div className="search-box">
@@ -1485,22 +1489,22 @@ function PosPage() {
               <div className="sale-footer">
                 <div className="sale-modes">
                   <Tooltip title={LANG.modeSaleTip}>
-                    <button type="button" className="sale-mode" onClick={() => { void ensureSaleTab(); }}>
+                    <button type="button" className="sale-mode" onClick={async () => { await ensureTabOfType('SALE'); focusSearchInput(); }}>
                       {LANG.modeSale}
                     </button>
                   </Tooltip>
                   <Tooltip title={LANG.modeReturnTip}>
-                    <button type="button" className="sale-mode" onClick={() => { setCurrentView('POS'); void handleCreateTab('RETURN'); }}>
+                    <button type="button" className="sale-mode" onClick={() => { void ensureTabOfType('RETURN'); }}>
                       {LANG.modeReturn}
                     </button>
                   </Tooltip>
                   <Tooltip title={LANG.modeImportTip}>
-                    <button type="button" className="sale-mode" onClick={() => { setCurrentView('POS'); void handleCreateTab('PURCHASE'); }}>
+                    <button type="button" className="sale-mode" onClick={() => { void ensureTabOfType('PURCHASE'); }}>
                       {LANG.modeImport}
                     </button>
                   </Tooltip>
                   <Tooltip title={LANG.modeCategoryTip}>
-                    <button type="button" className="sale-mode" onClick={openCategoryModal}>
+                    <button type="button" className="sale-mode" onClick={openProductManager}>
                       {LANG.modeCategory}
                     </button>
                   </Tooltip>
@@ -1895,42 +1899,34 @@ function PosPage() {
                 <button
                   type="button"
                   className={`sale-mode ${!isReturnTab && !isPurchaseTab ? 'is-active' : ''}`}
-                  onClick={() => {
-                    void ensureSaleTab();
-                  }}
+                  onClick={async () => { await ensureTabOfType('SALE'); focusSearchInput(); }}
                 >
                   {LANG.modeSale}
                 </button>
               </Tooltip>
               <Tooltip title={LANG.modeReturnTip}>
-                <button
-                  type="button"
-                  className={`sale-mode ${isReturnTab ? 'is-active' : ''}`}
-                  onClick={() => {
-                    if (!isReturnTab) { void handleCreateTab('RETURN'); }
-                  }}
-                >
-                  {LANG.modeReturn}
-                </button>
-              </Tooltip>
-              <Tooltip title={LANG.modeImportTip}>
-                <button
-                  type="button"
-                  className={`sale-mode ${isPurchaseTab ? 'is-active' : ''}`}
-                  onClick={() => {
-                    if (!isPurchaseTab) {
-                      void handleCreateTab('PURCHASE');
-                    }
-                  }}
-                >
-                  {LANG.modeImport}
-                </button>
+                  <button
+                    type="button"
+                    className={`sale-mode ${isReturnTab ? 'is-active' : ''}`}
+                    onClick={() => { if (!isReturnTab) void ensureTabOfType('RETURN'); }}
+                  >
+                    {LANG.modeReturn}
+                  </button>
+                </Tooltip>
+                <Tooltip title={LANG.modeImportTip}>
+                  <button
+                    type="button"
+                    className={`sale-mode ${isPurchaseTab ? 'is-active' : ''}`}
+                    onClick={() => { if (!isPurchaseTab) void ensureTabOfType('PURCHASE'); }}
+                  >
+                    {LANG.modeImport}
+                  </button>
               </Tooltip>
               <Tooltip title={LANG.modeCategoryTip}>
                 <button
                   type="button"
                   className="sale-mode"
-                  onClick={openCategoryModal}
+onClick={openProductManager}
                 >
                   {LANG.modeCategory}
                 </button>
@@ -1975,6 +1971,7 @@ function PosPage() {
               </div>
               <div className={`overview-grid-head${showProfit ? '' : ' overview-grid-hide-profit'}`}>
                 <div className="overview-grid-cell">{LANG.overviewHeaderCode}</div>
+                <div className="overview-grid-cell">{LANG.overviewHeaderTime}</div>
                 <div className="overview-grid-cell">{LANG.overviewHeaderTotal}</div>
                 <div className="overview-grid-cell">{LANG.overviewHeaderDiscount}</div>
                 <div className="overview-grid-cell">{LANG.overviewHeaderCost}</div>
@@ -1995,6 +1992,7 @@ function PosPage() {
                       </span>
                       {record.code}
                     </div>
+                    <div className="overview-grid-cell">{dayjs(record.eventAt).format('DD/MM/YYYY HH:mm')}</div>
                     <div className="overview-grid-cell">{record.subtotalAmount.toLocaleString('vi-VN')}</div>
                     <div className={`overview-grid-cell${record.discountAmount > 0 ? ' has-discount' : ''}`}>{record.discountAmount.toLocaleString('vi-VN')}</div>
                     <div className="overview-grid-cell">{record.costAmount.toLocaleString('vi-VN')}</div>
@@ -2009,6 +2007,7 @@ function PosPage() {
               </div>
               <div className={`overview-grid-foot${showProfit ? '' : ' overview-grid-hide-profit'}`}>
                 <div className="overview-grid-cell overview-grid-foot-label">{LANG.overviewTotalValue}</div>
+                <div className="overview-grid-cell overview-grid-foot-val"></div>
                 <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalAmount.toLocaleString('vi-VN')}</div>
                 <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalDiscount.toLocaleString('vi-VN')}</div>
                 <div className="overview-grid-cell overview-grid-foot-val">{Math.round(overviewTotalCost).toLocaleString('vi-VN')}</div>
@@ -2316,13 +2315,40 @@ function PosPage() {
         </aside>
       </div>
 
+      <Modal
+        title={LANG.closeTab}
+        open={closeTabTarget != null}
+        onCancel={() => setCloseTabTarget(null)}
+        footer={[
+          <Button key="cancel" onClick={() => setCloseTabTarget(null)}>
+            {LANG.cancel}
+          </Button>,
+          <Button key="pay" type="primary" onClick={() => {
+            setActiveTabId(closeTabTarget!);
+            setCloseTabTarget(null);
+          }}>
+            {LANG.closeTabPay}
+          </Button>,
+          <Button key="discard" danger onClick={async () => {
+            const id = closeTabTarget;
+            setCloseTabTarget(null);
+            if (id != null) await doDeleteTab(id);
+          }}>
+            {LANG.closeTabDiscard} <WarningOutlined />
+          </Button>,
+        ]}
+        destroyOnClose
+      >
+        {LANG.closeTabUnsaved}
+      </Modal>
+
       <ReceiptModal
         receiptPreview={receiptPreview}
         onClose={() => setReceiptPreview(null)}
         onPrint={handlePrintReceipt}
       />
 
-      <CategoryManager open={categoryModalOpen} onClose={() => setCategoryModalOpen(false)} />
+      <ProductManager open={productManagerOpen} onClose={() => setProductManagerOpen(false)} />
 
       <Modal
         title={LANG.overviewTitle}

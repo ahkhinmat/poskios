@@ -295,6 +295,33 @@ export type ReturnReceiptData = ReturnCheckoutResponse['receiptData'];
 export type PurchaseReceiptData = PurchaseCheckoutResponse['receiptData'];
 export type ReceiptPreviewData = SaleReceiptData | ReturnReceiptData | PurchaseReceiptData;
 
+export type ManageProductUnit = {
+  id: number;
+  unitId: number;
+  unitName: string;
+  barcode: string | null;
+  conversionValue: number;
+  costPrice: number;
+  salePrice: number;
+  isDefaultForPos: boolean;
+  isActive: boolean;
+};
+
+export type ManageProduct = {
+  id: number;
+  productCode: string;
+  barcode: string | null;
+  name: string;
+  categoryId: number;
+  costPrice: number;
+  salePrice: number;
+  stockOnHand: number;
+  isActive: boolean;
+  allowDirectSale: boolean;
+  units: ManageProductUnit[];
+  defaultUnitName: string;
+};
+
 export type PurchaseMeta = {
   importDate: string;
   purchaseOrderCode: string;

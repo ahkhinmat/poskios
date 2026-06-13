@@ -7,6 +7,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, In, Repository } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { CreatePosDraftTabDto } from './dto/create-pos-draft-tab.dto';
+import { CreateProductDto } from './dto/create-product.dto';
 import { PosCheckoutDto } from './dto/pos-checkout.dto';
 import { PurchaseCheckoutDto } from './dto/purchase-checkout.dto';
 import { PosDraftItemDto } from './dto/pos-draft-item.dto';
@@ -14,6 +15,7 @@ import { ResolvePosProductQueryDto } from './dto/resolve-pos-product-query.dto';
 import { ReturnCheckoutDto } from './dto/return-checkout.dto';
 import { SearchPosProductsQueryDto } from './dto/search-pos-products-query.dto';
 import { UpdatePosDraftTabDto } from './dto/update-pos-draft-tab.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { Category } from './entities/category.entity';
 import { InventoryTransaction } from './entities/inventory-transaction.entity';
 import { PosDraftTabItem } from './entities/pos-draft-tab-item.entity';
@@ -1218,24 +1220,36 @@ export class PosService {
 
   async listDraftTabs(userId: number) {
     const tabs = await this.posDraftTabRepository.find({
-      where: {
-        createdByUserId: userId,
-        isActive: true,
-      },
-      relations: {
-        items: true,
-      },
+      where: { createdByUserId: userId, isActive: true },
+      relations: { items: true },
       order: {
         lastTouchedAt: 'DESC',
-        items: {
-          sortOrder: 'ASC',
-        },
+        items: { sortOrder: 'ASC' },
       },
     });
 
+    const stockMap = await this.buildStockMapForTabs(tabs);
+
     return {
-      items: tabs.map((tab) => this.toDraftTabResponse(tab)),
+      items: tabs.map((tab) => this.toDraftTabResponse(tab, stockMap)),
     };
+  }
+
+  private async buildStockMapForTabs(tabs: PosDraftTab[]): Promise<Map<number, number>> {
+    const allIds = new Set<number>();
+    for (const tab of tabs) {
+      for (const item of tab.items ?? []) {
+        allIds.add(item.productId);
+      }
+    }
+    if (!allIds.size) return new Map();
+    // Fetch product IDs only – lightweight query
+    const ids = [...allIds];
+    const products = await this.productRepository.find({
+      where: { id: In(ids) },
+      select: { id: true, stockOnHand: true },
+    });
+    return new Map(products.map((p) => [p.id, Number(p.stockOnHand)]));
   }
 
   async createDraftTab(userId: number, payload: CreatePosDraftTabDto) {
@@ -1264,7 +1278,8 @@ export class PosService {
     }
 
     const draftTab = await this.getDraftTabOrThrow(createdTab.id, userId);
-    return this.toDraftTabResponse(draftTab);
+    const stockMap = await this.buildStockMapForTabs([draftTab]);
+    return this.toDraftTabResponse(draftTab, stockMap);
   }
 
   async updateDraftTab(
@@ -1299,20 +1314,15 @@ export class PosService {
     }
 
     const updated = await this.getDraftTabOrThrow(draftTab.id, userId);
-    return this.toDraftTabResponse(updated);
+    const stockMap = await this.buildStockMapForTabs([updated]);
+    return this.toDraftTabResponse(updated, stockMap);
   }
 
   async closeDraftTab(draftTabId: number, userId: number) {
     const draftTab = await this.getDraftTabOrThrow(draftTabId, userId);
-    draftTab.isActive = false;
-    draftTab.lastTouchedAt = new Date();
-    await this.posDraftTabRepository.save(draftTab);
-
-    return {
-      id: draftTab.id,
-      tabCode: draftTab.tabCode,
-      isActive: draftTab.isActive,
-    };
+    await this.posDraftTabItemRepository.delete({ posDraftTabId: draftTab.id });
+    await this.posDraftTabRepository.delete({ id: draftTab.id });
+    return { deleted: true };
   }
 
   private getVariantGroupCodeFromProductUnit(productUnit: ProductUnit) {
@@ -1505,7 +1515,7 @@ export class PosService {
     await this.posDraftTabItemRepository.save(entities);
   }
 
-  private toDraftTabResponse(tab: PosDraftTab) {
+  private toDraftTabResponse(tab: PosDraftTab, stockMap: Map<number, number> = new Map()) {
     return {
       id: tab.id,
       tabCode: tab.tabCode,
@@ -1539,6 +1549,7 @@ export class PosService {
           lineTotal: Number(item.lineTotal),
           note: item.note,
           sortOrder: item.sortOrder,
+          stockOnHand: stockMap.get(item.productId) ?? 0,
         })),
     };
   }
@@ -1784,6 +1795,17 @@ export class PosService {
       .where('c.Name LIKE :keyword', { keyword: `%${keyword}%` })
       .orderBy('c.Name', 'ASC')
       .getMany();
+  }
+
+  async listUnits() {
+    const units = await this.unitRepository.find({
+      order: { name: 'ASC' },
+    });
+
+    return units.map((unit) => ({
+      id: unit.id,
+      name: unit.name,
+    }));
   }
 
   async listSuppliers(keyword?: string) {
@@ -2036,6 +2058,165 @@ export class PosService {
     }
 
     await this.categoryRepository.remove(category);
+    return { deleted: true };
+  }
+
+  // ── Product Management CRUD ──
+
+  async manageProducts(keyword?: string, page = 1, pageSize = 10) {
+    // Use raw SQL for COUNT and ID pagination (avoids TypeORM query builder state issues)
+    let whereSql = '';
+    const sqlParams: any[] = [];
+    if (keyword?.trim()) {
+      whereSql = 'WHERE (p.ProductCode LIKE @0 OR p.Name LIKE @0 OR p.Barcode LIKE @0)';
+      sqlParams.push(`%${keyword.trim()}%`);
+    }
+
+    const offset = (page - 1) * pageSize;
+
+    const countRows = await this.dataSource.query(
+      `SELECT COUNT(1) AS cnt FROM Products p ${whereSql}`,
+      sqlParams,
+    );
+    const total = Number(countRows[0]?.cnt ?? 0);
+    if (!total) return { items: [], total: 0 };
+
+    const idRows = await this.dataSource.query(
+      `SELECT p.Id FROM Products p ${whereSql} ORDER BY p.Name ASC OFFSET ${offset} ROWS FETCH NEXT ${pageSize} ROWS ONLY`,
+      sqlParams,
+    );
+
+    const ids = idRows.map((r: any) => Number(r.Id)).filter((n) => n > 0);
+
+    const products = await this.productRepository.find({
+      where: { id: In(ids) },
+      order: { name: 'ASC' },
+    });
+
+    const allUnits = ids.length
+      ? await this.productUnitRepository.find({
+          where: { productId: In(ids) },
+          relations: { unit: true },
+          order: { isDefaultForPos: 'DESC', id: 'ASC' },
+        })
+      : [];
+
+    const unitsByProductId = new Map<number, ProductUnit[]>();
+    for (const pu of allUnits) {
+      const list = unitsByProductId.get(pu.productId);
+      if (list) list.push(pu);
+      else unitsByProductId.set(pu.productId, [pu]);
+    }
+
+    return {
+      items: products.map((product) => {
+        const units = unitsByProductId.get(product.id) ?? [];
+        const defaultUnit = units.find((pu) => pu.isDefaultForPos) ?? units[0];
+        return {
+          id: product.id,
+          productCode: product.productCode,
+          barcode: product.barcode,
+          name: product.name,
+          categoryId: product.categoryId,
+          costPrice: Number(product.costPrice),
+          salePrice: Number(product.salePrice),
+          stockOnHand: Number(product.stockOnHand),
+          isActive: product.isActive,
+          allowDirectSale: product.allowDirectSale,
+          units: units.map((pu) => ({
+            id: pu.id,
+            unitId: pu.unitId,
+            unitName: pu.unit?.name ?? '',
+            barcode: pu.barcode,
+            conversionValue: Number(pu.conversionValue),
+            costPrice: Number(pu.costPrice),
+            salePrice: Number(pu.salePrice),
+            isDefaultForPos: pu.isDefaultForPos,
+            isActive: pu.isActive,
+          })),
+          defaultUnitName: defaultUnit?.unit?.name ?? '',
+        };
+      }),
+      total,
+    };
+  }
+
+  async createProduct(data: CreateProductDto) {
+    const product = this.productRepository.create({
+      categoryId: data.categoryId,
+      brandId: null,
+      unitId: data.unitId,
+      productCode: data.productCode,
+      barcode: data.barcode ?? null,
+      name: data.name,
+      costPrice: data.costPrice.toFixed(2),
+      salePrice: data.salePrice.toFixed(2),
+      stockOnHand: (data.stockOnHand ?? 0).toFixed(3),
+      minStock: '0',
+      maxStock: '0',
+      weight: null,
+      description: null,
+      noteTemplate: null,
+      location: null,
+      trackBatchExpiry: false,
+      allowDirectSale: data.allowDirectSale ?? true,
+      isActive: data.isActive ?? true,
+    });
+
+    const saved = await this.productRepository.save(product);
+
+    const productUnit = this.productUnitRepository.create({
+      productId: saved.id,
+      unitId: data.unitId,
+      barcode: data.barcode ?? null,
+      conversionValue: '1',
+      costPrice: data.costPrice.toFixed(2),
+      salePrice: data.salePrice.toFixed(2),
+      allowDirectSale: data.allowDirectSale ?? true,
+      isDefaultForPos: true,
+      isSmallestUnit: true,
+      isActive: data.isActive ?? true,
+    });
+
+    await this.productUnitRepository.save(productUnit);
+
+    // Re-fetch with units
+    const result = await this.manageProducts(saved.productCode);
+    return result.items[0] ?? null;
+  }
+
+  async updateProduct(id: number, data: UpdateProductDto) {
+    const product = await this.productRepository.findOneBy({ id });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    if (data.name !== undefined) product.name = data.name;
+    if (data.barcode !== undefined) product.barcode = data.barcode;
+    if (data.categoryId !== undefined) product.categoryId = data.categoryId;
+    if (data.unitId !== undefined) product.unitId = data.unitId;
+    if (data.costPrice !== undefined) product.costPrice = data.costPrice.toFixed(2);
+    if (data.salePrice !== undefined) product.salePrice = data.salePrice.toFixed(2);
+    if (data.stockOnHand !== undefined) product.stockOnHand = data.stockOnHand.toFixed(3);
+    if (data.isActive !== undefined) product.isActive = data.isActive;
+    if (data.allowDirectSale !== undefined) product.allowDirectSale = data.allowDirectSale;
+
+    await this.productRepository.save(product);
+
+    // Re-fetch with units
+    const result = await this.manageProducts(product.productCode);
+    return result.items[0] ?? null;
+  }
+
+  async deleteProduct(id: number) {
+    const product = await this.productRepository.findOneBy({ id });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    product.isActive = false;
+    await this.productRepository.save(product);
+
     return { deleted: true };
   }
 

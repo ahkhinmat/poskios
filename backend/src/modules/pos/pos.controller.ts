@@ -2,6 +2,7 @@ import {
   Body,
   BadRequestException,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Headers,
@@ -18,11 +19,13 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PosService } from './pos.service';
 import { CreatePosDraftTabDto } from './dto/create-pos-draft-tab.dto';
+import { CreateProductDto } from './dto/create-product.dto';
 import { PosCheckoutDto } from './dto/pos-checkout.dto';
 import { PurchaseCheckoutDto } from './dto/purchase-checkout.dto';
 import { ResolvePosProductQueryDto } from './dto/resolve-pos-product-query.dto';
 import { SearchPosProductsQueryDto } from './dto/search-pos-products-query.dto';
 import { UpdatePosDraftTabDto } from './dto/update-pos-draft-tab.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 type UploadedExcelFile = {
   originalname: string;
@@ -32,6 +35,60 @@ type UploadedExcelFile = {
 @Controller('pos')
 export class PosController {
   constructor(private readonly posService: PosService) {}
+
+  // ── Product Management CRUD (before param routes) ──
+
+  @Get('products/manage')
+  async manageProducts(
+    @Query('keyword') keyword?: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize?: number,
+  ) {
+    const data = await this.posService.manageProducts(keyword, page, pageSize);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Post('products')
+  async createProduct(@Body() body: CreateProductDto) {
+    const data = await this.posService.createProduct(body);
+
+    return {
+      success: true,
+      message: 'Product created',
+      data,
+    };
+  }
+
+  @Put('products/:id')
+  async updateProduct(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateProductDto,
+  ) {
+    const data = await this.posService.updateProduct(id, body);
+
+    return {
+      success: true,
+      message: 'Product updated',
+      data,
+    };
+  }
+
+  @Delete('products/:id')
+  @HttpCode(HttpStatus.OK)
+  async deleteProduct(@Param('id', ParseIntPipe) id: number) {
+    const data = await this.posService.deleteProduct(id);
+
+    return {
+      success: true,
+      message: 'Product deleted',
+      data,
+    };
+  }
 
   @Get('products/search')
   async searchProducts(@Query() query: SearchPosProductsQueryDto) {
@@ -184,6 +241,17 @@ export class PosController {
   @Get('categories')
   async searchCategories(@Query('keyword') keyword?: string) {
     const data = await this.posService.searchCategories(keyword);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Get('units')
+  async listUnits() {
+    const data = await this.posService.listUnits();
 
     return {
       success: true,
