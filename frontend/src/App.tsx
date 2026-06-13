@@ -134,6 +134,7 @@ function PosPage() {
     Record<number, PosProductUnitOption[]>
   >({});
   const [highlightedSearchIndex, setHighlightedSearchIndex] = useState(-1);
+  const [lastScannedProductName, setLastScannedProductName] = useState('');
   const [checkingOut, setCheckingOut] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<ReceiptPreviewData | null>(
     null,
@@ -217,7 +218,7 @@ function PosPage() {
 
     const debounceTimer = window.setTimeout(() => {
       searchKeywordRef.current = keyword;
-      void searchProducts(keyword);
+      void searchProducts(keyword, false, true);
     }, 250);
 
     return () => {
@@ -259,6 +260,19 @@ function PosPage() {
     window.setTimeout(() => {
       searchInputRef.current?.focus({ cursor: 'all' });
     }, 0);
+  }
+
+  function clearSearchInput() {
+    setSearchValue('');
+    setSearchResults([]);
+    setHighlightedSearchIndex(-1);
+    searchKeywordRef.current = '';
+
+    const input = searchInputRef.current?.input;
+    if (input) {
+      input.value = '';
+      input.setSelectionRange(0, 0);
+    }
   }
 
   function scrollSaleListToTop() {
@@ -436,19 +450,22 @@ function PosPage() {
   }
 
   async function handleResolveProduct() {
-    if (!searchValue.trim() || !activeTab) {
+    const code = (searchInputRef.current?.input?.value ?? searchValue).trim();
+
+    if (!code || !activeTab) {
       return;
     }
 
+    clearSearchInput();
     setSearching(true);
+
     try {
       const response = await api.get<ApiEnvelope<PosProduct>>('/pos/products/resolve', {
-        params: { code: searchValue.trim() },
+        params: { code },
       });
-      addProductToActiveTab(response.data.data);
-      setSearchResults([]);
-      setHighlightedSearchIndex(-1);
-      setSearchValue('');
+      const resolvedProduct = response.data.data;
+      addProductToActiveTab(resolvedProduct);
+      setLastScannedProductName(resolvedProduct.name);
       focusSearchInput();
       return;
     } catch {
@@ -460,26 +477,43 @@ function PosPage() {
     if (
       highlightedSearchIndex >= 0 &&
       highlightedSearchIndex < searchResults.length &&
-      searchValue.trim() === searchKeywordRef.current
+      code === searchKeywordRef.current
     ) {
       const selectedProduct = searchResults[highlightedSearchIndex];
       addProductToActiveTab(selectedProduct);
-      setSearchResults([]);
-      setHighlightedSearchIndex(-1);
-      setSearchValue('');
+      setLastScannedProductName(selectedProduct.name);
       focusSearchInput();
       return;
     }
 
-    await searchProducts(searchValue.trim(), true);
+    await searchProducts(code, true);
   }
 
-  async function searchProducts(keyword: string, notifyWhenEmpty = false) {
+  async function searchProducts(
+    keyword: string,
+    notifyWhenEmpty = false,
+    autoAddExactMatch = false,
+  ) {
     try {
       const response = await api.get<ApiEnvelope<SearchResponse>>('/pos/products/search', {
         params: { keyword, limit: 8 },
       });
       const items = response.data.data.items;
+
+      if (autoAddExactMatch && activeTab) {
+        const exactMatch = items.find(
+          (item) => item.barcode === keyword || item.productCode === keyword,
+        );
+
+        if (exactMatch) {
+          addProductToActiveTab(exactMatch);
+          setLastScannedProductName(exactMatch.name);
+          clearSearchInput();
+          focusSearchInput();
+          return;
+        }
+      }
+
       setSearchResults(items);
       setHighlightedSearchIndex(items.length ? 0 : -1);
 
@@ -583,30 +617,45 @@ function PosPage() {
       return;
     }
 
-    setTabs((current) =>
-      current.map((tab) => {
+    setTabs((current) => {
+      const nextTabs = current.map((tab) => {
         if (tab.id !== activeTab.id) {
           return tab;
         }
 
-        const existingItem = tab.items.find(
-          (item) => item.productUnitId === product.productUnitId,
-        );
+        const existingItemIndex = tab.items.findIndex((item) => {
+          if (item.productUnitId === product.productUnitId) {
+            return true;
+          }
 
-        if (existingItem) {
-          const nextItems = [
-            {
-              ...existingItem,
-              quantity: existingItem.quantity + 1,
-              lineTotal:
-                (existingItem.quantity + 1) * existingItem.unitPrice -
-                existingItem.discountAmount,
-            },
-            ...tab.items.filter(
-              (item) => item.productUnitId !== product.productUnitId,
-            ),
-          ].map((item, index) => ({ ...item, sortOrder: index + 1 }));
-          return { ...tab, items: nextItems };
+          if (item.barcode && product.barcode && item.barcode === product.barcode) {
+            return true;
+          }
+
+          if (item.productCode && item.productCode === product.productCode) {
+            return true;
+          }
+
+          return false;
+        });
+
+        if (existingItemIndex >= 0) {
+          const existingItem = tab.items[existingItemIndex];
+          const nextQuantity = existingItem.quantity + 1;
+          const updatedItem = {
+            ...existingItem,
+            quantity: nextQuantity,
+            lineTotal: nextQuantity * existingItem.unitPrice - existingItem.discountAmount,
+          };
+          const remainingItems = tab.items.filter((_, index) => index !== existingItemIndex);
+
+          return {
+            ...tab,
+            items: [updatedItem, ...remainingItems].map((item, index) => ({
+              ...item,
+              sortOrder: index + 1,
+            })),
+          };
         }
 
         const newItem: PosDraftItem = {
@@ -634,8 +683,15 @@ function PosPage() {
             sortOrder: index + 1,
           })),
         };
-      }),
-    );
+      });
+
+      const updatedActiveTab = nextTabs.find((tab) => tab.id === activeTab.id);
+      if (updatedActiveTab) {
+        void persistDraftTab(updatedActiveTab);
+      }
+
+      return nextTabs;
+    });
 
     setHighlightedSearchIndex(-1);
     scrollSaleListToTop();
@@ -1211,6 +1267,9 @@ function PosPage() {
             </div>
 
             <div className="topbar-actions">
+              {lastScannedProductName ? (
+                <Tag color="green">Đã quét: {lastScannedProductName}</Tag>
+              ) : null}
               <Tag color={saving ? 'processing' : 'success'}>
                 {saving ? LANG.saving : LANG.synced}
               </Tag>
@@ -1234,9 +1293,7 @@ function PosPage() {
                         type="link"
                         onClick={() => {
                           addProductToActiveTab(product);
-                          setSearchResults([]);
-                          setHighlightedSearchIndex(-1);
-                          setSearchValue('');
+                          clearSearchInput();
                           focusSearchInput();
                         }}
                       >
@@ -1261,7 +1318,7 @@ function PosPage() {
                   value={invoiceSearchType}
                   onChange={(v) => setInvoiceSearchType(v)}
                   size="small"
-                  style={{ width: 120 }}
+                  className="return-search-type"
                   options={[
                     { label: LANG.searchTypeInvoiceCode, value: 'code' },
                     { label: LANG.searchTypeProductCode, value: 'product' },
@@ -1282,10 +1339,10 @@ function PosPage() {
                   {LANG.searchBtn}
                 </Button>
               </div>
-              <div className="return-search-row" style={{ marginTop: 6 }}>
+              <div className="return-search-row return-search-row-spaced">
                 <DatePicker.RangePicker
                   size="small"
-                  style={{ flex: 1 }}
+                  className="return-date-range"
                   placeholder={[LANG.placeholderFromDate, LANG.placeholderToDate]}
                   format="DD/MM/YYYY"
                   defaultValue={[dayjs(), dayjs()]}
@@ -1390,6 +1447,7 @@ function PosPage() {
                     <button
                       type="button"
                       className="sale-icon-button"
+                      aria-label={`Tăng số lượng ${item.productName}`}
                       onClick={() =>
                         updateItem(item.productUnitId, {
                           quantity: item.quantity + 1,
@@ -1414,7 +1472,7 @@ function PosPage() {
                   <div className="sale-cell sale-total">
                     {item.lineTotal.toLocaleString('vi-VN')}
                   </div>
-                  <button type="button" className="sale-icon-button sale-icon-more">
+                  <button type="button" className="sale-icon-button sale-icon-more" aria-label={`Tùy chọn ${item.productName}`}>
                     <MoreOutlined />
                   </button>
                 </div>
@@ -1617,7 +1675,7 @@ function PosPage() {
       <Modal
         title={null}
         className="receipt-modal"
-        style={{ top: 16 }}
+        wrapClassName="receipt-modal-wrap"
         open={!!receiptPreview}
         onCancel={() => setReceiptPreview(null)}
         footer={[
@@ -1714,8 +1772,9 @@ function PosPage() {
         footer={null}
         width={640}
       >
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div className="category-modal-toolbar">
           <Input.Search
+            className="category-search-input"
             placeholder={LANG.searchCategories}
             allowClear
             value={categoryKeyword}
@@ -1724,7 +1783,6 @@ function PosPage() {
               setCategoryKeyword(value);
               void loadCategories(value);
             }}
-            style={{ flex: 1 }}
           />
           <Button type="primary" onClick={() => openCategoryForm()}>
             {LANG.addCategory}
@@ -1760,7 +1818,7 @@ function PosPage() {
               key: 'actions',
               width: 160,
               render: (_: unknown, record: Category) => (
-                <span style={{ display: 'flex', gap: 8 }}>
+                <span className="category-action-group">
                   <Button
                     size="small"
                     onClick={() => openCategoryForm(record)}
@@ -1793,8 +1851,8 @@ function PosPage() {
           cancelText={LANG.cancel}
           destroyOnClose
         >
-          <div style={{ marginTop: 16 }}>
-            <div style={{ marginBottom: 4, fontWeight: 500 }}>{LANG.categoryName}</div>
+          <div className="category-form-field">
+            <div className="category-form-label">{LANG.categoryName}</div>
             <Input
               value={categoryFormName}
               onChange={(e) => setCategoryFormName(e.target.value)}
@@ -1808,4 +1866,5 @@ function PosPage() {
     </div>
   );
 }
-
+
+

@@ -1,8 +1,11 @@
 import axios from 'axios';
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+const userId = import.meta.env.VITE_USER_ID ?? '2';
+
 export const api = axios.create({
-  baseURL: 'http://localhost:3000/api/v1',
+  baseURL: apiBaseUrl,
   headers: {
-    'x-user-id': '2',
+    'x-user-id': userId,
   },
 });

@@ -621,6 +621,18 @@ button {
   gap: 6px;
 }
 
+.return-search-row-spaced {
+  margin-top: 6px;
+}
+
+.return-search-type {
+  width: 120px;
+}
+
+.return-date-range {
+  flex: 1;
+}
+
 .return-search-row .ant-input {
   flex: 1;
   min-width: 0;
@@ -681,4 +693,32 @@ button {
   font-size: 11px;
   color: #6b7280;
   margin-top: 2px;
+}
+
+.category-modal-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.category-search-input {
+  flex: 1;
+}
+
+.category-action-group {
+  display: flex;
+  gap: 8px;
+}
+
+.category-form-field {
+  margin-top: 16px;
+}
+
+.category-form-label {
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.receipt-modal-wrap .ant-modal {
+  top: 16px;
 }
