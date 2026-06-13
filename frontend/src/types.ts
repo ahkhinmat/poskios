@@ -243,3 +243,65 @@ export type OverviewDetail = {
     lineTotal: number;
   }>;
 };
+
+export type ApiEnvelope<T> = {
+  success: boolean;
+  message: string;
+  data: T;
+};
+
+export type DraftTabsResponse = {
+  items: PosDraftTab[];
+};
+
+export type SearchResponse = {
+  items: PosProduct[];
+};
+
+export type ProductUnitOptionsResponse = {
+  items: PosProductUnitOption[];
+};
+
+export type InvoiceSearchResponse = {
+  items: InvoiceSearchItem[];
+};
+
+export type InvoiceItemData = {
+  salesOrderItemId: number;
+  productId: number;
+  productUnitId: number;
+  unitId: number;
+  productCode: string;
+  barcode: string | null;
+  productName: string;
+  unitName: string | null;
+  conversionValue: number;
+  originalQuantity: number;
+  unitPrice: number;
+  discountAmount: number;
+  lineTotal: number;
+  stockOnHand: number;
+};
+
+export type InvoiceItemsResponse = {
+  salesOrderCode: string;
+  soldAt: string;
+  customerName: string | null;
+  items: InvoiceItemData[];
+};
+
+export type SaleReceiptData = CheckoutResponse['receiptData'];
+export type ReturnReceiptData = ReturnCheckoutResponse['receiptData'];
+export type PurchaseReceiptData = PurchaseCheckoutResponse['receiptData'];
+export type ReceiptPreviewData = SaleReceiptData | ReturnReceiptData | PurchaseReceiptData;
+
+export type PurchaseMeta = {
+  importDate: string;
+  purchaseOrderCode: string;
+  purchaseSequence: number;
+  supplierOrderCode: string;
+  supplierInvoiceCode: string;
+  supplierId: number | null;
+  status: string;
+  supplierPaidAmount: number;
+};

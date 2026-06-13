@@ -12,7 +12,6 @@
   Radio,
   Select,
   Spin,
-  Table,
   Tag,
   Tooltip,
   Typography,
@@ -36,40 +35,39 @@ import dayjs from 'dayjs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
 import { LANG } from './lang';
+import { CategoryManager } from './components/CategoryManager';
+import { ReceiptModal } from './components/ReceiptModal';
+import { extractApiErrorMessage } from './utils/error';
+import { formatPurchaseDate } from './utils/format';
+import { createDefaultPurchaseMeta, getNextTabNumber } from './utils/purchase';
 import type {
+  ApiEnvelope,
   Category,
   CheckoutResponse,
+  DraftTabsResponse,
+  InvoiceItemData,
+  InvoiceItemsResponse,
   InvoiceSearchItem,
+  InvoiceSearchResponse,
   PosDraftItem,
   PosDraftTab,
   PosProduct,
   PosProductUnitOption,
+  ProductUnitOptionsResponse,
+  PurchaseCheckoutResponse,
+  PurchaseMeta,
+  PurchaseReceiptData,
   OverviewDetail,
   OverviewRecord,
-  PurchaseCheckoutResponse,
+  ReceiptPreviewData,
   ReturnCheckoutResponse,
+  ReturnReceiptData,
+  SaleReceiptData,
+  SearchResponse,
   Supplier,
 } from './types';
 
 const { Text } = Typography;
-
-type ApiEnvelope<T> = {
-  success: boolean;
-  message: string;
-  data: T;
-};
-
-type DraftTabsResponse = {
-  items: PosDraftTab[];
-};
-
-type SearchResponse = {
-  items: PosProduct[];
-};
-
-type ProductUnitOptionsResponse = {
-  items: PosProductUnitOption[];
-};
 
 const paymentOptions = [
   { label: LANG.cash, value: 'CASH' },
@@ -78,48 +76,9 @@ const paymentOptions = [
   { label: LANG.ewallet, value: 'EWALLET' },
 ];
 
-type InvoiceSearchResponse = {
-  items: InvoiceSearchItem[];
-};
 
-type InvoiceItemData = {
-  salesOrderItemId: number;
-  productId: number;
-  productUnitId: number;
-  unitId: number;
-  productCode: string;
-  barcode: string | null;
-  productName: string;
-  unitName: string | null;
-  conversionValue: number;
-  originalQuantity: number;
-  unitPrice: number;
-  discountAmount: number;
-  lineTotal: number;
-  stockOnHand: number;
-};
 
-type InvoiceItemsResponse = {
-  salesOrderCode: string;
-  soldAt: string;
-  customerName: string | null;
-  items: InvoiceItemData[];
-};
 
-type SaleReceiptData = CheckoutResponse['receiptData'];
-type ReturnReceiptData = ReturnCheckoutResponse['receiptData'];
-type PurchaseReceiptData = PurchaseCheckoutResponse['receiptData'];
-type ReceiptPreviewData = SaleReceiptData | ReturnReceiptData | PurchaseReceiptData;
-type PurchaseMeta = {
-  importDate: string;
-  purchaseOrderCode: string;
-  purchaseSequence: number;
-  supplierOrderCode: string;
-  supplierInvoiceCode: string;
-  supplierId: number | null;
-  status: string;
-  supplierPaidAmount: number;
-};
 
 export function App() {
   return (
@@ -170,13 +129,6 @@ function PosPage() {
   const [foundInvoices, setFoundInvoices] = useState<InvoiceSearchItem[]>([]);
   const [invoiceSearching, setInvoiceSearching] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryLoading, setCategoryLoading] = useState(false);
-  const [categoryKeyword, setCategoryKeyword] = useState('');
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [categoryFormOpen, setCategoryFormOpen] = useState(false);
-  const [categoryFormName, setCategoryFormName] = useState('');
-  const [categorySaving, setCategorySaving] = useState(false);
   const [purchaseMetaMap, setPurchaseMetaMap] = useState<Record<number, PurchaseMeta>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
@@ -186,7 +138,10 @@ function PosPage() {
   const [overviewDetail, setOverviewDetail] = useState<OverviewDetail | null>(null);
   const [overviewFromDate, setOverviewFromDate] = useState(new Date().toISOString().slice(0, 10));
   const [overviewToDate, setOverviewToDate] = useState(new Date().toISOString().slice(0, 10));
-  const [overviewRecordTypeFilter, setOverviewRecordTypeFilter] = useState<'ALL' | 'SALE' | 'RETURN' | 'PURCHASE'>('ALL');
+  const [overviewRecordTypeFilter, setOverviewRecordTypeFilter] = useState<'ALL' | 'SALE' | 'RETURN' | 'PURCHASE'>('SALE');
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const overviewPassword = import.meta.env.VITE_OVERVIEW_PASSWORD ?? '11111';
   const saveTimerRef = useRef<number | null>(null);
   const searchInputRef = useRef<InputRef>(null);
   const searchKeywordRef = useRef('');
@@ -221,7 +176,7 @@ function PosPage() {
     [overviewRecords, overviewRecordTypeFilter],
   );
   const overviewTotalAmount = useMemo(
-    () => filteredOverviewRecords.reduce((sum, record) => sum + record.totalAmount, 0),
+    () => filteredOverviewRecords.reduce((sum, record) => sum + record.subtotalAmount, 0),
     [filteredOverviewRecords],
   );
   const overviewTotalDiscount = useMemo(
@@ -235,6 +190,10 @@ function PosPage() {
   const overviewTotalRevenue = useMemo(
     () => filteredOverviewRecords.reduce((sum, record) => sum + record.revenueAmount, 0),
     [filteredOverviewRecords],
+  );
+  const overviewGrossProfit = useMemo(
+    () => overviewTotalAmount - overviewTotalDiscount - overviewTotalCost,
+    [overviewTotalAmount, overviewTotalDiscount, overviewTotalCost],
   );
 
   useEffect(() => {
@@ -305,7 +264,7 @@ function PosPage() {
           continue;
         }
 
-        next[tab.id] = createDefaultPurchaseMeta(tab);
+        next[tab.id] = createDefaultPurchaseMeta(tab, tabs);
         changed = true;
       }
 
@@ -438,30 +397,6 @@ function PosPage() {
     }
   }
 
-  function getNextTabNumber(currentTabs: PosDraftTab[], prefix: string) {
-    const numbers = currentTabs
-      .filter((tab) => tab.title.startsWith(prefix))
-      .map((tab) => {
-        const matched = tab.title.match(/(\d+)$/);
-        return matched ? Number(matched[1]) : 0;
-      });
-    return numbers.length ? Math.max(...numbers) + 1 : 1;
-  }
-
-  function getNextPurchaseSequence(currentTabs: PosDraftTab[]) {
-    return currentTabs.filter((tab) => tab.tabType === 'PURCHASE').length + 1;
-  }
-
-  function getPurchaseSequenceFromTab(tab: PosDraftTab) {
-    const matched = tab.title.match(/(\d+)$/);
-    return matched ? Number(matched[1]) : getNextPurchaseSequence(tabs);
-  }
-
-  function buildPurchaseOrderCode(sequence: number, identitySeed: number | string) {
-    const identityText = String(identitySeed).replace(/\D/g, '').slice(-6).padStart(6, '0');
-    return `PNH${String(sequence).padStart(4, '0')}${identityText}`;
-  }
-
   async function loadSuppliers(keyword?: string) {
     setSuppliersLoading(true);
     try {
@@ -474,20 +409,6 @@ function PosPage() {
     } finally {
       setSuppliersLoading(false);
     }
-  }
-
-  function createDefaultPurchaseMeta(tab: PosDraftTab): PurchaseMeta {
-    const purchaseSequence = getPurchaseSequenceFromTab(tab);
-    return {
-      importDate: tab.lastTouchedAt ? tab.lastTouchedAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
-      purchaseOrderCode: buildPurchaseOrderCode(purchaseSequence, tab.id || tab.tabCode),
-      purchaseSequence,
-      supplierOrderCode: '',
-      supplierInvoiceCode: '',
-      supplierId: null,
-      status: LANG.purchaseDraftStatus,
-      supplierPaidAmount: 0,
-    };
   }
 
   function updatePurchaseMeta(tabId: number, patch: Partial<PurchaseMeta>) {
@@ -512,6 +433,7 @@ function PosPage() {
             lastTouchedAt: new Date().toISOString(),
             items: [],
           },
+          tabs,
         )),
         ...patch,
       },
@@ -585,7 +507,7 @@ function PosPage() {
       if (tabType === 'PURCHASE') {
         setPurchaseMetaMap((current) => ({
           ...current,
-          [created.id]: createDefaultPurchaseMeta(created),
+          [created.id]: createDefaultPurchaseMeta(created, tabs),
         }));
       }
     } catch {
@@ -1048,15 +970,6 @@ function PosPage() {
     );
   }
 
-  function formatPurchaseDate(dateText: string) {
-    const date = new Date(dateText);
-    if (Number.isNaN(date.getTime())) {
-      return dateText;
-    }
-
-    return date.toLocaleDateString('vi-VN');
-  }
-
   function buildDraftReceipt(): ReceiptPreviewData | null {
     if (!activeTab?.items.length) {
       return null;
@@ -1291,7 +1204,7 @@ function PosPage() {
     setCheckingOut(true);
     try {
       if (isPurchaseTab) {
-        const purchaseMeta = purchaseMetaMap[activeTab.id] ?? createDefaultPurchaseMeta(activeTab);
+        const purchaseMeta = purchaseMetaMap[activeTab.id] ?? createDefaultPurchaseMeta(activeTab, tabs);
         const response = await api.post<ApiEnvelope<PurchaseCheckoutResponse>>('/pos/purchase-orders/checkout', {
           purchaseOrderCode: purchaseMeta.purchaseOrderCode,
           supplierId: purchaseMeta.supplierId,
@@ -1388,108 +1301,32 @@ function PosPage() {
       await api.delete(`/pos/draft-tabs/${activeTab.id}`);
       focusSearchInput();
     } catch (error: unknown) {
-      const apiMessage =
-        typeof error === 'object' &&
-        error !== null &&
-        'response' in error &&
-        typeof error.response === 'object' &&
-        error.response !== null &&
-        'data' in error.response &&
-        typeof error.response.data === 'object' &&
-        error.response.data !== null &&
-        'message' in error.response.data
-          ? String(error.response.data.message)
-          : isReturnTab
-            ? LANG.errReturnFailed
-            : LANG.errPaymentFailed;
-      message.error(apiMessage);
+      const fallback = isReturnTab ? LANG.errReturnFailed : LANG.errPaymentFailed;
+      message.error(extractApiErrorMessage(error, fallback));
     } finally {
       setCheckingOut(false);
     }
   }
 
-  // â”€â”€ Category CRUD â”€â”€
-
-  async function loadCategories(keyword?: string) {
-    setCategoryLoading(true);
-    try {
-      const params = keyword?.trim() ? `?keyword=${encodeURIComponent(keyword.trim())}` : '';
-      const res = await api.get<ApiEnvelope<Category[]>>(`/pos/categories${params}`);
-      setCategories(res.data.data);
-    } catch {
-      message.error(LANG.errLoadCategories);
-    } finally {
-      setCategoryLoading(false);
-    }
-  }
-
   function openCategoryModal() {
-    setCategoryKeyword('');
-    setCategories([]);
     setCategoryModalOpen(true);
-    void loadCategories();
   }
 
-  function openCategoryForm(category?: Category) {
-    setEditingCategory(category ?? null);
-    setCategoryFormName(category?.name ?? '');
-    setCategoryFormOpen(true);
+  function handleOpenOverview() {
+    setPasswordInput('');
+    setPasswordDialogOpen(true);
   }
 
-  async function handleSaveCategory() {
-    const name = categoryFormName.trim();
-    if (!name) {
-      message.warning(LANG.errCategoryNameRequired);
-      return;
+  function handlePasswordSubmit() {
+    if (passwordInput === overviewPassword) {
+      setPasswordDialogOpen(false);
+      setPasswordInput('');
+      setCurrentView('OVERVIEW');
+      void loadOverview();
+    } else {
+      message.error(LANG.errPasswordIncorrect);
+      setPasswordInput('');
     }
-    setCategorySaving(true);
-    try {
-      if (editingCategory) {
-        await api.put<ApiEnvelope<Category>>(`/pos/categories/${editingCategory.id}`, { name });
-        message.success(LANG.successCategoryUpdated);
-      } else {
-        await api.post<ApiEnvelope<Category>>('/pos/categories', { name });
-        message.success(LANG.successCategoryCreated);
-      }
-      setCategoryFormOpen(false);
-      setEditingCategory(null);
-      void loadCategories(categoryKeyword);
-    } catch {
-      message.error(LANG.errCategorySave);
-    } finally {
-      setCategorySaving(false);
-    }
-  }
-
-  async function handleDeleteCategory(category: Category) {
-    Modal.confirm({
-      title: LANG.confirmDelete,
-      content: `"${category.name}"`,
-      okText: LANG.deleteCategory,
-      okType: 'danger',
-      cancelText: LANG.cancel,
-      onOk: async () => {
-        try {
-          await api.delete(`/pos/categories/${category.id}`);
-          message.success(LANG.successCategoryDeleted);
-          void loadCategories(categoryKeyword);
-        } catch (error: unknown) {
-          const apiMsg =
-            typeof error === 'object' &&
-            error !== null &&
-            'response' in error &&
-            typeof error.response === 'object' &&
-            error.response !== null &&
-            'data' in error.response &&
-            typeof error.response.data === 'object' &&
-            error.response.data !== null &&
-            'message' in error.response.data
-              ? String(error.response.data.message)
-              : LANG.errCategoryDelete;
-          message.error(apiMsg);
-        }
-      },
-    });
   }
 
   if (loading) {
@@ -1627,10 +1464,11 @@ function PosPage() {
                   <div>{LANG.overviewHeaderCost}</div>
                   <div>{LANG.overviewHeaderRevenue}</div>
                   <div>{LANG.purchaseTableTotal}</div>
+                  <div>{LANG.overviewGrossProfit}</div>
                 </div>
                 {overviewDetail?.items.length ? (
                   overviewDetail.items.map((item) => (
-                    <div key={`${overviewDetail.header.recordType}-${overviewDetail.header.id}-${item.rowNo}`} className="purchase-row purchase-row-overview">
+                    <div key={`${overviewDetail.header.recordType}-${overviewDetail.header.id}-${item.rowNo}`} className={`purchase-row purchase-row-overview purchase-row-${overviewDetail.header.recordType.toLowerCase()}`}>
                       <div>{item.rowNo}</div>
                       <div className="purchase-name">{item.productName}</div>
                       <div>{item.unitName ?? ''}</div>
@@ -2105,10 +1943,7 @@ function PosPage() {
                 <button
                   type="button"
                   className="sale-mode"
-                  onClick={() => {
-                    setCurrentView('OVERVIEW');
-                    void loadOverview();
-                  }}
+                  onClick={handleOpenOverview}
                 >
                   {LANG.modeOverview}
                 </button>
@@ -2151,21 +1986,25 @@ function PosPage() {
                 </div>
                 <div className="overview-summary-label">{LANG.overviewTotalCost}</div>
                 <div className="overview-summary-subtotal">
-                  {overviewTotalCost.toLocaleString('vi-VN')}
+                  {Math.round(overviewTotalCost).toLocaleString('vi-VN')}
                 </div>
                 <div className="overview-summary-label">{LANG.overviewTotalRevenue}</div>
                 <div className="overview-summary-total">
                   {overviewTotalRevenue.toLocaleString('vi-VN')}
                 </div>
+                <div className="overview-summary-label">{LANG.overviewGrossProfit}</div>
+                <div className="overview-summary-total">
+                  {Math.round(overviewGrossProfit).toLocaleString('vi-VN')}
+                </div>
               </div>
               <div className="overview-panel-list">
                 {filteredOverviewRecords.length ? filteredOverviewRecords.map((record) => (
-                  <button
-                    key={`${record.recordType}-${record.id}`}
-                    type="button"
-                    className={`overview-record ${overviewDetail?.header.id === record.id && overviewDetail?.header.recordType === record.recordType ? 'is-active' : ''}`}
-                    onClick={() => void loadOverviewDetail(record.recordType, record.id)}
-                  >
+                    <button
+                      key={`${record.recordType}-${record.id}`}
+                      type="button"
+                      className={`overview-record overview-record-${record.recordType.toLowerCase()} ${overviewDetail?.header.id === record.id && overviewDetail?.header.recordType === record.recordType ? 'is-active' : ''}`}
+                      onClick={() => void loadOverviewDetail(record.recordType, record.id)}
+                    >
                     <div className="overview-record-top">
                       <span className="overview-record-type">
                         {record.recordType === 'PURCHASE' ? LANG.overviewTypePurchase : record.recordType === 'RETURN' ? LANG.overviewTypeReturn : LANG.overviewTypeSale}
@@ -2174,7 +2013,7 @@ function PosPage() {
                     </div>
                     <div className="overview-record-meta">{new Date(record.eventAt).toLocaleString('vi-VN')}</div>
                     <div className="overview-record-meta">{record.partyName ?? ''}</div>
-                    <div className="overview-record-meta">
+                    <div className={`overview-record-meta${record.discountAmount > 0 ? ' has-discount' : ''}`}>
                       {LANG.discount}: {record.discountAmount.toLocaleString('vi-VN')}
                     </div>
                     <div className="overview-record-meta">
@@ -2492,209 +2331,38 @@ function PosPage() {
         </aside>
       </div>
 
+      <ReceiptModal
+        receiptPreview={receiptPreview}
+        onClose={() => setReceiptPreview(null)}
+        onPrint={handlePrintReceipt}
+      />
+
+      <CategoryManager open={categoryModalOpen} onClose={() => setCategoryModalOpen(false)} />
+
       <Modal
-        title={null}
-        className="receipt-modal"
-        wrapClassName="receipt-modal-wrap"
-        open={!!receiptPreview}
-        onCancel={() => setReceiptPreview(null)}
+        title={LANG.overviewTitle}
+        open={passwordDialogOpen}
+        onCancel={() => { setPasswordDialogOpen(false); setPasswordInput(''); }}
         footer={[
-          <Button key="close" onClick={() => setReceiptPreview(null)}>
-            {LANG.close}
-          </Button>,
-          <Button key="print" type="primary" onClick={() => handlePrintReceipt()}>
-            {LANG.printInvoice}
+          <Button key="ok" type="primary" onClick={handlePasswordSubmit}>
+            {LANG.overviewRefresh}
           </Button>,
         ]}
-        width={360}
+        width={320}
+        destroyOnClose
       >
-        {receiptPreview && (
-          <div className="receipt-preview">
-            <div className="receipt-center">
-              <div className="receipt-store">{receiptPreview.storeName}</div>
-              {receiptPreview.storeAddress && <div>{receiptPreview.storeAddress}</div>}
-              {receiptPreview.storePhoneNumber && <div>{receiptPreview.storePhoneNumber}</div>}
-            </div>
-            <div className="receipt-dash" />
-            <div className="receipt-row">
-              <span>{'supplierPaidAmount' in receiptPreview ? LANG.receiptPurchaseCode : LANG.receiptInvoice}</span>
-              <strong>{'supplierPaidAmount' in receiptPreview ? receiptPreview.purchaseOrderCode : receiptPreview.salesOrderCode}</strong>
-            </div>
-            <div className="receipt-row">
-              <span>{'supplierPaidAmount' in receiptPreview ? LANG.receiptSupplier : LANG.cashier}</span>
-              <span>{'supplierPaidAmount' in receiptPreview ? (receiptPreview.supplierName ?? '') : receiptPreview.cashierName}</span>
-            </div>
-            <div className="receipt-row">
-              <span>{LANG.receiptDate}</span>
-              <span>{new Date('supplierPaidAmount' in receiptPreview ? receiptPreview.orderedAt : receiptPreview.soldAt).toLocaleString('vi-VN')}</span>
-            </div>
-            <div className="receipt-dash" />
-            {receiptPreview.items.map((item, index) => (
-              <div className="receipt-item" key={`${item.productName}-${index}`}>
-                <div className="receipt-item-name">{item.productName}</div>
-                <div className="receipt-row receipt-muted">
-                  <span>
-                    {item.quantity} x {item.unitPrice.toLocaleString('vi-VN')}
-                  </span>
-                  <span>{item.lineTotal.toLocaleString('vi-VN')}</span>
-                </div>
-              </div>
-            ))}
-            <div className="receipt-dash" />
-            <div className="receipt-row">
-              <span>{LANG.receiptProductTotal}</span>
-              <span>{receiptPreview.subtotalAmount.toLocaleString('vi-VN')}</span>
-            </div>
-            <div className="receipt-row">
-              <span>{LANG.discount}</span>
-              <span>{receiptPreview.discountAmount.toLocaleString('vi-VN')}</span>
-            </div>
-            {'returnFeeAmount' in receiptPreview && (
-              <div className="receipt-row">
-                <span>{LANG.returnFee}</span>
-                <span>{receiptPreview.returnFeeAmount.toLocaleString('vi-VN')}</span>
-              </div>
-            )}
-            <div className="receipt-row receipt-total">
-              <span>{'returnFeeAmount' in receiptPreview ? LANG.totalReturn : 'supplierPaidAmount' in receiptPreview ? LANG.purchasePayable : LANG.totalPayment}</span>
-              <span>{receiptPreview.totalAmount.toLocaleString('vi-VN')}</span>
-            </div>
-            {'customerRefundAmount' in receiptPreview ? (
-              <div className="receipt-row">
-                <span>{LANG.refund}</span>
-                <span>{receiptPreview.customerRefundAmount.toLocaleString('vi-VN')}</span>
-              </div>
-            ) : 'supplierPaidAmount' in receiptPreview ? (
-              <>
-                <div className="receipt-row">
-                  <span>{LANG.receiptPaidSupplier}</span>
-                  <span>{receiptPreview.supplierPaidAmount.toLocaleString('vi-VN')}</span>
-                </div>
-                <div className="receipt-row">
-                  <span>{LANG.receiptDebtSupplier}</span>
-                  <span>{receiptPreview.debtAmount.toLocaleString('vi-VN')}</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="receipt-row">
-                  <span>{LANG.customerGiven}</span>
-                  <span>{(receiptPreview as SaleReceiptData).customerPaidAmount.toLocaleString('vi-VN')}</span>
-                </div>
-                <div className="receipt-row">
-                  <span>{LANG.changeAmount}</span>
-                  <span>{(receiptPreview as SaleReceiptData).changeAmount.toLocaleString('vi-VN')}</span>
-                </div>
-              </>
-            )}
-            <div className="receipt-dash" />
-            <div className="receipt-center">{receiptPreview.footerMessage}</div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Category Manager Modal */}
-      <Modal
-        title={LANG.categoryTitle}
-        open={categoryModalOpen}
-        onCancel={() => setCategoryModalOpen(false)}
-        footer={null}
-        width={640}
-      >
-        <div className="category-modal-toolbar">
-          <Input.Search
-            className="category-search-input"
-            placeholder={LANG.searchCategories}
-            allowClear
-            value={categoryKeyword}
-            onChange={(e) => setCategoryKeyword(e.target.value)}
-            onSearch={(value) => {
-              setCategoryKeyword(value);
-              void loadCategories(value);
-            }}
-          />
-          <Button type="primary" onClick={() => openCategoryForm()}>
-            {LANG.addCategory}
-          </Button>
-        </div>
-
-        <Table
-          dataSource={categories}
-          rowKey="id"
-          loading={categoryLoading}
-          locale={{ emptyText: LANG.noCategoriesFound }}
-          pagination={false}
-          columns={[
-            {
-              title: LANG.categoryName,
-              dataIndex: 'name',
-              key: 'name',
-            },
-            {
-              title: LANG.categoryStatus,
-              dataIndex: 'isActive',
-              key: 'isActive',
-              width: 100,
-              render: (isActive: boolean) =>
-                isActive ? (
-                  <Tag color="green">{LANG.categoryStatusActive}</Tag>
-                ) : (
-                  <Tag color="red">{LANG.categoryStatusInactive}</Tag>
-                ),
-            },
-            {
-              title: LANG.categoryActions,
-              key: 'actions',
-              width: 160,
-              render: (_: unknown, record: Category) => (
-                <span className="category-action-group">
-                  <Button
-                    size="small"
-                    onClick={() => openCategoryForm(record)}
-                  >
-                    {LANG.editCategory}
-                  </Button>
-                  <Button
-                    size="small"
-                    danger
-                    onClick={() => void handleDeleteCategory(record)}
-                  >
-                    {LANG.deleteCategory}
-                  </Button>
-                </span>
-              ),
-            },
-          ]}
+        <Input.Password
+          value={passwordInput}
+          onChange={(e) => setPasswordInput(e.target.value)}
+          onPressEnter={handlePasswordSubmit}
+          autoFocus
+          placeholder=""
         />
-
-        <Modal
-          title={editingCategory ? LANG.editCategory : LANG.addCategory}
-          open={categoryFormOpen}
-          onCancel={() => {
-            setCategoryFormOpen(false);
-            setEditingCategory(null);
-          }}
-          onOk={() => void handleSaveCategory()}
-          confirmLoading={categorySaving}
-          okText={LANG.saveCategory}
-          cancelText={LANG.cancel}
-          destroyOnClose
-        >
-          <div className="category-form-field">
-            <div className="category-form-label">{LANG.categoryName}</div>
-            <Input
-              value={categoryFormName}
-              onChange={(e) => setCategoryFormName(e.target.value)}
-              placeholder={LANG.categoryNamePlaceholder}
-              onPressEnter={() => void handleSaveCategory()}
-              autoFocus
-            />
-          </div>
-        </Modal>
       </Modal>
     </div>
   );
 }
+
 
 
 

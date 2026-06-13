@@ -269,6 +269,42 @@ button {
   background: var(--pos-primary-soft);
 }
 
+.overview-record-sale {
+  background: #f0f9ff;
+}
+.overview-record-sale:hover,
+.overview-record-sale.is-active {
+  background: #dbeafe;
+}
+
+.overview-record-purchase {
+  background: #fff7ed;
+}
+.overview-record-purchase:hover,
+.overview-record-purchase.is-active {
+  background: #ffedd5;
+}
+
+.overview-record-return {
+  background: #fef2f2;
+}
+.overview-record-return:hover,
+.overview-record-return.is-active {
+  background: #fee2e2;
+}
+
+.purchase-row-sale {
+  background: #f0f9ff;
+}
+
+.purchase-row-purchase {
+  background: #fff7ed;
+}
+
+.purchase-row-return {
+  background: #fef2f2;
+}
+
 .overview-record-top {
   display: flex;
   align-items: center;
@@ -280,6 +316,11 @@ button {
 .overview-record-meta {
   font-size: 11px;
   color: #4b5563;
+}
+
+.overview-record-meta.has-discount {
+  color: #dc2626;
+  font-weight: 600;
 }
 
 .overview-record-total {
