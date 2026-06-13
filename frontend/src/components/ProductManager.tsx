@@ -4,6 +4,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Select,
   Tag,
 } from 'antd';
 import type { InputRef } from 'antd';
@@ -42,6 +43,7 @@ export function ProductManager({ open, onClose }: Props) {
   const [formSalePrice, setFormSalePrice] = useState<number>(0);
   const [formStockOnHand, setFormStockOnHand] = useState<number>(0);
 
+  const [units, setUnits] = useState<{ id: number; name: string }[]>([]);
   const barcodeRef = useRef<InputRef>(null);
 
   async function loadPage(p: number, keyword: string, append = false) {
@@ -88,7 +90,7 @@ export function ProductManager({ open, onClose }: Props) {
     }
   }
 
-  function openForm(product?: ManageProduct) {
+  async function openForm(product?: ManageProduct) {
     setEditingProduct(product ?? null);
     setFormProductCode(product?.productCode ?? '');
     setFormBarcode(product?.barcode ?? '');
@@ -98,6 +100,10 @@ export function ProductManager({ open, onClose }: Props) {
     setFormCostPrice(product?.costPrice ?? 0);
     setFormSalePrice(product?.salePrice ?? 0);
     setFormStockOnHand(product?.stockOnHand ?? 0);
+    try {
+      const res = await api.get<ApiEnvelope<{ id: number; name: string }[]>>('/pos/units');
+      setUnits(res.data.data);
+    } catch { /* ignore */ }
     setFormOpen(true);
     setTimeout(() => barcodeRef.current?.focus(), 100);
   }
@@ -113,30 +119,40 @@ export function ProductManager({ open, onClose }: Props) {
     }
     setSaving(true);
     try {
-      const body = {
-        productCode: formProductCode.trim(),
-        barcode: formBarcode.trim() || undefined,
-        name: formName.trim(),
-        categoryId: formCategoryId ?? 1,
-        unitId: formUnitId ?? 1,
-        costPrice: formCostPrice,
-        salePrice: formSalePrice,
-        stockOnHand: formStockOnHand,
-      };
-
       if (editingProduct) {
+        const body: Record<string, unknown> = {
+          barcode: formBarcode.trim() || undefined,
+          name: formName.trim(),
+          categoryId: formCategoryId ?? 1,
+          unitId: formUnitId ?? 1,
+          costPrice: formCostPrice,
+          salePrice: formSalePrice,
+          stockOnHand: formStockOnHand,
+        };
         await api.put<ApiEnvelope<ManageProduct>>(`/pos/products/${editingProduct.id}`, body);
         message.success(LANG.successProductUpdated);
       } else {
+        const body = {
+          productCode: formProductCode.trim(),
+          barcode: formBarcode.trim() || undefined,
+          name: formName.trim(),
+          categoryId: formCategoryId ?? 1,
+          unitId: formUnitId ?? 1,
+          costPrice: formCostPrice,
+          salePrice: formSalePrice,
+          stockOnHand: formStockOnHand,
+        };
         await api.post<ApiEnvelope<ManageProduct>>('/pos/products', body);
         message.success(LANG.successProductCreated);
       }
 
       setFormOpen(false);
       setEditingProduct(null);
-      resetSearch(searchKeywordRef.current);
-    } catch {
-      message.error(LANG.errSaveProduct);
+      resetSearch(formName.trim());
+    } catch (err: any) {
+      console.error('save product error', err);
+      const msg = err?.response?.data?.message ?? err?.message ?? LANG.errSaveProduct;
+      message.error(typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setSaving(false);
     }
@@ -278,6 +294,18 @@ export function ProductManager({ open, onClose }: Props) {
             formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
             parser={(v) => Number((v ?? '0').replace(/\./g, ''))}
             style={{ width: '100%' }}
+          />
+          <div className="product-form-label">{LANG.productUnit}</div>
+          <Select
+            showSearch
+            value={formUnitId}
+            onChange={(v) => setFormUnitId(v)}
+            options={units.map((u) => ({ value: u.id, label: u.name }))}
+            style={{ width: '100%' }}
+            placeholder="Chọn ĐVT"
+            filterOption={(input, option) =>
+              (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+            }
           />
           <div className="product-form-label">{LANG.productStock}</div>
           <InputNumber

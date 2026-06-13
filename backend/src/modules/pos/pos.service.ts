@@ -2194,12 +2194,39 @@ export class PosService {
     if (data.name !== undefined) product.name = data.name;
     if (data.barcode !== undefined) product.barcode = data.barcode;
     if (data.categoryId !== undefined) product.categoryId = data.categoryId;
-    if (data.unitId !== undefined) product.unitId = data.unitId;
     if (data.costPrice !== undefined) product.costPrice = data.costPrice.toFixed(2);
     if (data.salePrice !== undefined) product.salePrice = data.salePrice.toFixed(2);
     if (data.stockOnHand !== undefined) product.stockOnHand = data.stockOnHand.toFixed(3);
     if (data.isActive !== undefined) product.isActive = data.isActive;
     if (data.allowDirectSale !== undefined) product.allowDirectSale = data.allowDirectSale;
+
+    // If unitId changed, update the default ProductUnit
+    if (data.unitId !== undefined && data.unitId !== product.unitId) {
+      product.unitId = data.unitId;
+      const existingDefault = await this.productUnitRepository.findOneBy({
+        productId: id,
+        isDefaultForPos: true,
+      });
+      if (existingDefault) {
+        existingDefault.unitId = data.unitId;
+        await this.productUnitRepository.save(existingDefault);
+      } else {
+        await this.productUnitRepository.save(
+          this.productUnitRepository.create({
+            productId: id,
+            unitId: data.unitId,
+            barcode: product.barcode,
+            conversionValue: '1',
+            costPrice: product.costPrice,
+            salePrice: product.salePrice,
+            allowDirectSale: product.allowDirectSale,
+            isDefaultForPos: true,
+            isSmallestUnit: true,
+            isActive: product.isActive,
+          }),
+        );
+      }
+    }
 
     await this.productRepository.save(product);
 
