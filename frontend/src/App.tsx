@@ -1,4 +1,4 @@
-import {
+﻿import {
   App as AntApp,
   Button,
   ConfigProvider,
@@ -14,18 +14,23 @@ import {
   Spin,
   Table,
   Tag,
+  Tooltip,
   Typography,
   theme,
 } from 'antd';
 import type { InputRef } from 'antd';
 import {
+  AppstoreOutlined,
   DeleteOutlined,
+  EyeOutlined,
   MinusOutlined,
   MoreOutlined,
   PlusOutlined,
+  PrinterOutlined,
   SearchOutlined,
   ShoppingCartOutlined,
   SwapOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -39,7 +44,11 @@ import type {
   PosDraftTab,
   PosProduct,
   PosProductUnitOption,
+  OverviewDetail,
+  OverviewRecord,
+  PurchaseCheckoutResponse,
   ReturnCheckoutResponse,
+  Supplier,
 } from './types';
 
 const { Text } = Typography;
@@ -99,7 +108,18 @@ type InvoiceItemsResponse = {
 
 type SaleReceiptData = CheckoutResponse['receiptData'];
 type ReturnReceiptData = ReturnCheckoutResponse['receiptData'];
-type ReceiptPreviewData = SaleReceiptData | ReturnReceiptData;
+type PurchaseReceiptData = PurchaseCheckoutResponse['receiptData'];
+type ReceiptPreviewData = SaleReceiptData | ReturnReceiptData | PurchaseReceiptData;
+type PurchaseMeta = {
+  importDate: string;
+  purchaseOrderCode: string;
+  purchaseSequence: number;
+  supplierOrderCode: string;
+  supplierInvoiceCode: string;
+  supplierId: number | null;
+  status: string;
+  supplierPaidAmount: number;
+};
 
 export function App() {
   return (
@@ -157,6 +177,16 @@ function PosPage() {
   const [categoryFormOpen, setCategoryFormOpen] = useState(false);
   const [categoryFormName, setCategoryFormName] = useState('');
   const [categorySaving, setCategorySaving] = useState(false);
+  const [purchaseMetaMap, setPurchaseMetaMap] = useState<Record<number, PurchaseMeta>>({});
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [suppliersLoading, setSuppliersLoading] = useState(false);
+  const [currentView, setCurrentView] = useState<'POS' | 'OVERVIEW'>('POS');
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewRecords, setOverviewRecords] = useState<OverviewRecord[]>([]);
+  const [overviewDetail, setOverviewDetail] = useState<OverviewDetail | null>(null);
+  const [overviewFromDate, setOverviewFromDate] = useState(new Date().toISOString().slice(0, 10));
+  const [overviewToDate, setOverviewToDate] = useState(new Date().toISOString().slice(0, 10));
+  const [overviewRecordTypeFilter, setOverviewRecordTypeFilter] = useState<'ALL' | 'SALE' | 'RETURN' | 'PURCHASE'>('ALL');
   const saveTimerRef = useRef<number | null>(null);
   const searchInputRef = useRef<InputRef>(null);
   const searchKeywordRef = useRef('');
@@ -182,9 +212,26 @@ function PosPage() {
   }, [activeTab]);
 
   const isReturnTab = activeTab?.tabType === 'RETURN';
+  const isPurchaseTab = activeTab?.tabType === 'PURCHASE';
+  const filteredOverviewRecords = useMemo(
+    () =>
+      overviewRecordTypeFilter === 'ALL'
+        ? overviewRecords
+        : overviewRecords.filter((record) => record.recordType === overviewRecordTypeFilter),
+    [overviewRecords, overviewRecordTypeFilter],
+  );
+  const overviewTotalAmount = useMemo(
+    () => filteredOverviewRecords.reduce((sum, record) => sum + record.totalAmount, 0),
+    [filteredOverviewRecords],
+  );
+  const overviewTotalDiscount = useMemo(
+    () => filteredOverviewRecords.reduce((sum, record) => sum + record.discountAmount, 0),
+    [filteredOverviewRecords],
+  );
 
   useEffect(() => {
     void bootstrapDraftTabs();
+    void loadSuppliers();
   }, []);
 
   useEffect(() => {
@@ -233,12 +280,37 @@ function PosPage() {
   }, [loading, activeTabId]);
 
   useEffect(() => {
-    if (!activeTab || activeTab.customerPaidAmount === summary.total) {
+    if (!activeTab || isReturnTab || isPurchaseTab || activeTab.customerPaidAmount === summary.total) {
       return;
     }
 
     updateActiveTab({ customerPaidAmount: summary.total });
-  }, [summary.total, activeTabId, activeTab?.customerPaidAmount]);
+  }, [summary.total, activeTabId, activeTab?.customerPaidAmount, isReturnTab, isPurchaseTab]);
+
+  useEffect(() => {
+    setPurchaseMetaMap((current) => {
+      const next = { ...current };
+      let changed = false;
+
+      for (const tab of tabs) {
+        if (tab.tabType !== 'PURCHASE' || next[tab.id]) {
+          continue;
+        }
+
+        next[tab.id] = createDefaultPurchaseMeta(tab);
+        changed = true;
+      }
+
+      for (const tabId of Object.keys(next).map(Number)) {
+        if (!tabs.some((tab) => tab.id === tabId && tab.tabType === 'PURCHASE')) {
+          delete next[tabId];
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [tabs]);
 
   useEffect(() => {
     if (!activeTab?.items.length) {
@@ -368,15 +440,90 @@ function PosPage() {
     return numbers.length ? Math.max(...numbers) + 1 : 1;
   }
 
+  function getNextPurchaseSequence(currentTabs: PosDraftTab[]) {
+    return currentTabs.filter((tab) => tab.tabType === 'PURCHASE').length + 1;
+  }
+
+  function getPurchaseSequenceFromTab(tab: PosDraftTab) {
+    const matched = tab.title.match(/(\d+)$/);
+    return matched ? Number(matched[1]) : getNextPurchaseSequence(tabs);
+  }
+
+  function buildPurchaseOrderCode(sequence: number, identitySeed: number | string) {
+    const identityText = String(identitySeed).replace(/\D/g, '').slice(-6).padStart(6, '0');
+    return `PNH${String(sequence).padStart(4, '0')}${identityText}`;
+  }
+
+  async function loadSuppliers(keyword?: string) {
+    setSuppliersLoading(true);
+    try {
+      const response = await api.get<ApiEnvelope<Supplier[]>>('/pos/suppliers', {
+        params: keyword?.trim() ? { keyword: keyword.trim() } : undefined,
+      });
+      setSuppliers(response.data.data);
+    } catch {
+      message.error(LANG.errLoadSuppliers);
+    } finally {
+      setSuppliersLoading(false);
+    }
+  }
+
+  function createDefaultPurchaseMeta(tab: PosDraftTab): PurchaseMeta {
+    const purchaseSequence = getPurchaseSequenceFromTab(tab);
+    return {
+      importDate: tab.lastTouchedAt ? tab.lastTouchedAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      purchaseOrderCode: buildPurchaseOrderCode(purchaseSequence, tab.id || tab.tabCode),
+      purchaseSequence,
+      supplierOrderCode: '',
+      supplierInvoiceCode: '',
+      supplierId: null,
+      status: LANG.purchaseDraftStatus,
+      supplierPaidAmount: 0,
+    };
+  }
+
+  function updatePurchaseMeta(tabId: number, patch: Partial<PurchaseMeta>) {
+    setPurchaseMetaMap((current) => ({
+      ...current,
+      [tabId]: {
+        ...(current[tabId] ?? createDefaultPurchaseMeta(
+          tabs.find((tab) => tab.id === tabId) ?? {
+            id: tabId,
+            tabCode: `TAB${tabId}`,
+            tabType: 'PURCHASE',
+            title: `${LANG.tabPurchase} ${tabId}`,
+            saleMode: 'PURCHASE',
+            customerName: null,
+            customerPhone: null,
+            note: null,
+            paymentMethod: 'CASH',
+            customerPaidAmount: 0,
+            discountAmount: 0,
+            sourceSalesOrderId: null,
+            isActive: true,
+            lastTouchedAt: new Date().toISOString(),
+            items: [],
+          },
+        )),
+        ...patch,
+      },
+    }));
+  }
+
   async function createDraftTab(
     title?: string,
-    tabType: 'SALE' | 'RETURN' = 'SALE',
+    tabType: 'SALE' | 'RETURN' | 'PURCHASE' = 'SALE',
   ) {
-    const label = tabType === 'RETURN' ? LANG.tabReturn : LANG.tabSale;
+    const label =
+      tabType === 'RETURN'
+        ? LANG.tabReturn
+        : tabType === 'PURCHASE'
+          ? LANG.tabPurchase
+          : LANG.tabSale;
     const response = await api.post<ApiEnvelope<PosDraftTab>>('/pos/draft-tabs', {
       tabType,
       title: title ?? `${label} ${getNextTabNumber(tabs, label)}`,
-      saleMode: 'QUICK_SALE',
+      saleMode: tabType === 'PURCHASE' ? 'PURCHASE' : 'QUICK_SALE',
       customerName: null,
       customerPhone: null,
       note: null,
@@ -421,13 +568,74 @@ function PosPage() {
     }
   }
 
-  async function handleCreateTab(tabType: 'SALE' | 'RETURN' = 'SALE') {
+  async function handleCreateTab(tabType: 'SALE' | 'RETURN' | 'PURCHASE' = 'SALE') {
     try {
       const created = await createDraftTab(undefined, tabType);
       setTabs((current) => [...current, created]);
       setActiveTabId(created.id);
+      setCurrentView('POS');
+      if (tabType === 'PURCHASE') {
+        setPurchaseMetaMap((current) => ({
+          ...current,
+          [created.id]: createDefaultPurchaseMeta(created),
+        }));
+      }
     } catch {
-      message.error(tabType === 'RETURN' ? LANG.errCreateReturnTab : LANG.errCreateTab);
+      message.error(
+        tabType === 'RETURN'
+          ? LANG.errCreateReturnTab
+          : tabType === 'PURCHASE'
+            ? LANG.errCreatePurchaseTab
+            : LANG.errCreateTab,
+      );
+    }
+  }
+
+  async function ensureSaleTab() {
+    setCurrentView('POS');
+
+    if (activeTab?.tabType === 'SALE') {
+      return;
+    }
+
+    const existingSaleTab = tabs.find((tab) => tab.tabType === 'SALE');
+    if (existingSaleTab) {
+      setActiveTabId(existingSaleTab.id);
+      return;
+    }
+
+    await handleCreateTab('SALE');
+  }
+
+  async function loadOverview(selectRecord = true) {
+    setOverviewLoading(true);
+    try {
+      const response = await api.get<ApiEnvelope<{ items: OverviewRecord[] }>>('/pos/overview', {
+        params: {
+          fromDate: overviewFromDate,
+          toDate: overviewToDate,
+        },
+      });
+      const items = response.data.data.items;
+      setOverviewRecords(items);
+      if (selectRecord && items.length) {
+        await loadOverviewDetail(items[0].recordType, items[0].id);
+      } else if (!items.length) {
+        setOverviewDetail(null);
+      }
+    } catch {
+      message.error(LANG.errLoadOverview);
+    } finally {
+      setOverviewLoading(false);
+    }
+  }
+
+  async function loadOverviewDetail(recordType: OverviewRecord['recordType'], id: number) {
+    try {
+      const response = await api.get<ApiEnvelope<OverviewDetail>>(`/pos/overview/${recordType}/${id}`);
+      setOverviewDetail(response.data.data);
+    } catch {
+      message.error(LANG.errLoadOverview);
     }
   }
 
@@ -469,7 +677,7 @@ function PosPage() {
       focusSearchInput();
       return;
     } catch {
-      // resolve thất bại (không phải mã vạch/code chính xác)
+      // resolve failed; continue with search fallback
     } finally {
       setSearching(false);
     }
@@ -832,6 +1040,15 @@ function PosPage() {
     );
   }
 
+  function formatPurchaseDate(dateText: string) {
+    const date = new Date(dateText);
+    if (Number.isNaN(date.getTime())) {
+      return dateText;
+    }
+
+    return date.toLocaleDateString('vi-VN');
+  }
+
   function buildDraftReceipt(): ReceiptPreviewData | null {
     if (!activeTab?.items.length) {
       return null;
@@ -839,6 +1056,7 @@ function PosPage() {
 
     const items = activeTab.items.map((item) => ({
       productName: item.productName,
+      unitName: item.unitName,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       lineTotal: item.lineTotal,
@@ -863,6 +1081,30 @@ function PosPage() {
         footerMessage: LANG.receiptFooter,
       };
       return returnReceipt;
+    }
+
+    if (isPurchaseTab) {
+      const purchasePaidAmount = purchaseMetaMap[activeTab.id]?.supplierPaidAmount ?? 0;
+      const purchaseReceipt: PurchaseReceiptData = {
+        storeName: LANG.storeNameReceipt,
+        storeAddress: LANG.storeAddress,
+        storePhoneNumber: LANG.storePhoneNumber,
+        purchaseOrderCode:
+          purchaseMetaMap[activeTab.id]?.purchaseOrderCode ?? activeTab.title,
+        orderedAt: purchaseMetaMap[activeTab.id]?.importDate
+          ? new Date(purchaseMetaMap[activeTab.id]!.importDate).toISOString()
+          : new Date().toISOString(),
+        supplierName:
+          suppliers.find((supplier) => supplier.id === (purchaseMetaMap[activeTab.id]?.supplierId ?? null))?.name ?? null,
+        items,
+        subtotalAmount: summary.subtotal,
+        discountAmount: activeTab.discountAmount,
+        totalAmount: summary.total,
+        supplierPaidAmount: purchasePaidAmount,
+        debtAmount: Math.max(0, summary.total - purchasePaidAmount),
+        footerMessage: LANG.receiptFooter,
+      };
+      return purchaseReceipt;
     }
 
     const customerPaidAmount = summary.total;
@@ -903,16 +1145,30 @@ function PosPage() {
           <div class="summary-row"><span>${LANG.discount}:</span><span>${receipt.discountAmount.toLocaleString('vi-VN')}</span></div>
           <div class="summary-row total"><span>${LANG.totalReturn}:</span><span>${receipt.totalAmount.toLocaleString('vi-VN')}</span></div>
           <div class="summary-row"><span>${LANG.refund}:</span><span>${receipt.customerRefundAmount.toLocaleString('vi-VN')}</span></div>`
+      : 'supplierPaidAmount' in receipt
+        ? `
+          <div class="summary-row"><span>${LANG.receiptProductTotal}:</span><span>${receipt.subtotalAmount.toLocaleString('vi-VN')}</span></div>
+          <div class="summary-row"><span>${LANG.discount}:</span><span>${receipt.discountAmount.toLocaleString('vi-VN')}</span></div>
+          <div class="summary-row total"><span>${LANG.purchasePayable}:</span><span>${receipt.totalAmount.toLocaleString('vi-VN')}</span></div>
+          <div class="summary-row"><span>${LANG.receiptPaidSupplier}:</span><span>${receipt.supplierPaidAmount.toLocaleString('vi-VN')}</span></div>
+          <div class="summary-row"><span>${LANG.receiptDebtSupplier}:</span><span>${receipt.debtAmount.toLocaleString('vi-VN')}</span></div>`
       : `
           <div class="summary-row"><span>${LANG.receiptProductTotal}:</span><span>${receipt.subtotalAmount.toLocaleString('vi-VN')}</span></div>
           <div class="summary-row"><span>${LANG.discount}:</span><span>${receipt.discountAmount.toLocaleString('vi-VN')}</span></div>
           <div class="summary-row total"><span>${LANG.totalPayment}:</span><span>${receipt.totalAmount.toLocaleString('vi-VN')}</span></div>`;
 
+    const receiptTitle =
+      'returnFeeAmount' in receipt
+        ? LANG.receiptReturnTitle
+        : 'supplierPaidAmount' in receipt
+          ? LANG.receiptPurchaseTitle
+          : LANG.receiptTitle;
+
     const itemsHtml = receipt.items
       .map(
         (item) => `
           <div class="item">
-            <div class="item-name">${item.productName}</div>
+            <div class="item-name">${item.productName} - (${item.unitName})</div>
             <div class="item-row">
               <div class="item-price">${item.unitPrice.toLocaleString('vi-VN')}</div>
               <div class="item-qty">${item.quantity}</div>
@@ -923,7 +1179,13 @@ function PosPage() {
       )
       .join('');
 
-    const soldAtText = new Date(receipt.soldAt)
+    const receiptCodeLabel =
+      'supplierPaidAmount' in receipt ? LANG.receiptPurchaseCode : LANG.receiptCode;
+    const receiptCodeValue =
+      'supplierPaidAmount' in receipt ? receipt.purchaseOrderCode : receipt.salesOrderCode;
+    const receiptDateValue =
+      'supplierPaidAmount' in receipt ? receipt.orderedAt : receipt.soldAt;
+    const receiptDateText = new Date(receiptDateValue)
       .toLocaleString('vi-VN', {
         year: 'numeric',
         month: '2-digit',
@@ -933,13 +1195,17 @@ function PosPage() {
         hour12: false,
       })
       .replace(',', '');
+    const supplierLine =
+      'supplierPaidAmount' in receipt && receipt.supplierName
+        ? `<div class="subcenter">${LANG.receiptSupplier}: ${receipt.supplierName}</div>`
+        : '';
 
     printWindow.document.write(`
       <!doctype html>
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>${receipt.salesOrderCode}</title>
+          <title>${receiptCodeValue}</title>
           <style>
             @page { size: 80mm auto; margin: 3mm; }
             * { box-sizing: border-box; }
@@ -975,9 +1241,10 @@ function PosPage() {
               <div class="store">${LANG.storeNameReceipt}</div>
               <div class="subcenter">${LANG.storeAddress}</div>
               <div class="subcenter">${LANG.storePhoneNumber}</div>
-              <div class="header-title">${LANG.receiptTitle}</div>
-              <div class="subcenter">${LANG.receiptCode}: ${receipt.salesOrderCode}</div>
-              <div class="subcenter">${soldAtText}</div>
+              <div class="header-title">${receiptTitle}</div>
+              <div class="subcenter">${receiptCodeLabel}: ${receiptCodeValue}</div>
+              <div class="subcenter">${receiptDateText}</div>
+              ${supplierLine}
             </div>
             <div class="line"></div>
             <div class="table-head">
@@ -1015,7 +1282,37 @@ function PosPage() {
 
     setCheckingOut(true);
     try {
-      if (isReturnTab) {
+      if (isPurchaseTab) {
+        const purchaseMeta = purchaseMetaMap[activeTab.id] ?? createDefaultPurchaseMeta(activeTab);
+        const response = await api.post<ApiEnvelope<PurchaseCheckoutResponse>>('/pos/purchase-orders/checkout', {
+          purchaseOrderCode: purchaseMeta.purchaseOrderCode,
+          supplierId: purchaseMeta.supplierId,
+          supplierOrderCode: purchaseMeta.supplierOrderCode,
+          supplierInvoiceCode: purchaseMeta.supplierInvoiceCode,
+          status: 'COMPLETED',
+          importDate: purchaseMeta.importDate,
+          note: activeTab.note,
+          discountAmount: activeTab.discountAmount,
+          supplierPaidAmount: purchaseMeta.supplierPaidAmount,
+          items: activeTab.items.map((item) => ({
+            productId: item.productId,
+            productUnitId: item.productUnitId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discountAmount: item.discountAmount,
+            note: item.note ?? null,
+          })),
+        });
+
+        message.success(LANG.purchaseCompleted);
+        setReceiptPreview({
+          ...response.data.data.receiptData,
+          storeName: LANG.storeNameReceipt,
+          storeAddress: LANG.storeAddress,
+          storePhoneNumber: LANG.storePhoneNumber,
+          footerMessage: LANG.receiptFooter,
+        });
+      } else if (isReturnTab) {
         const response = await api.post<ApiEnvelope<ReturnCheckoutResponse>>('/returns/checkout', {
           sourceSalesOrderId: activeTab.sourceSalesOrderId ?? 0,
           saleMode: activeTab.saleMode,
@@ -1103,7 +1400,7 @@ function PosPage() {
     }
   }
 
-  // ── Category CRUD ──
+  // â”€â”€ Category CRUD â”€â”€
 
   async function loadCategories(keyword?: string) {
     setCategoryLoading(true);
@@ -1112,7 +1409,7 @@ function PosPage() {
       const res = await api.get<ApiEnvelope<Category[]>>(`/pos/categories${params}`);
       setCategories(res.data.data);
     } catch {
-      message.error('Không tải được danh mục');
+      message.error(LANG.errLoadCategories);
     } finally {
       setCategoryLoading(false);
     }
@@ -1134,23 +1431,23 @@ function PosPage() {
   async function handleSaveCategory() {
     const name = categoryFormName.trim();
     if (!name) {
-      message.warning('Vui lòng nhập tên danh mục');
+      message.warning(LANG.errCategoryNameRequired);
       return;
     }
     setCategorySaving(true);
     try {
       if (editingCategory) {
         await api.put<ApiEnvelope<Category>>(`/pos/categories/${editingCategory.id}`, { name });
-        message.success('Đã cập nhật danh mục');
+        message.success(LANG.successCategoryUpdated);
       } else {
         await api.post<ApiEnvelope<Category>>('/pos/categories', { name });
-        message.success('Đã thêm danh mục');
+        message.success(LANG.successCategoryCreated);
       }
       setCategoryFormOpen(false);
       setEditingCategory(null);
       void loadCategories(categoryKeyword);
     } catch {
-      message.error('Lỗi lưu danh mục');
+      message.error(LANG.errCategorySave);
     } finally {
       setCategorySaving(false);
     }
@@ -1166,7 +1463,7 @@ function PosPage() {
       onOk: async () => {
         try {
           await api.delete(`/pos/categories/${category.id}`);
-          message.success('Đã xóa danh mục');
+          message.success(LANG.successCategoryDeleted);
           void loadCategories(categoryKeyword);
         } catch (error: unknown) {
           const apiMsg =
@@ -1180,7 +1477,7 @@ function PosPage() {
             error.response.data !== null &&
             'message' in error.response.data
               ? String(error.response.data.message)
-              : 'Không xóa được danh mục';
+              : LANG.errCategoryDelete;
           message.error(apiMsg);
         }
       },
@@ -1237,44 +1534,142 @@ function PosPage() {
 
             <div className="draft-strip">
               {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={`draft-chip ${tab.id === activeTabId ? 'is-active' : ''}`}
-                  onClick={() => setActiveTabId(tab.id)}
-                >
-                  <span>{tab.title}</span>
-                  {tabs.length > 1 && (
-                    <span
-                      className="draft-chip-close"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void handleCloseTab(tab.id);
-                      }}
-                    >
-                      ×
-                    </span>
-                  )}
-                </button>
+                <Tooltip key={tab.id} title={`${LANG.openTab}: ${tab.title}`}>
+                  <button
+                    type="button"
+                    className={`draft-chip ${tab.id === activeTabId ? 'is-active' : ''}`}
+                    onClick={() => setActiveTabId(tab.id)}
+                  >
+                    <span>{tab.title}</span>
+                    {tabs.length > 1 && (
+                      <Tooltip title={`${LANG.closeTab}: ${tab.title}`}>
+                        <span
+                          className="draft-chip-close"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleCloseTab(tab.id);
+                          }}
+                        >
+                          {LANG.closeTabSymbol}
+                        </span>
+                      </Tooltip>
+                    )}
+                  </button>
+                </Tooltip>
               ))}
-              <button
-                type="button"
-                className="draft-chip draft-chip-add"
-                onClick={() => void handleCreateTab()}
-              >
-                <PlusOutlined />
-              </button>
+              <Tooltip title={LANG.addTab}>
+                <button
+                  type="button"
+                  className="draft-chip draft-chip-add"
+                  onClick={() => void handleCreateTab()}
+                >
+                  <PlusOutlined />
+                </button>
+              </Tooltip>
             </div>
 
             <div className="topbar-actions">
               {lastScannedProductName ? (
-                <Tag color="green">Đã quét: {lastScannedProductName}</Tag>
+                <Tag color="green">{LANG.scannedLabel} {lastScannedProductName}</Tag>
               ) : null}
               <Tag color={saving ? 'processing' : 'success'}>
                 {saving ? LANG.saving : LANG.synced}
               </Tag>
             </div>
           </div>
+
+          {currentView === 'OVERVIEW' ? (
+            <>
+              <div className="overview-toolbar">
+                <div className="overview-toolbar-title">{LANG.overviewTitle}</div>
+                <div className="overview-toolbar-filters">
+                  <span>{LANG.overviewFromDate}</span>
+                  <DatePicker
+                    value={dayjs(overviewFromDate)}
+                    format="DD/MM/YYYY"
+                    onChange={(date) =>
+                      setOverviewFromDate(
+                        date ? date.format('YYYY-MM-DD') : new Date().toISOString().slice(0, 10),
+                      )
+                    }
+                  />
+                  <span>{LANG.overviewToDate}</span>
+                  <DatePicker
+                    value={dayjs(overviewToDate)}
+                    format="DD/MM/YYYY"
+                    onChange={(date) =>
+                      setOverviewToDate(
+                        date ? date.format('YYYY-MM-DD') : new Date().toISOString().slice(0, 10),
+                      )
+                    }
+                  />
+                  <Button type="primary" onClick={() => void loadOverview()}>
+                    {LANG.overviewRefresh}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="sale-list" ref={saleListRef}>
+                <div className="purchase-table-head purchase-table-head-overview">
+                  <div>{LANG.purchaseTableNo}</div>
+                  <div>{LANG.purchaseTableName}</div>
+                  <div>{LANG.purchaseTableUnit}</div>
+                  <div>{LANG.purchaseTableStock}</div>
+                  <div>{LANG.purchaseTableQty.replace(' nhập', '')}</div>
+                  <div>{LANG.purchaseTablePrice}</div>
+                  <div>{LANG.purchaseTableTotal}</div>
+                </div>
+                {overviewDetail?.items.length ? (
+                  overviewDetail.items.map((item) => (
+                    <div key={`${overviewDetail.header.recordType}-${overviewDetail.header.id}-${item.rowNo}`} className="purchase-row purchase-row-overview">
+                      <div>{item.rowNo}</div>
+                      <div className="purchase-name">{item.productName}</div>
+                      <div>{item.unitName ?? ''}</div>
+                      <div>{item.stockOnHand.toLocaleString('vi-VN')}</div>
+                      <div>{item.quantity.toLocaleString('vi-VN')}</div>
+                      <div>{item.unitPrice.toLocaleString('vi-VN')}</div>
+                      <div className="purchase-total">{item.lineTotal.toLocaleString('vi-VN')}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="empty-stage empty-stage-purchase">
+                    <Empty description={overviewLoading ? LANG.saving : LANG.overviewEmptyDetail} />
+                  </div>
+                )}
+              </div>
+
+              <div className="sale-footer">
+                <div className="sale-modes">
+                  <Tooltip title={LANG.modeSaleTip}>
+                    <button type="button" className="sale-mode" onClick={() => { void ensureSaleTab(); }}>
+                      {LANG.modeSale}
+                    </button>
+                  </Tooltip>
+                  <Tooltip title={LANG.modeReturnTip}>
+                    <button type="button" className="sale-mode" onClick={() => { setCurrentView('POS'); void handleCreateTab('RETURN'); }}>
+                      {LANG.modeReturn}
+                    </button>
+                  </Tooltip>
+                  <Tooltip title={LANG.modeImportTip}>
+                    <button type="button" className="sale-mode" onClick={() => { setCurrentView('POS'); void handleCreateTab('PURCHASE'); }}>
+                      {LANG.modeImport}
+                    </button>
+                  </Tooltip>
+                  <Tooltip title={LANG.modeCategoryTip}>
+                    <button type="button" className="sale-mode" onClick={openCategoryModal}>
+                      {LANG.modeCategory}
+                    </button>
+                  </Tooltip>
+                  <Tooltip title={LANG.modeOverviewTip}>
+                    <button type="button" className="sale-mode is-active">
+                      {LANG.modeOverview}
+                    </button>
+                  </Tooltip>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
 
           {!!searchResults.length && (
             <div className="search-results search-results-inline">
@@ -1303,7 +1698,7 @@ function PosPage() {
                   >
                     <List.Item.Meta
                       title={`${product.name} (${product.unitName})`}
-                      description={`${product.productCode} ${LANG.productUnitSep} ${LANG.stockLabel} ${product.stockOnHand.toLocaleString('vi-VN')} ${LANG.productUnitSep} ${product.salePrice.toLocaleString('vi-VN')}đ`}
+                      description={`${product.productCode} ${LANG.productUnitSep} ${LANG.stockLabel} ${product.stockOnHand.toLocaleString('vi-VN')} ${LANG.productUnitSep} ${product.salePrice.toLocaleString('vi-VN')}${LANG.currencySuffix}`}
                     />
                   </List.Item>
                 )}
@@ -1369,7 +1764,7 @@ function PosPage() {
                         <span className="found-invoice-code">{inv.salesOrderCode}</span>
                         <span>{new Date(inv.soldAt).toLocaleString('vi-VN')}</span>
                         <span className="found-invoice-total">
-                          {inv.totalAmount.toLocaleString('vi-VN')}đ
+                          {inv.totalAmount.toLocaleString('vi-VN')}{LANG.currencySuffix}
                         </span>
                       </div>
                       {inv.customerName && (
@@ -1385,8 +1780,169 @@ function PosPage() {
             </div>
           )}
 
+          {isPurchaseTab && (
+            <div className="purchase-toolbar">
+              <div className="purchase-toolbar-title">{LANG.purchaseHeader}</div>
+              <div className="purchase-toolbar-actions">
+                <Tooltip title={LANG.purchaseToolbarLayout}>
+                  <button
+                    type="button"
+                    className="purchase-toolbar-button"
+                    aria-label={LANG.purchaseToolbarLayout}
+                    onClick={() => message.info(LANG.errFeatureDev)}
+                  >
+                    <AppstoreOutlined />
+                  </button>
+                </Tooltip>
+                <Tooltip title={LANG.purchaseToolbarAdd}>
+                  <button
+                    type="button"
+                    className="purchase-toolbar-button"
+                    aria-label={LANG.purchaseToolbarAdd}
+                    onClick={() => focusSearchInput()}
+                  >
+                    <PlusOutlined />
+                  </button>
+                </Tooltip>
+                <Tooltip title={LANG.purchaseToolbarPrint}>
+                  <button
+                    type="button"
+                    className="purchase-toolbar-button"
+                    aria-label={LANG.purchaseToolbarPrint}
+                    onClick={() => activeTab && void persistDraftTab(activeTab)}
+                  >
+                    <PrinterOutlined />
+                  </button>
+                </Tooltip>
+                <Tooltip title={LANG.purchaseToolbarPreview}>
+                  <button
+                    type="button"
+                    className="purchase-toolbar-button"
+                    aria-label={LANG.purchaseToolbarPreview}
+                    onClick={() => message.info(LANG.errFeatureDev)}
+                  >
+                    <EyeOutlined />
+                  </button>
+                </Tooltip>
+                <Tooltip title={LANG.purchaseToolbarAlert}>
+                  <button
+                    type="button"
+                    className="purchase-toolbar-button"
+                    aria-label={LANG.purchaseToolbarAlert}
+                    onClick={() => message.info(LANG.errFeatureDev)}
+                  >
+                    <WarningOutlined />
+                  </button>
+                </Tooltip>
+              </div>
+            </div>
+          )}
+
           <div className="sale-list" ref={saleListRef}>
-            {activeTab?.items.length ? (
+            {isPurchaseTab ? (
+              <>
+                <div className="purchase-table-head">
+                  <div>{LANG.purchaseTableNo}</div>
+                  <div>{LANG.purchaseTableImportDate}</div>
+                  <div>{LANG.purchaseTableCode}</div>
+                  <div>{LANG.purchaseTableName}</div>
+                  <div>{LANG.purchaseTableUnit}</div>
+                  <div>{LANG.purchaseTableStock}</div>
+                  <div>{LANG.purchaseTableQty}</div>
+                  <div>{LANG.purchaseTablePrice}</div>
+                  <div>{LANG.purchaseTableDiscount}</div>
+                  <div>{LANG.purchaseTableTotal}</div>
+                </div>
+                {activeTab?.items.length ? (
+                  activeTab.items.map((item, index) => (
+                    <div key={item.productUnitId} className="purchase-row">
+                      <div className="purchase-stt">
+                        <button
+                          type="button"
+                          className="sale-icon-button sale-icon-delete"
+                          onClick={() => removeItem(item.productUnitId)}
+                        >
+                          <DeleteOutlined />
+                        </button>
+                        <span>{index + 1}</span>
+                      </div>
+                      <div>
+                        {formatPurchaseDate(
+                          purchaseMetaMap[activeTab.id]?.importDate ?? activeTab.lastTouchedAt,
+                        )}
+                      </div>
+                      <div>{item.productCode}</div>
+                      <div className="purchase-name">{item.productName}</div>
+                      <div>
+                        <Select
+                          size="small"
+                          className="purchase-unit-select"
+                          value={item.productUnitId}
+                          options={getUnitOptionsForItem(item).map((option) => ({
+                            label: option.unitName,
+                            value: option.productUnitId,
+                          }))}
+                          onDropdownVisibleChange={(open) => {
+                            if (open) {
+                              void loadProductUnitOptions(item.productId);
+                            }
+                          }}
+                          onChange={(value) => handleChangeItemUnit(item, value)}
+                        />
+                      </div>
+                      <div>{item.stockOnHand.toLocaleString('vi-VN')}</div>
+                      <div>
+                        <InputNumber
+                          min={1}
+                          step={1}
+                          controls={false}
+                          className="purchase-input"
+                          value={item.quantity}
+                          onChange={(value) =>
+                            updateItem(item.productUnitId, {
+                              quantity: Math.max(1, Number(value ?? 1)),
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <InputNumber
+                          min={0}
+                          controls={false}
+                          className="purchase-input"
+                          value={item.unitPrice}
+                          onChange={(value) =>
+                            updateItem(item.productUnitId, {
+                              unitPrice: Number(value ?? 0),
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <InputNumber
+                          min={0}
+                          controls={false}
+                          className="purchase-input"
+                          value={item.discountAmount}
+                          onChange={(value) =>
+                            updateItem(item.productUnitId, {
+                              discountAmount: Number(value ?? 0),
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="purchase-total">
+                        {item.lineTotal.toLocaleString('vi-VN')}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="empty-stage empty-stage-purchase">
+                    <Empty description={LANG.purchaseEmpty} />
+                  </div>
+                )}
+              </>
+            ) : activeTab?.items.length ? (
               activeTab.items.map((item, index) => (
                 <div key={item.productUnitId} className="sale-row">
                   <div className="sale-cell sale-cell-index">{index + 1}</div>
@@ -1447,7 +2003,7 @@ function PosPage() {
                     <button
                       type="button"
                       className="sale-icon-button"
-                      aria-label={`Tăng số lượng ${item.productName}`}
+                      aria-label={`${LANG.increaseQuantity} ${item.productName}`}
                       onClick={() =>
                         updateItem(item.productUnitId, {
                           quantity: item.quantity + 1,
@@ -1472,7 +2028,7 @@ function PosPage() {
                   <div className="sale-cell sale-total">
                     {item.lineTotal.toLocaleString('vi-VN')}
                   </div>
-                  <button type="button" className="sale-icon-button sale-icon-more" aria-label={`Tùy chọn ${item.productName}`}>
+                  <button type="button" className="sale-icon-button sale-icon-more" aria-label={`${LANG.itemOptions} ${item.productName}`}>
                     <MoreOutlined />
                   </button>
                 </div>
@@ -1491,56 +2047,272 @@ function PosPage() {
               onChange={(event) => updateActiveTab({ note: event.target.value || null })}
             />
             <div className="sale-modes">
-              <button
-                type="button"
-                className={`sale-mode ${!isReturnTab ? 'is-active' : ''}`}
-                onClick={() => {
-                  if (isReturnTab) { void handleCreateTab('SALE'); }
-                }}
-              >
-                {LANG.modeSale}
-              </button>
-              <button
-                type="button"
-                className={`sale-mode ${isReturnTab ? 'is-active' : ''}`}
-                onClick={() => {
-                  if (!isReturnTab) { void handleCreateTab('RETURN'); }
-                }}
-              >
-                {LANG.modeReturn}
-              </button>
-              <button
-                type="button"
-                className="sale-mode"
-                onClick={() => message.info(LANG.errFeatureDev)}
-              >
-                {LANG.modeImport}
-              </button>
-              <button
-                type="button"
-                className="sale-mode"
-                onClick={openCategoryModal}
-              >
-                {LANG.modeCategory}
-              </button>
-              <button
-                type="button"
-                className="sale-mode"
-                onClick={() => message.info(LANG.errFeatureDev)}
-              >
-                {LANG.modeOverview}
-              </button>
+              <Tooltip title={LANG.modeSaleTip}>
+                <button
+                  type="button"
+                  className={`sale-mode ${!isReturnTab && !isPurchaseTab ? 'is-active' : ''}`}
+                  onClick={() => {
+                    void ensureSaleTab();
+                  }}
+                >
+                  {LANG.modeSale}
+                </button>
+              </Tooltip>
+              <Tooltip title={LANG.modeReturnTip}>
+                <button
+                  type="button"
+                  className={`sale-mode ${isReturnTab ? 'is-active' : ''}`}
+                  onClick={() => {
+                    if (!isReturnTab) { void handleCreateTab('RETURN'); }
+                  }}
+                >
+                  {LANG.modeReturn}
+                </button>
+              </Tooltip>
+              <Tooltip title={LANG.modeImportTip}>
+                <button
+                  type="button"
+                  className={`sale-mode ${isPurchaseTab ? 'is-active' : ''}`}
+                  onClick={() => {
+                    if (!isPurchaseTab) {
+                      void handleCreateTab('PURCHASE');
+                    }
+                  }}
+                >
+                  {LANG.modeImport}
+                </button>
+              </Tooltip>
+              <Tooltip title={LANG.modeCategoryTip}>
+                <button
+                  type="button"
+                  className="sale-mode"
+                  onClick={openCategoryModal}
+                >
+                  {LANG.modeCategory}
+                </button>
+              </Tooltip>
+              <Tooltip title={LANG.modeOverviewTip}>
+                <button
+                  type="button"
+                  className="sale-mode"
+                  onClick={() => {
+                    setCurrentView('OVERVIEW');
+                    void loadOverview();
+                  }}
+                >
+                  {LANG.modeOverview}
+                </button>
+              </Tooltip>
             </div>
           </div>
+            </>
+          )}
         </section>
 
-        <aside className="checkout-panel">
-          <div className="checkout-header">
-            <div className="checkout-user">{LANG.cashier}</div>
-            <div className="checkout-time">{LANG.storeNameSale}</div>
-          </div>
+        <aside className={`checkout-panel ${isPurchaseTab ? 'checkout-panel-purchase' : ''} ${currentView === 'OVERVIEW' ? 'checkout-panel-overview' : ''}`}>
+          {currentView === 'OVERVIEW' ? (
+            <>
+              <div className="checkout-header">
+                <div className="checkout-user">{LANG.overviewTitle}</div>
+                <div className="checkout-time">{filteredOverviewRecords.length}</div>
+              </div>
+              <div className="overview-summary">
+                <div className="overview-summary-label">{LANG.overviewFilterType}</div>
+                <Select
+                  size="small"
+                  value={overviewRecordTypeFilter}
+                  options={[
+                    { label: LANG.overviewFilterAll, value: 'ALL' },
+                    { label: LANG.overviewTypeSale, value: 'SALE' },
+                    { label: LANG.overviewTypeReturn, value: 'RETURN' },
+                    { label: LANG.overviewTypePurchase, value: 'PURCHASE' },
+                  ]}
+                  onChange={(value) =>
+                    setOverviewRecordTypeFilter(value as 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE')
+                  }
+                />
+                <div className="overview-summary-label">{LANG.overviewTotalValue}</div>
+                <div className="overview-summary-total">
+                  {overviewTotalAmount.toLocaleString('vi-VN')}
+                </div>
+                <div className="overview-summary-label">{LANG.overviewTotalDiscount}</div>
+                <div className="overview-summary-subtotal">
+                  {overviewTotalDiscount.toLocaleString('vi-VN')}
+                </div>
+              </div>
+              <div className="overview-panel-list">
+                {filteredOverviewRecords.length ? filteredOverviewRecords.map((record) => (
+                  <button
+                    key={`${record.recordType}-${record.id}`}
+                    type="button"
+                    className={`overview-record ${overviewDetail?.header.id === record.id && overviewDetail?.header.recordType === record.recordType ? 'is-active' : ''}`}
+                    onClick={() => void loadOverviewDetail(record.recordType, record.id)}
+                  >
+                    <div className="overview-record-top">
+                      <span className="overview-record-type">
+                        {record.recordType === 'PURCHASE' ? LANG.overviewTypePurchase : record.recordType === 'RETURN' ? LANG.overviewTypeReturn : LANG.overviewTypeSale}
+                      </span>
+                      <strong>{record.code}</strong>
+                    </div>
+                    <div className="overview-record-meta">{new Date(record.eventAt).toLocaleString('vi-VN')}</div>
+                    <div className="overview-record-meta">{record.partyName ?? ''}</div>
+                    <div className="overview-record-meta">
+                      {LANG.discount}: {record.discountAmount.toLocaleString('vi-VN')}
+                    </div>
+                    <div className="overview-record-total">{record.totalAmount.toLocaleString('vi-VN')}</div>
+                  </button>
+                )) : (
+                  <div className="empty-stage">
+                    <Empty description={LANG.overviewEmpty} />
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="checkout-header">
+                <div className="checkout-user">{isPurchaseTab ? LANG.purchaseHeader : LANG.cashier}</div>
+                <div className="checkout-time">{LANG.storeNameSale}</div>
+              </div>
 
-          <Form layout="vertical" className="checkout-form">
+              {isPurchaseTab ? (
+                <div className="checkout-form checkout-form-purchase">
+              <div className="purchase-status-top">
+                <span className="purchase-status-label">{LANG.purchaseStatus}</span>
+                <Tag color="red" className="purchase-status-tag">
+                  {purchaseMetaMap[activeTab?.id ?? 0]?.status ?? LANG.purchaseDraftStatus}
+                </Tag>
+              </div>
+
+              <div className="purchase-inline-row">
+                <span className="purchase-inline-label">{LANG.purchaseImportDate}</span>
+                <DatePicker
+                  className="purchase-inline-control"
+                  value={
+                    purchaseMetaMap[activeTab?.id ?? 0]?.importDate
+                      ? dayjs(purchaseMetaMap[activeTab?.id ?? 0]?.importDate)
+                      : dayjs()
+                  }
+                  format="DD/MM/YYYY"
+                  onChange={(date) => {
+                    if (activeTab) {
+                      updatePurchaseMeta(activeTab.id, {
+                        importDate: date
+                          ? date.format('YYYY-MM-DD')
+                          : new Date().toISOString().slice(0, 10),
+                      });
+                    }
+                  }}
+                />
+              </div>
+
+              <Form layout="vertical">
+                <Form.Item label={LANG.purchaseOrderCode}>
+                  <Input
+                    value={
+                      purchaseMetaMap[activeTab?.id ?? 0]?.purchaseOrderCode ??
+                      activeTab?.tabCode ??
+                      ''
+                    }
+                    readOnly
+                  />
+                </Form.Item>
+
+                <Form.Item label={LANG.purchaseSupplier}>
+                  <Select
+                    allowClear
+                    showSearch
+                    loading={suppliersLoading}
+                    placeholder={LANG.purchaseSearchSupplier}
+                    optionFilterProp="label"
+                    value={purchaseMetaMap[activeTab?.id ?? 0]?.supplierId ?? undefined}
+                    options={suppliers.map((supplier) => ({
+                      label: supplier.code ? `${supplier.name} (${supplier.code})` : supplier.name,
+                      value: supplier.id,
+                    }))}
+                    notFoundContent={LANG.purchaseNoSuppliersFound}
+                    onChange={(value) =>
+                      activeTab &&
+                      updatePurchaseMeta(activeTab.id, {
+                        supplierId: value ?? null,
+                      })
+                    }
+                  />
+                </Form.Item>
+
+                <Form.Item label={LANG.purchaseSupplierOrderCode}>
+                  <Input
+                    value={purchaseMetaMap[activeTab?.id ?? 0]?.supplierOrderCode ?? ''}
+                    onChange={(event) =>
+                      activeTab &&
+                      updatePurchaseMeta(activeTab.id, {
+                        supplierOrderCode: event.target.value,
+                      })
+                    }
+                  />
+                </Form.Item>
+
+                <Form.Item label={LANG.purchaseSupplierInvoiceCode}>
+                  <Input
+                    value={purchaseMetaMap[activeTab?.id ?? 0]?.supplierInvoiceCode ?? ''}
+                    onChange={(event) =>
+                      activeTab &&
+                      updatePurchaseMeta(activeTab.id, {
+                        supplierInvoiceCode: event.target.value,
+                      })
+                    }
+                  />
+                </Form.Item>
+              </Form>
+
+              <div className="summary-rows">
+                <div className="summary-row">
+                  <Text>{LANG.subtotalSale}</Text>
+                  <Text>{summary.subtotal.toLocaleString('vi-VN')}</Text>
+                </div>
+                <div className="summary-row">
+                  <Text>{LANG.discount}</Text>
+                  <InputNumber
+                    min={0}
+                    controls={false}
+                    value={activeTab?.discountAmount ?? 0}
+                    onChange={(value) =>
+                      updateActiveTab({ discountAmount: Number(value ?? 0) })
+                    }
+                  />
+                </div>
+                <div className="summary-row summary-row-primary">
+                  <Text>{LANG.purchasePayable}</Text>
+                  <Text>{summary.total.toLocaleString('vi-VN')}</Text>
+                </div>
+                <div className="summary-row">
+                  <Text>{LANG.purchasePaidAmount}</Text>
+                  <InputNumber
+                    min={0}
+                    controls={false}
+                    value={purchaseMetaMap[activeTab?.id ?? 0]?.supplierPaidAmount ?? 0}
+                    onChange={(value) =>
+                      activeTab &&
+                      updatePurchaseMeta(activeTab.id, {
+                        supplierPaidAmount: Number(value ?? 0),
+                      })
+                    }
+                  />
+                </div>
+                <div className="summary-row">
+                  <Text>{LANG.purchaseDebtAmount}</Text>
+                  <Text>
+                    {Math.max(
+                      0,
+                      summary.total -
+                        (purchaseMetaMap[activeTab?.id ?? 0]?.supplierPaidAmount ?? 0),
+                    ).toLocaleString('vi-VN')}
+                  </Text>
+                </div>
+              </div>
+                </div>
+              ) : (
+              <Form layout="vertical" className="checkout-form">
             <Form.Item label={LANG.customer}>
               <Input
                 value={activeTab?.customerName ?? ''}
@@ -1631,44 +2403,68 @@ function PosPage() {
                 }
               />
             </Form.Item>
-          </Form>
+              </Form>
+              )}
 
-          <div className="payment-quick">
-            <button type="button" className="quick-money">
-              {summary.total.toLocaleString('vi-VN')}
-            </button>
-          </div>
+              <div className="payment-quick">
+                <button type="button" className="quick-money">
+                  {summary.total.toLocaleString('vi-VN')}
+                </button>
+              </div>
 
-          <div className="checkout-actions">
-            <Button
-              className="print-button"
-              onClick={() => handlePrintReceipt(buildDraftReceipt())}
-            >
-              {LANG.print}
-            </Button>
-            {isReturnTab ? (
-              <Button
-                type="primary"
-                danger
-                className="pay-button"
-                icon={<SwapOutlined />}
-                loading={checkingOut}
-                onClick={() => void handleCheckout()}
-              >
-                {LANG.completeReturn}
-              </Button>
-            ) : (
-              <Button
-                type="primary"
-                className="pay-button"
-                icon={<ShoppingCartOutlined />}
-                loading={checkingOut}
-                onClick={() => void handleCheckout()}
-              >
-                {LANG.completePayment}
-              </Button>
-            )}
-          </div>
+              <div className="checkout-actions">
+                {isPurchaseTab ? (
+                  <>
+                    <Button
+                      className="print-button"
+                      onClick={() => handlePrintReceipt(buildDraftReceipt())}
+                    >
+                      {LANG.print}
+                    </Button>
+                    <Button
+                      type="primary"
+                      className="pay-button"
+                      loading={checkingOut}
+                      onClick={() => void handleCheckout()}
+                    >
+                      {LANG.purchaseComplete}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      className="print-button"
+                      onClick={() => handlePrintReceipt(buildDraftReceipt())}
+                    >
+                      {LANG.print}
+                    </Button>
+                    {isReturnTab ? (
+                      <Button
+                        type="primary"
+                        danger
+                        className="pay-button"
+                        icon={<SwapOutlined />}
+                        loading={checkingOut}
+                        onClick={() => void handleCheckout()}
+                      >
+                        {LANG.completeReturn}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="primary"
+                        className="pay-button"
+                        icon={<ShoppingCartOutlined />}
+                        loading={checkingOut}
+                        onClick={() => void handleCheckout()}
+                      >
+                        {LANG.completePayment}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </aside>
       </div>
 
@@ -1693,22 +2489,20 @@ function PosPage() {
             <div className="receipt-center">
               <div className="receipt-store">{receiptPreview.storeName}</div>
               {receiptPreview.storeAddress && <div>{receiptPreview.storeAddress}</div>}
-              {receiptPreview.storePhoneNumber && (
-                <div>{receiptPreview.storePhoneNumber}</div>
-              )}
+              {receiptPreview.storePhoneNumber && <div>{receiptPreview.storePhoneNumber}</div>}
             </div>
             <div className="receipt-dash" />
             <div className="receipt-row">
-              <span>{LANG.receiptInvoice}</span>
-              <strong>{receiptPreview.salesOrderCode}</strong>
+              <span>{'supplierPaidAmount' in receiptPreview ? LANG.receiptPurchaseCode : LANG.receiptInvoice}</span>
+              <strong>{'supplierPaidAmount' in receiptPreview ? receiptPreview.purchaseOrderCode : receiptPreview.salesOrderCode}</strong>
             </div>
             <div className="receipt-row">
-              <span>{LANG.cashier}</span>
-              <span>{receiptPreview.cashierName}</span>
+              <span>{'supplierPaidAmount' in receiptPreview ? LANG.receiptSupplier : LANG.cashier}</span>
+              <span>{'supplierPaidAmount' in receiptPreview ? (receiptPreview.supplierName ?? '') : receiptPreview.cashierName}</span>
             </div>
             <div className="receipt-row">
               <span>{LANG.receiptDate}</span>
-              <span>{new Date(receiptPreview.soldAt).toLocaleString('vi-VN')}</span>
+              <span>{new Date('supplierPaidAmount' in receiptPreview ? receiptPreview.orderedAt : receiptPreview.soldAt).toLocaleString('vi-VN')}</span>
             </div>
             <div className="receipt-dash" />
             {receiptPreview.items.map((item, index) => (
@@ -1738,7 +2532,7 @@ function PosPage() {
               </div>
             )}
             <div className="receipt-row receipt-total">
-              <span>{'returnFeeAmount' in receiptPreview ? LANG.totalReturn : LANG.totalPayment}</span>
+              <span>{'returnFeeAmount' in receiptPreview ? LANG.totalReturn : 'supplierPaidAmount' in receiptPreview ? LANG.purchasePayable : LANG.totalPayment}</span>
               <span>{receiptPreview.totalAmount.toLocaleString('vi-VN')}</span>
             </div>
             {'customerRefundAmount' in receiptPreview ? (
@@ -1746,6 +2540,17 @@ function PosPage() {
                 <span>{LANG.refund}</span>
                 <span>{receiptPreview.customerRefundAmount.toLocaleString('vi-VN')}</span>
               </div>
+            ) : 'supplierPaidAmount' in receiptPreview ? (
+              <>
+                <div className="receipt-row">
+                  <span>{LANG.receiptPaidSupplier}</span>
+                  <span>{receiptPreview.supplierPaidAmount.toLocaleString('vi-VN')}</span>
+                </div>
+                <div className="receipt-row">
+                  <span>{LANG.receiptDebtSupplier}</span>
+                  <span>{receiptPreview.debtAmount.toLocaleString('vi-VN')}</span>
+                </div>
+              </>
             ) : (
               <>
                 <div className="receipt-row">
@@ -1764,7 +2569,7 @@ function PosPage() {
         )}
       </Modal>
 
-      {/* ── Category Manager Modal ── */}
+      {/* Category Manager Modal */}
       <Modal
         title={LANG.categoryTitle}
         open={categoryModalOpen}
@@ -1802,15 +2607,15 @@ function PosPage() {
               key: 'name',
             },
             {
-              title: 'Trạng thái',
+              title: LANG.categoryStatus,
               dataIndex: 'isActive',
               key: 'isActive',
               width: 100,
               render: (isActive: boolean) =>
                 isActive ? (
-                  <Tag color="green">Hoạt động</Tag>
+                  <Tag color="green">{LANG.categoryStatusActive}</Tag>
                 ) : (
-                  <Tag color="red">Ngưng</Tag>
+                  <Tag color="red">{LANG.categoryStatusInactive}</Tag>
                 ),
             },
             {
@@ -1856,7 +2661,7 @@ function PosPage() {
             <Input
               value={categoryFormName}
               onChange={(e) => setCategoryFormName(e.target.value)}
-              placeholder="Nhập tên danh mục"
+              placeholder={LANG.categoryNamePlaceholder}
               onPressEnter={() => void handleSaveCategory()}
               autoFocus
             />
@@ -1866,5 +2671,6 @@ function PosPage() {
     </div>
   );
 }
+
 
 

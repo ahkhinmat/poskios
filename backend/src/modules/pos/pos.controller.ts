@@ -19,6 +19,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { PosService } from './pos.service';
 import { CreatePosDraftTabDto } from './dto/create-pos-draft-tab.dto';
 import { PosCheckoutDto } from './dto/pos-checkout.dto';
+import { PurchaseCheckoutDto } from './dto/purchase-checkout.dto';
 import { ResolvePosProductQueryDto } from './dto/resolve-pos-product-query.dto';
 import { SearchPosProductsQueryDto } from './dto/search-pos-products-query.dto';
 import { UpdatePosDraftTabDto } from './dto/update-pos-draft-tab.dto';
@@ -161,11 +162,67 @@ export class PosController {
     };
   }
 
+  @Post('purchase-orders/checkout')
+  async purchaseCheckout(
+    @Headers('x-user-id') userIdHeader: string | undefined,
+    @Body() body: PurchaseCheckoutDto,
+  ) {
+    const data = await this.posService.purchaseCheckout(
+      this.resolveUserId(userIdHeader),
+      body,
+    );
+
+    return {
+      success: true,
+      message: 'Purchase completed',
+      data,
+    };
+  }
+
   // ── Category CRUD ──
 
   @Get('categories')
   async searchCategories(@Query('keyword') keyword?: string) {
     const data = await this.posService.searchCategories(keyword);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Get('suppliers')
+  async listSuppliers(@Query('keyword') keyword?: string) {
+    const data = await this.posService.listSuppliers(keyword);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Get('overview')
+  async getOverview(
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    const data = await this.posService.getOverviewRecords({ fromDate, toDate });
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Get('overview/:recordType/:id')
+  async getOverviewDetail(
+    @Param('recordType') recordType: string,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const data = await this.posService.getOverviewDetail(recordType, id);
 
     return {
       success: true,

@@ -13,6 +13,9 @@ import { SalesOrder } from './entities/sales-order.entity';
 import { SalesOrderItem } from './entities/sales-order-item.entity';
 import { InventoryTransaction } from './entities/inventory-transaction.entity';
 import { Setting } from './entities/setting.entity';
+import { Supplier } from './entities/supplier.entity';
+import { PurchaseOrder } from './entities/purchase-order.entity';
+import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
 
 @Module({
   imports: [
@@ -20,6 +23,9 @@ import { Setting } from './entities/setting.entity';
       Category,
       InventoryTransaction,
       Setting,
+      Supplier,
+      PurchaseOrder,
+      PurchaseOrderItem,
       Product,
       ProductUnit,
       Unit,

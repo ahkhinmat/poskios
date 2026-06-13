@@ -4,6 +4,14 @@ export type Category = {
   isActive: boolean;
 };
 
+export type Supplier = {
+  id: number;
+  code: string | null;
+  name: string;
+  phoneNumber: string | null;
+  address: string | null;
+};
+
 export type PosProduct = {
   id: number;
   productUnitId: number;
@@ -100,6 +108,7 @@ export type ReturnCheckoutResponse = {
     cashierName: string;
     items: Array<{
       productName: string;
+      unitName: string;
       quantity: number;
       unitPrice: number;
       lineTotal: number;
@@ -109,6 +118,46 @@ export type ReturnCheckoutResponse = {
     returnFeeAmount: number;
     totalAmount: number;
     customerRefundAmount: number;
+    footerMessage: string | null;
+  };
+};
+
+export type PurchaseCheckoutResponse = {
+  purchaseOrderId: number;
+  purchaseOrderCode: string;
+  status: string;
+  orderedAt: string;
+  supplier: {
+    id: number | null;
+    name: string | null;
+  };
+  summary: {
+    itemCount: number;
+    subtotalAmount: number;
+    discountAmount: number;
+    totalAmount: number;
+    supplierPaidAmount: number;
+    debtAmount: number;
+  };
+  receiptData: {
+    storeName: string;
+    storeAddress: string | null;
+    storePhoneNumber: string | null;
+    purchaseOrderCode: string;
+    orderedAt: string;
+    supplierName: string | null;
+    items: Array<{
+      productName: string;
+      unitName: string;
+      quantity: number;
+      unitPrice: number;
+      lineTotal: number;
+    }>;
+    subtotalAmount: number;
+    discountAmount: number;
+    totalAmount: number;
+    supplierPaidAmount: number;
+    debtAmount: number;
     footerMessage: string | null;
   };
 };
@@ -150,6 +199,7 @@ export type CheckoutResponse = {
     cashierName: string;
     items: Array<{
       productName: string;
+      unitName: string;
       quantity: number;
       unitPrice: number;
       lineTotal: number;
@@ -161,4 +211,32 @@ export type CheckoutResponse = {
     changeAmount: number;
     footerMessage: string | null;
   };
+};
+
+export type OverviewRecord = {
+  id: number;
+  recordType: 'SALE' | 'RETURN' | 'PURCHASE';
+  code: string;
+  status: string;
+  partyName: string | null;
+  subtotalAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  eventAt: string;
+};
+
+export type OverviewDetail = {
+  header: OverviewRecord;
+  items: Array<{
+    rowNo: number;
+    eventDate: string;
+    productCode: string;
+    productName: string;
+    unitName: string | null;
+    stockOnHand: number;
+    quantity: number;
+    unitPrice: number;
+    discountAmount: number;
+    lineTotal: number;
+  }>;
 };

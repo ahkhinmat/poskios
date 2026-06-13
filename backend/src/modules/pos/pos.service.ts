@@ -8,6 +8,7 @@ import { Brackets, DataSource, In, Repository } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { CreatePosDraftTabDto } from './dto/create-pos-draft-tab.dto';
 import { PosCheckoutDto } from './dto/pos-checkout.dto';
+import { PurchaseCheckoutDto } from './dto/purchase-checkout.dto';
 import { PosDraftItemDto } from './dto/pos-draft-item.dto';
 import { ResolvePosProductQueryDto } from './dto/resolve-pos-product-query.dto';
 import { ReturnCheckoutDto } from './dto/return-checkout.dto';
@@ -19,9 +20,12 @@ import { PosDraftTabItem } from './entities/pos-draft-tab-item.entity';
 import { PosDraftTab } from './entities/pos-draft-tab.entity';
 import { ProductUnit } from './entities/product-unit.entity';
 import { Product } from './entities/product.entity';
+import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
+import { PurchaseOrder } from './entities/purchase-order.entity';
 import { SalesOrderItem } from './entities/sales-order-item.entity';
 import { SalesOrder } from './entities/sales-order.entity';
 import { Setting } from './entities/setting.entity';
+import { Supplier } from './entities/supplier.entity';
 import { Unit } from './entities/unit.entity';
 
 type UploadedExcelFile = {
@@ -40,6 +44,12 @@ export class PosService {
     private readonly inventoryTransactionRepository: Repository<InventoryTransaction>,
     @InjectRepository(Setting)
     private readonly settingRepository: Repository<Setting>,
+    @InjectRepository(Supplier)
+    private readonly supplierRepository: Repository<Supplier>,
+    @InjectRepository(PurchaseOrder)
+    private readonly purchaseOrderRepository: Repository<PurchaseOrder>,
+    @InjectRepository(PurchaseOrderItem)
+    private readonly purchaseOrderItemRepository: Repository<PurchaseOrderItem>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
     @InjectRepository(ProductUnit)
@@ -350,6 +360,7 @@ export class PosService {
 
         receiptItems.push({
           productName: item.productUnit.product.name,
+          unitName: item.productUnit.unit.name,
           quantity: item.input.quantity,
           unitPrice: item.input.unitPrice,
           lineTotal: item.lineTotal,
@@ -575,6 +586,7 @@ export class PosService {
 
         receiptItems.push({
           productName: item.productUnit.product.name,
+          unitName: item.productUnit.unit.name,
           quantity: item.input.quantity,
           unitPrice: item.input.unitPrice,
           lineTotal: item.lineTotal,
@@ -623,6 +635,202 @@ export class PosService {
         totalAmount: result.totalAmount,
         customerPaidAmount: Number(result.salesOrder.customerPaidAmount),
         changeAmount: result.changeAmount,
+        footerMessage: setting?.receiptFooter ?? setting?.receiptHeader ?? null,
+      },
+    };
+  }
+
+  async purchaseCheckout(userId: number, payload: PurchaseCheckoutDto) {
+    if (!payload.items.length) {
+      throw new BadRequestException('Purchase cart is empty');
+    }
+
+    const setting = await this.settingRepository.findOne({
+      where: {},
+      order: { id: 'ASC' },
+    });
+
+    const supplier =
+      payload.supplierId != null
+        ? await this.supplierRepository.findOne({
+            where: { id: payload.supplierId, isActive: true as never },
+          } as never)
+        : null;
+
+    const result = await this.dataSource.transaction(async (manager) => {
+      const productUnits = await manager.find(ProductUnit, {
+        where: {
+          id: In(payload.items.map((item) => item.productUnitId)),
+          isActive: true,
+        },
+        relations: {
+          product: true,
+          unit: true,
+        },
+      });
+
+      const productUnitMap = new Map(productUnits.map((item) => [item.id, item]));
+
+      let subtotalAmount = 0;
+      let lineDiscountAmount = 0;
+      let itemCount = 0;
+
+      const normalizedItems = payload.items.map((item, index) => {
+        const productUnit = productUnitMap.get(item.productUnitId);
+
+        if (!productUnit || productUnit.product.id !== item.productId) {
+          throw new BadRequestException(`Invalid purchase product unit at items[${index}]`);
+        }
+
+        const grossAmount = item.quantity * item.unitPrice;
+        const lineTotal = Number((grossAmount - item.discountAmount).toFixed(2));
+
+        if (lineTotal < 0) {
+          throw new BadRequestException(`Invalid purchase line total at items[${index}]`);
+        }
+
+        subtotalAmount += grossAmount;
+        lineDiscountAmount += item.discountAmount;
+        itemCount += item.quantity;
+
+        return {
+          input: item,
+          productUnit,
+          lineTotal,
+        };
+      });
+
+      const orderDiscountAmount = payload.discountAmount ?? 0;
+      const totalAmount = Number((subtotalAmount - lineDiscountAmount - orderDiscountAmount).toFixed(2));
+
+      if (totalAmount < 0) {
+        throw new BadRequestException('Invalid purchase total');
+      }
+
+      const supplierPaidAmount = Number((payload.supplierPaidAmount ?? 0).toFixed(2));
+      const debtAmount = Number((totalAmount - supplierPaidAmount).toFixed(2));
+
+      const orderedAt = payload.importDate ? new Date(payload.importDate) : new Date();
+      const purchaseOrder = await manager.save(
+        PurchaseOrder,
+        manager.create(PurchaseOrder, {
+          supplierId: payload.supplierId ?? null,
+          createdByUserId: userId,
+          approvedByUserId: userId,
+          purchaseOrderCode: payload.purchaseOrderCode,
+          supplierNameSnapshot: supplier?.name ?? null,
+          status: payload.status?.trim() || 'COMPLETED',
+          notes: payload.note ?? null,
+          subtotalAmount: subtotalAmount.toFixed(2),
+          discountAmount: orderDiscountAmount.toFixed(2),
+          totalAmount: totalAmount.toFixed(2),
+          orderedAt,
+          confirmedAt: new Date(),
+          isActive: true,
+        }),
+      );
+
+      const receiptItems: ReceiptItem[] = [];
+
+      for (const item of normalizedItems) {
+        await manager.save(
+          PurchaseOrderItem,
+          manager.create(PurchaseOrderItem, {
+            purchaseOrderId: purchaseOrder.id,
+            productId: item.productUnit.product.id,
+            productUnitId: item.productUnit.id,
+            productCodeSnapshot: item.productUnit.product.productCode,
+            productNameSnapshot: item.productUnit.product.name,
+            unitNameSnapshot: item.productUnit.unit.name,
+            conversionValue: item.productUnit.conversionValue,
+            quantity: item.input.quantity.toFixed(3),
+            costPrice: item.input.unitPrice.toFixed(2),
+            lineTotal: item.lineTotal.toFixed(2),
+            notes: item.input.note ?? null,
+          }),
+        );
+
+        const stockBefore = Number(item.productUnit.product.stockOnHand);
+        const stockAfter = Number((stockBefore + item.input.quantity).toFixed(3));
+
+        item.productUnit.product.stockOnHand = stockAfter.toFixed(3);
+        item.productUnit.product.costPrice = item.input.unitPrice.toFixed(2);
+        await manager.save(Product, item.productUnit.product);
+
+        item.productUnit.costPrice = item.input.unitPrice.toFixed(2);
+        await manager.save(ProductUnit, item.productUnit);
+
+        await manager.save(
+          InventoryTransaction,
+          manager.create(InventoryTransaction, {
+            productId: item.productUnit.product.id,
+            purchaseOrderId: purchaseOrder.id,
+            salesOrderId: null,
+            createdByUserId: userId,
+            transactionType: 'PURCHASE_IN',
+            referenceCode: purchaseOrder.purchaseOrderCode,
+            quantityChange: item.input.quantity.toFixed(3),
+            stockBefore: stockBefore.toFixed(3),
+            stockAfter: stockAfter.toFixed(3),
+            unitCost: item.input.unitPrice.toFixed(2),
+            notes: payload.note ?? null,
+            batchNumber: null,
+            expiryDate: null,
+            transactionAt: orderedAt,
+          }),
+        );
+
+        receiptItems.push({
+          productName: item.productUnit.product.name,
+          unitName: item.productUnit.unit.name,
+          quantity: item.input.quantity,
+          unitPrice: item.input.unitPrice,
+          lineTotal: item.lineTotal,
+        });
+      }
+
+      return {
+        purchaseOrder,
+        itemCount,
+        subtotalAmount,
+        orderDiscountAmount,
+        totalAmount,
+        supplierPaidAmount,
+        debtAmount,
+        receiptItems,
+      };
+    });
+
+    return {
+      purchaseOrderId: result.purchaseOrder.id,
+      purchaseOrderCode: result.purchaseOrder.purchaseOrderCode,
+      status: result.purchaseOrder.status,
+      orderedAt: result.purchaseOrder.orderedAt,
+      supplier: {
+        id: supplier?.id ?? null,
+        name: supplier?.name ?? null,
+      },
+      summary: {
+        itemCount: result.itemCount,
+        subtotalAmount: result.subtotalAmount,
+        discountAmount: result.orderDiscountAmount,
+        totalAmount: result.totalAmount,
+        supplierPaidAmount: result.supplierPaidAmount,
+        debtAmount: result.debtAmount,
+      },
+      receiptData: {
+        storeName: setting?.storeName ?? 'POS',
+        storeAddress: setting?.storeAddress ?? null,
+        storePhoneNumber: setting?.storePhoneNumber ?? null,
+        purchaseOrderCode: result.purchaseOrder.purchaseOrderCode,
+        orderedAt: result.purchaseOrder.orderedAt,
+        supplierName: supplier?.name ?? null,
+        items: result.receiptItems,
+        subtotalAmount: result.subtotalAmount,
+        discountAmount: result.orderDiscountAmount,
+        totalAmount: result.totalAmount,
+        supplierPaidAmount: result.supplierPaidAmount,
+        debtAmount: result.debtAmount,
         footerMessage: setting?.receiptFooter ?? setting?.receiptHeader ?? null,
       },
     };
@@ -1578,6 +1786,176 @@ export class PosService {
       .getMany();
   }
 
+  async listSuppliers(keyword?: string) {
+    const query = this.supplierRepository
+      .createQueryBuilder('supplier')
+      .where('supplier.IsActive = :isActive', { isActive: true });
+
+    if (keyword?.trim()) {
+      query.andWhere(
+        new Brackets((qb) => {
+          qb.where('supplier.Name LIKE :keyword', {
+            keyword: `%${keyword.trim()}%`,
+          }).orWhere('supplier.Code LIKE :keyword', {
+            keyword: `%${keyword.trim()}%`,
+          });
+        }),
+      );
+    }
+
+    const items = await query.orderBy('supplier.Name', 'ASC').getMany();
+
+    return items.map((item) => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      phoneNumber: item.phoneNumber,
+      address: item.address,
+    }));
+  }
+
+  async getOverviewRecords(params: { fromDate?: string; toDate?: string }) {
+    const fromDate = params.fromDate?.trim()
+      ? new Date(`${params.fromDate.trim()}T00:00:00`)
+      : new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00`);
+    const toDate = params.toDate?.trim()
+      ? new Date(`${params.toDate.trim()}T23:59:59.999`)
+      : new Date(`${new Date().toISOString().slice(0, 10)}T23:59:59.999`);
+
+    const purchaseOrders = await this.purchaseOrderRepository.find({
+      where: { isActive: true },
+      order: { orderedAt: 'DESC', id: 'DESC' },
+      take: 200,
+    });
+
+    const salesOrders = await this.salesOrderRepository.find({
+      where: { isActive: true },
+      order: { soldAt: 'DESC', id: 'DESC' },
+      take: 200,
+    });
+
+    const items = [
+      ...purchaseOrders
+        .filter((order) => order.orderedAt >= fromDate && order.orderedAt <= toDate)
+        .map((order) => ({
+          id: order.id,
+          recordType: 'PURCHASE',
+          code: order.purchaseOrderCode,
+          status: order.status,
+          partyName: order.supplierNameSnapshot,
+          subtotalAmount: Number(order.subtotalAmount),
+          discountAmount: Number(order.discountAmount),
+          totalAmount: Number(order.totalAmount),
+          eventAt: order.orderedAt,
+        })),
+      ...salesOrders
+        .filter((order) => order.soldAt >= fromDate && order.soldAt <= toDate)
+        .map((order) => ({
+          id: order.id,
+          recordType: order.orderType === 'RETURN' ? 'RETURN' : 'SALE',
+          code: order.salesOrderCode,
+          status: order.status,
+          partyName: order.customerName,
+          subtotalAmount: Number(order.subtotalAmount),
+          discountAmount: Number(order.discountAmount),
+          totalAmount: Number(order.totalAmount),
+          eventAt: order.soldAt,
+        })),
+    ].sort(
+      (left, right) =>
+        new Date(right.eventAt).getTime() - new Date(left.eventAt).getTime() ||
+        right.id - left.id,
+    );
+
+    return { items };
+  }
+
+  async getOverviewDetail(recordType: string, id: number) {
+    const normalizedType = recordType.trim().toUpperCase();
+
+    if (normalizedType === 'PURCHASE') {
+      const order = await this.purchaseOrderRepository.findOne({
+        where: { id, isActive: true },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Purchase order not found');
+      }
+
+      const items = await this.purchaseOrderItemRepository.find({
+        where: { purchaseOrderId: id },
+      });
+
+      return {
+        header: {
+          id: order.id,
+          recordType: 'PURCHASE',
+          code: order.purchaseOrderCode,
+          status: order.status,
+          eventAt: order.orderedAt,
+          partyName: order.supplierNameSnapshot,
+          subtotalAmount: Number(order.subtotalAmount),
+          discountAmount: Number(order.discountAmount),
+          totalAmount: Number(order.totalAmount),
+        },
+        items: items.map((item, index) => ({
+          rowNo: index + 1,
+          eventDate: order.orderedAt,
+          productCode: item.productCodeSnapshot,
+          productName: item.productNameSnapshot,
+          unitName: item.unitNameSnapshot,
+          stockOnHand: 0,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.costPrice),
+          discountAmount: 0,
+          lineTotal: Number(item.lineTotal),
+        })),
+      };
+    }
+
+    if (normalizedType === 'SALE' || normalizedType === 'RETURN') {
+      const order = await this.salesOrderRepository.findOne({
+        where: { id, isActive: true },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Sales order not found');
+      }
+
+      const items = await this.salesOrderItemRepository.find({
+        where: { salesOrderId: id },
+      });
+
+      return {
+        header: {
+          id: order.id,
+          recordType: normalizedType,
+          code: order.salesOrderCode,
+          status: order.status,
+          eventAt: order.soldAt,
+          partyName: order.customerName,
+          subtotalAmount: Number(order.subtotalAmount),
+          discountAmount: Number(order.discountAmount),
+          totalAmount: Number(order.totalAmount),
+        },
+        items: items.map((item, index) => ({
+          rowNo: index + 1,
+          eventDate: order.soldAt,
+          productCode: item.productCodeSnapshot,
+          productName: item.productNameSnapshot,
+          unitName: item.unitNameSnapshot,
+          stockOnHand: 0,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+          discountAmount: Number(item.discountAmount),
+          lineTotal: Number(item.lineTotal),
+        })),
+      };
+    }
+
+    throw new BadRequestException('Invalid overview record type');
+  }
+
   async createCategory(data: { name: string; isActive?: boolean }) {
     const category = this.categoryRepository.create({
       name: data.name,
@@ -1655,6 +2033,7 @@ type ImportProductRow = {
 
 type ReceiptItem = {
   productName: string;
+  unitName: string;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
