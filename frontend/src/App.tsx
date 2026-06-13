@@ -139,6 +139,7 @@ function PosPage() {
   const [overviewFromDate, setOverviewFromDate] = useState(new Date().toISOString().slice(0, 10));
   const [overviewToDate, setOverviewToDate] = useState(new Date().toISOString().slice(0, 10));
   const [overviewRecordTypeFilter, setOverviewRecordTypeFilter] = useState<'ALL' | 'SALE' | 'RETURN' | 'PURCHASE'>('SALE');
+  const showProfit = overviewRecordTypeFilter === 'ALL' || overviewRecordTypeFilter === 'SALE';
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const overviewPassword = import.meta.env.VITE_OVERVIEW_PASSWORD ?? '11111';
@@ -1461,10 +1462,7 @@ function PosPage() {
                   <div>{LANG.purchaseTableUnit}</div>
                   <div>{LANG.purchaseTableQty.replace(' nhập', '')}</div>
                   <div>{LANG.purchaseTablePrice}</div>
-                  <div>{LANG.overviewHeaderCost}</div>
-                  <div>{LANG.overviewHeaderRevenue}</div>
                   <div>{LANG.purchaseTableTotal}</div>
-                  <div>{LANG.overviewGrossProfit}</div>
                 </div>
                 {overviewDetail?.items.length ? (
                   overviewDetail.items.map((item) => (
@@ -1474,8 +1472,6 @@ function PosPage() {
                       <div>{item.unitName ?? ''}</div>
                       <div>{item.quantity.toLocaleString('vi-VN')}</div>
                       <div>{item.unitPrice.toLocaleString('vi-VN')}</div>
-                      <div>{item.costPrice.toLocaleString('vi-VN')}</div>
-                      <div>{item.revenueAmount.toLocaleString('vi-VN')}</div>
                       <div className="purchase-total">{item.lineTotal.toLocaleString('vi-VN')}</div>
                     </div>
                   ))
@@ -1961,8 +1957,8 @@ function PosPage() {
                 <div className="checkout-user">{LANG.overviewTitle}</div>
                 <div className="checkout-time">{filteredOverviewRecords.length}</div>
               </div>
-              <div className="overview-summary">
-                <div className="overview-summary-label">{LANG.overviewFilterType}</div>
+              <div className="overview-grid-top">
+                <div className="overview-grid-count">{LANG.overviewTotalRecords}: <strong>{filteredOverviewRecords.length}</strong></div>
                 <Select
                   size="small"
                   value={overviewRecordTypeFilter}
@@ -1976,59 +1972,48 @@ function PosPage() {
                     setOverviewRecordTypeFilter(value as 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE')
                   }
                 />
-                <div className="overview-summary-label">{LANG.overviewTotalValue}</div>
-                <div className="overview-summary-total">
-                  {overviewTotalAmount.toLocaleString('vi-VN')}
-                </div>
-                <div className="overview-summary-label">{LANG.overviewTotalDiscount}</div>
-                <div className="overview-summary-subtotal">
-                  {overviewTotalDiscount.toLocaleString('vi-VN')}
-                </div>
-                <div className="overview-summary-label">{LANG.overviewTotalCost}</div>
-                <div className="overview-summary-subtotal">
-                  {Math.round(overviewTotalCost).toLocaleString('vi-VN')}
-                </div>
-                <div className="overview-summary-label">{LANG.overviewTotalRevenue}</div>
-                <div className="overview-summary-total">
-                  {overviewTotalRevenue.toLocaleString('vi-VN')}
-                </div>
-                <div className="overview-summary-label">{LANG.overviewGrossProfit}</div>
-                <div className="overview-summary-total">
-                  {Math.round(overviewGrossProfit).toLocaleString('vi-VN')}
-                </div>
               </div>
-              <div className="overview-panel-list">
+              <div className={`overview-grid-head${showProfit ? '' : ' overview-grid-hide-profit'}`}>
+                <div className="overview-grid-cell">{LANG.overviewHeaderCode}</div>
+                <div className="overview-grid-cell">{LANG.overviewHeaderTotal}</div>
+                <div className="overview-grid-cell">{LANG.overviewHeaderDiscount}</div>
+                <div className="overview-grid-cell">{LANG.overviewHeaderCost}</div>
+                <div className="overview-grid-cell">{LANG.overviewHeaderRevenue}</div>
+                {showProfit && <div className="overview-grid-cell">{LANG.overviewGrossProfit}</div>}
+              </div>
+              <div className="overview-grid-body">
                 {filteredOverviewRecords.length ? filteredOverviewRecords.map((record) => (
-                    <button
-                      key={`${record.recordType}-${record.id}`}
-                      type="button"
-                      className={`overview-record overview-record-${record.recordType.toLowerCase()} ${overviewDetail?.header.id === record.id && overviewDetail?.header.recordType === record.recordType ? 'is-active' : ''}`}
-                      onClick={() => void loadOverviewDetail(record.recordType, record.id)}
-                    >
-                    <div className="overview-record-top">
-                      <span className="overview-record-type">
-                        {record.recordType === 'PURCHASE' ? LANG.overviewTypePurchase : record.recordType === 'RETURN' ? LANG.overviewTypeReturn : LANG.overviewTypeSale}
+                  <button
+                    key={`${record.recordType}-${record.id}`}
+                    type="button"
+                    className={`overview-grid-row overview-grid-row-${record.recordType.toLowerCase()}${showProfit ? '' : ' overview-grid-hide-profit'} ${overviewDetail?.header.id === record.id && overviewDetail?.header.recordType === record.recordType ? ' is-active' : ''}`}
+                    onClick={() => void loadOverviewDetail(record.recordType, record.id)}
+                  >
+                    <div className="overview-grid-cell overview-grid-code">
+                      <span className={`overview-grid-badge overview-badge-${record.recordType.toLowerCase()}`}>
+                        {record.recordType === 'PURCHASE' ? 'NK' : record.recordType === 'RETURN' ? 'TH' : 'BH'}
                       </span>
-                      <strong>{record.code}</strong>
+                      {record.code}
                     </div>
-                    <div className="overview-record-meta">{new Date(record.eventAt).toLocaleString('vi-VN')}</div>
-                    <div className="overview-record-meta">{record.partyName ?? ''}</div>
-                    <div className={`overview-record-meta${record.discountAmount > 0 ? ' has-discount' : ''}`}>
-                      {LANG.discount}: {record.discountAmount.toLocaleString('vi-VN')}
-                    </div>
-                    <div className="overview-record-meta">
-                      {LANG.overviewHeaderCost}: {record.costAmount.toLocaleString('vi-VN')}
-                    </div>
-                    <div className="overview-record-meta">
-                      {LANG.overviewHeaderRevenue}: {record.revenueAmount.toLocaleString('vi-VN')}
-                    </div>
-                    <div className="overview-record-total">{record.totalAmount.toLocaleString('vi-VN')}</div>
+                    <div className="overview-grid-cell">{record.subtotalAmount.toLocaleString('vi-VN')}</div>
+                    <div className={`overview-grid-cell${record.discountAmount > 0 ? ' has-discount' : ''}`}>{record.discountAmount.toLocaleString('vi-VN')}</div>
+                    <div className="overview-grid-cell">{record.costAmount.toLocaleString('vi-VN')}</div>
+                    <div className="overview-grid-cell">{record.revenueAmount.toLocaleString('vi-VN')}</div>
+                    {showProfit && <div className="overview-grid-cell overview-grid-profit">{Math.round(record.subtotalAmount - record.discountAmount - record.costAmount).toLocaleString('vi-VN')}</div>}
                   </button>
                 )) : (
                   <div className="empty-stage">
                     <Empty description={LANG.overviewEmpty} />
                   </div>
                 )}
+              </div>
+              <div className={`overview-grid-foot${showProfit ? '' : ' overview-grid-hide-profit'}`}>
+                <div className="overview-grid-cell overview-grid-foot-label">{LANG.overviewTotalValue}</div>
+                <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalAmount.toLocaleString('vi-VN')}</div>
+                <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalDiscount.toLocaleString('vi-VN')}</div>
+                <div className="overview-grid-cell overview-grid-foot-val">{Math.round(overviewTotalCost).toLocaleString('vi-VN')}</div>
+                <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalRevenue.toLocaleString('vi-VN')}</div>
+                {showProfit && <div className="overview-grid-cell overview-grid-foot-val">{Math.round(overviewGrossProfit).toLocaleString('vi-VN')}</div>}
               </div>
             </>
           ) : (
