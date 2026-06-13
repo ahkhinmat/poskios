@@ -53,7 +53,7 @@ button {
 
 .pos-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 312px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   height: 100vh;
   gap: 2px;
 }
@@ -309,7 +309,7 @@ button {
 
 .purchase-table-head-overview,
 .purchase-row-overview {
-  grid-template-columns: 42px minmax(260px, 1fr) 72px 62px 92px 96px 104px;
+  grid-template-columns: 36px minmax(170px, 1fr) 64px 70px 82px 82px 90px 96px;
 }
 
 .purchase-table-head {

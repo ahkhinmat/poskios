@@ -1834,6 +1834,32 @@ export class PosService {
       take: 200,
     });
 
+    const purchaseItems = await this.purchaseOrderItemRepository.find({
+      where: { purchaseOrderId: In(purchaseOrders.map((order) => order.id)) },
+    });
+
+    const salesItems = await this.salesOrderItemRepository.find({
+      where: { salesOrderId: In(salesOrders.map((order) => order.id)) },
+    });
+
+    const purchaseCostMap = new Map<number, number>();
+    for (const item of purchaseItems) {
+      const costAmount = Number(item.costPrice) * Number(item.quantity);
+      purchaseCostMap.set(
+        item.purchaseOrderId,
+        (purchaseCostMap.get(item.purchaseOrderId) ?? 0) + costAmount,
+      );
+    }
+
+    const salesCostMap = new Map<number, number>();
+    for (const item of salesItems) {
+      const costAmount = Number(item.costPrice) * Number(item.quantity);
+      salesCostMap.set(
+        item.salesOrderId,
+        (salesCostMap.get(item.salesOrderId) ?? 0) + costAmount,
+      );
+    }
+
     const items = [
       ...purchaseOrders
         .filter((order) => order.orderedAt >= fromDate && order.orderedAt <= toDate)
@@ -1846,6 +1872,8 @@ export class PosService {
           subtotalAmount: Number(order.subtotalAmount),
           discountAmount: Number(order.discountAmount),
           totalAmount: Number(order.totalAmount),
+          costAmount: Number((purchaseCostMap.get(order.id) ?? Number(order.totalAmount)).toFixed(2)),
+          revenueAmount: 0,
           eventAt: order.orderedAt,
         })),
       ...salesOrders
@@ -1859,6 +1887,8 @@ export class PosService {
           subtotalAmount: Number(order.subtotalAmount),
           discountAmount: Number(order.discountAmount),
           totalAmount: Number(order.totalAmount),
+          costAmount: Number((salesCostMap.get(order.id) ?? 0).toFixed(2)),
+          revenueAmount: Number((Number(order.subtotalAmount) - Number(order.discountAmount)).toFixed(2)),
           eventAt: order.soldAt,
         })),
     ].sort(
@@ -1897,6 +1927,8 @@ export class PosService {
           subtotalAmount: Number(order.subtotalAmount),
           discountAmount: Number(order.discountAmount),
           totalAmount: Number(order.totalAmount),
+          costAmount: Number(order.totalAmount),
+          revenueAmount: 0,
         },
         items: items.map((item, index) => ({
           rowNo: index + 1,
@@ -1904,9 +1936,10 @@ export class PosService {
           productCode: item.productCodeSnapshot,
           productName: item.productNameSnapshot,
           unitName: item.unitNameSnapshot,
-          stockOnHand: 0,
           quantity: Number(item.quantity),
           unitPrice: Number(item.costPrice),
+          costPrice: Number(item.costPrice),
+          revenueAmount: Number(item.lineTotal),
           discountAmount: 0,
           lineTotal: Number(item.lineTotal),
         })),
@@ -1937,6 +1970,15 @@ export class PosService {
           subtotalAmount: Number(order.subtotalAmount),
           discountAmount: Number(order.discountAmount),
           totalAmount: Number(order.totalAmount),
+          costAmount: Number(
+            items.reduce(
+              (sum, item) => sum + Number(item.costPrice) * Number(item.quantity),
+              0,
+            ).toFixed(2),
+          ),
+          revenueAmount: Number(
+            (Number(order.subtotalAmount) - Number(order.discountAmount)).toFixed(2),
+          ),
         },
         items: items.map((item, index) => ({
           rowNo: index + 1,
@@ -1944,9 +1986,10 @@ export class PosService {
           productCode: item.productCodeSnapshot,
           productName: item.productNameSnapshot,
           unitName: item.unitNameSnapshot,
-          stockOnHand: 0,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
+          costPrice: Number(item.costPrice),
+          revenueAmount: Number((Number(item.unitPrice) * Number(item.quantity) - Number(item.discountAmount)).toFixed(2)),
           discountAmount: Number(item.discountAmount),
           lineTotal: Number(item.lineTotal),
         })),

@@ -228,6 +228,14 @@ function PosPage() {
     () => filteredOverviewRecords.reduce((sum, record) => sum + record.discountAmount, 0),
     [filteredOverviewRecords],
   );
+  const overviewTotalCost = useMemo(
+    () => filteredOverviewRecords.reduce((sum, record) => sum + record.costAmount, 0),
+    [filteredOverviewRecords],
+  );
+  const overviewTotalRevenue = useMemo(
+    () => filteredOverviewRecords.reduce((sum, record) => sum + record.revenueAmount, 0),
+    [filteredOverviewRecords],
+  );
 
   useEffect(() => {
     void bootstrapDraftTabs();
@@ -1614,9 +1622,10 @@ function PosPage() {
                   <div>{LANG.purchaseTableNo}</div>
                   <div>{LANG.purchaseTableName}</div>
                   <div>{LANG.purchaseTableUnit}</div>
-                  <div>{LANG.purchaseTableStock}</div>
                   <div>{LANG.purchaseTableQty.replace(' nhập', '')}</div>
                   <div>{LANG.purchaseTablePrice}</div>
+                  <div>{LANG.overviewHeaderCost}</div>
+                  <div>{LANG.overviewHeaderRevenue}</div>
                   <div>{LANG.purchaseTableTotal}</div>
                 </div>
                 {overviewDetail?.items.length ? (
@@ -1625,9 +1634,10 @@ function PosPage() {
                       <div>{item.rowNo}</div>
                       <div className="purchase-name">{item.productName}</div>
                       <div>{item.unitName ?? ''}</div>
-                      <div>{item.stockOnHand.toLocaleString('vi-VN')}</div>
                       <div>{item.quantity.toLocaleString('vi-VN')}</div>
                       <div>{item.unitPrice.toLocaleString('vi-VN')}</div>
+                      <div>{item.costPrice.toLocaleString('vi-VN')}</div>
+                      <div>{item.revenueAmount.toLocaleString('vi-VN')}</div>
                       <div className="purchase-total">{item.lineTotal.toLocaleString('vi-VN')}</div>
                     </div>
                   ))
@@ -2139,6 +2149,14 @@ function PosPage() {
                 <div className="overview-summary-subtotal">
                   {overviewTotalDiscount.toLocaleString('vi-VN')}
                 </div>
+                <div className="overview-summary-label">{LANG.overviewTotalCost}</div>
+                <div className="overview-summary-subtotal">
+                  {overviewTotalCost.toLocaleString('vi-VN')}
+                </div>
+                <div className="overview-summary-label">{LANG.overviewTotalRevenue}</div>
+                <div className="overview-summary-total">
+                  {overviewTotalRevenue.toLocaleString('vi-VN')}
+                </div>
               </div>
               <div className="overview-panel-list">
                 {filteredOverviewRecords.length ? filteredOverviewRecords.map((record) => (
@@ -2158,6 +2176,12 @@ function PosPage() {
                     <div className="overview-record-meta">{record.partyName ?? ''}</div>
                     <div className="overview-record-meta">
                       {LANG.discount}: {record.discountAmount.toLocaleString('vi-VN')}
+                    </div>
+                    <div className="overview-record-meta">
+                      {LANG.overviewHeaderCost}: {record.costAmount.toLocaleString('vi-VN')}
+                    </div>
+                    <div className="overview-record-meta">
+                      {LANG.overviewHeaderRevenue}: {record.revenueAmount.toLocaleString('vi-VN')}
                     </div>
                     <div className="overview-record-total">{record.totalAmount.toLocaleString('vi-VN')}</div>
                   </button>

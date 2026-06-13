@@ -222,6 +222,8 @@ export type OverviewRecord = {
   subtotalAmount: number;
   discountAmount: number;
   totalAmount: number;
+  costAmount: number;
+  revenueAmount: number;
   eventAt: string;
 };
 
@@ -233,9 +235,10 @@ export type OverviewDetail = {
     productCode: string;
     productName: string;
     unitName: string | null;
-    stockOnHand: number;
     quantity: number;
     unitPrice: number;
+    costPrice: number;
+    revenueAmount: number;
     discountAmount: number;
     lineTotal: number;
   }>;
