@@ -1364,9 +1364,16 @@ function PosPage() {
     setSupplierManagerOpen(true);
   }
 
+  const isOverviewPasswordRequired = import.meta.env.VITE_IS_OVERVIEW_PASSWORD !== 'false';
+
   function handleOpenOverview() {
-    setPasswordInput('');
-    setPasswordDialogOpen(true);
+    if (isOverviewPasswordRequired) {
+      setPasswordInput('');
+      setPasswordDialogOpen(true);
+    } else {
+      setCurrentView('OVERVIEW');
+      void loadOverview();
+    }
   }
 
   function handlePasswordSubmit() {
@@ -2036,8 +2043,8 @@ onClick={openProductManager}
                     <div className="overview-grid-cell">{dayjs(record.eventAt).format('DD/MM/YYYY HH:mm')}</div>
                     <div className="overview-grid-cell">{record.subtotalAmount.toLocaleString('vi-VN')}</div>
                     <div className={`overview-grid-cell${record.discountAmount > 0 ? ' has-discount' : ''}`}>{record.discountAmount.toLocaleString('vi-VN')}</div>
-                    <div className="overview-grid-cell">{record.costAmount.toLocaleString('vi-VN')}</div>
-                    <div className="overview-grid-cell">{record.revenueAmount.toLocaleString('vi-VN')}</div>
+                    <div className="overview-grid-cell">{Math.round(record.costAmount).toLocaleString('vi-VN')}</div>
+                    <div className="overview-grid-cell">{Math.round(record.revenueAmount).toLocaleString('vi-VN')}</div>
                     {showProfit && <div className="overview-grid-cell overview-grid-profit">{Math.round(record.revenueAmount - record.costAmount).toLocaleString('vi-VN')}</div>}
                   </button>
                 )) : (
