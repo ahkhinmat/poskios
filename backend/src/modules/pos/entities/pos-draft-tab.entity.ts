@@ -57,6 +57,33 @@ export class PosDraftTab {
   @Column({ name: 'SourceSalesOrderId', type: 'int', nullable: true })
   sourceSalesOrderId!: number | null;
 
+  @Column({ name: 'ImportDate', type: 'date', nullable: true })
+  importDate!: string | null;
+
+  @Column({ name: 'PurchaseOrderCode', type: 'nvarchar', length: 50, nullable: true })
+  purchaseOrderCode!: string | null;
+
+  @Column({ name: 'SupplierId', type: 'int', nullable: true })
+  supplierId!: number | null;
+
+  @Column({ name: 'SupplierOrderCode', type: 'nvarchar', length: 50, nullable: true })
+  supplierOrderCode!: string | null;
+
+  @Column({ name: 'SupplierInvoiceCode', type: 'nvarchar', length: 50, nullable: true })
+  supplierInvoiceCode!: string | null;
+
+  @Column({ name: 'PurchaseStatus', type: 'nvarchar', length: 30, nullable: true })
+  purchaseStatus!: string | null;
+
+  @Column({
+    name: 'SupplierPaidAmount',
+    type: 'decimal',
+    precision: 18,
+    scale: 2,
+    nullable: true,
+  })
+  supplierPaidAmount!: string | null;
+
   @Column({ name: 'IsActive', type: 'bit' })
   isActive!: boolean;
 

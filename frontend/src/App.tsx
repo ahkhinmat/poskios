@@ -21,6 +21,7 @@ import type { InputRef } from 'antd';
 import {
   AppstoreOutlined,
   DeleteOutlined,
+  EditOutlined,
   EyeOutlined,
   MinusOutlined,
   MoreOutlined,
@@ -37,8 +38,8 @@ import { api } from './api';
 import { LANG } from './lang';
 import { ReceiptModal } from './components/ReceiptModal';
 import { ProductManager } from './components/ProductManager';
+import { SupplierManager } from './components/SupplierManager';
 import { extractApiErrorMessage } from './utils/error';
-import { formatPurchaseDate } from './utils/format';
 import { createDefaultPurchaseMeta, getNextTabNumber } from './utils/purchase';
 import type {
   ApiEnvelope,
@@ -127,6 +128,8 @@ function PosPage() {
   const [foundInvoices, setFoundInvoices] = useState<InvoiceSearchItem[]>([]);
   const [invoiceSearching, setInvoiceSearching] = useState(false);
   const [productManagerOpen, setProductManagerOpen] = useState(false);
+  const [supplierManagerOpen, setSupplierManagerOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [purchaseMetaMap, setPurchaseMetaMap] = useState<Record<number, PurchaseMeta>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
@@ -137,7 +140,7 @@ function PosPage() {
   const [overviewFromDate, setOverviewFromDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [overviewToDate, setOverviewToDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [overviewRecordTypeFilter, setOverviewRecordTypeFilter] = useState<'ALL' | 'SALE' | 'RETURN' | 'PURCHASE'>('SALE');
-  const showProfit = overviewRecordTypeFilter === 'ALL' || overviewRecordTypeFilter === 'SALE';
+  const showProfit = overviewRecordTypeFilter === 'SALE';
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const overviewPassword = import.meta.env.VITE_OVERVIEW_PASSWORD ?? '11111';
@@ -149,6 +152,10 @@ function PosPage() {
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.id === activeTabId) ?? null,
     [tabs, activeTabId],
+  );
+  const activePurchaseMeta = useMemo(
+    () => (activeTab ? purchaseMetaMap[activeTab.id] : undefined),
+    [activeTab, purchaseMetaMap],
   );
 
   const summary = useMemo(() => {
@@ -191,8 +198,8 @@ function PosPage() {
     [filteredOverviewRecords],
   );
   const overviewGrossProfit = useMemo(
-    () => overviewTotalAmount - overviewTotalDiscount - overviewTotalCost,
-    [overviewTotalAmount, overviewTotalDiscount, overviewTotalCost],
+    () => filteredOverviewRecords.reduce((sum, record) => sum + (record.revenueAmount - record.costAmount), 0),
+    [filteredOverviewRecords],
   );
 
   useEffect(() => {
@@ -218,7 +225,7 @@ function PosPage() {
         window.clearTimeout(saveTimerRef.current);
       }
     };
-  }, [activeTab, loading]);
+  }, [activeTab, activePurchaseMeta, loading]);
 
   useEffect(() => {
     const keyword = searchValue.trim();
@@ -347,20 +354,21 @@ function PosPage() {
       return loadedOptions;
     }
 
-    return [
-      {
-        productUnitId: item.productUnitId,
-        productId: item.productId,
-        productCode: item.productCode,
-        productName: item.productName,
-        unitId: item.unitId,
-        unitName: item.unitName,
-        barcode: item.barcode,
-        conversionValue: item.conversionValue,
-        salePrice: item.unitPrice,
-        stockOnHand: item.stockOnHand,
-        allowDirectSale: true,
-        isDefaultForPos: true,
+      return [
+        {
+          productUnitId: item.productUnitId,
+          productId: item.productId,
+          productCode: item.productCode,
+          productName: item.productName,
+          unitId: item.unitId,
+          unitName: item.unitName,
+          barcode: item.barcode,
+          conversionValue: item.conversionValue,
+          costPrice: item.unitPrice,
+          salePrice: item.unitPrice,
+          stockOnHand: item.stockOnHand,
+          allowDirectSale: true,
+          isDefaultForPos: true,
         isSmallestUnit: true,
         isActive: true,
       },
@@ -464,6 +472,11 @@ function PosPage() {
     setSaving(true);
 
     try {
+      const purchaseMeta =
+        tab.tabType === 'PURCHASE'
+          ? purchaseMetaMap[tab.id] ?? createDefaultPurchaseMeta(tab, tabs)
+          : null;
+
       await api.put(`/pos/draft-tabs/${tab.id}`, {
         tabType: tab.tabType,
         title: tab.title,
@@ -475,6 +488,13 @@ function PosPage() {
         customerPaidAmount: tab.customerPaidAmount,
         discountAmount: tab.discountAmount,
         sourceSalesOrderId: tab.sourceSalesOrderId,
+        importDate: purchaseMeta?.importDate ?? null,
+        purchaseOrderCode: purchaseMeta?.purchaseOrderCode ?? null,
+        supplierId: purchaseMeta?.supplierId ?? null,
+        supplierOrderCode: purchaseMeta?.supplierOrderCode ?? null,
+        supplierInvoiceCode: purchaseMeta?.supplierInvoiceCode ?? null,
+        purchaseStatus: purchaseMeta?.status ?? null,
+        supplierPaidAmount: purchaseMeta?.supplierPaidAmount ?? 0,
         items: tab.items.map((item) => ({
           productId: item.productId,
           productUnitId: item.productUnitId,
@@ -760,6 +780,8 @@ function PosPage() {
       return;
     }
 
+    const unitPrice = activeTab.tabType === 'PURCHASE' ? product.costPrice : product.salePrice;
+
     setTabs((current) => {
       const nextTabs = current.map((tab) => {
         if (tab.id !== activeTab.id) {
@@ -812,9 +834,9 @@ function PosPage() {
           conversionValue: product.conversionValue,
           stockOnHand: product.stockOnHand,
           quantity: 1,
-          unitPrice: product.salePrice,
+          unitPrice,
           discountAmount: 0,
-          lineTotal: product.salePrice,
+          lineTotal: unitPrice,
           note: null,
           sortOrder: 1,
         };
@@ -890,6 +912,8 @@ function PosPage() {
       return;
     }
 
+    const unitPrice = activeTab.tabType === 'PURCHASE' ? nextUnit.costPrice : nextUnit.salePrice;
+
     setTabs((current) =>
       current.map((tab) => {
         if (tab.id !== activeTab.id) {
@@ -944,7 +968,7 @@ function PosPage() {
               unitName: nextUnit.unitName,
               barcode: nextUnit.barcode,
               conversionValue: nextUnit.conversionValue,
-              unitPrice: nextUnit.salePrice,
+              unitPrice,
               stockOnHand: nextUnit.stockOnHand,
             };
             nextItem.lineTotal =
@@ -1315,6 +1339,29 @@ function PosPage() {
 
   function openProductManager() {
     setProductManagerOpen(true);
+  }
+
+  function openCreateSupplier() {
+    setEditingSupplier(null);
+    setSupplierManagerOpen(true);
+  }
+
+  function openEditSupplier() {
+    if (!activeTab || activeTab.tabType !== 'PURCHASE') {
+      return;
+    }
+
+    const supplierId = purchaseMetaMap[activeTab.id]?.supplierId ?? null;
+    const selectedSupplier =
+      suppliers.find((supplier) => supplier.id === supplierId) ?? null;
+
+    if (!selectedSupplier) {
+      message.warning(LANG.warnSelectSupplierToEdit);
+      return;
+    }
+
+    setEditingSupplier(selectedSupplier);
+    setSupplierManagerOpen(true);
   }
 
   function handleOpenOverview() {
@@ -1691,7 +1738,6 @@ function PosPage() {
               <>
                 <div className="purchase-table-head">
                   <div>{LANG.purchaseTableNo}</div>
-                  <div>{LANG.purchaseTableImportDate}</div>
                   <div>{LANG.purchaseTableCode}</div>
                   <div>{LANG.purchaseTableName}</div>
                   <div>{LANG.purchaseTableUnit}</div>
@@ -1713,11 +1759,6 @@ function PosPage() {
                           <DeleteOutlined />
                         </button>
                         <span>{index + 1}</span>
-                      </div>
-                      <div>
-                        {formatPurchaseDate(
-                          purchaseMetaMap[activeTab.id]?.importDate ?? activeTab.lastTouchedAt,
-                        )}
                       </div>
                       <div>{item.productCode}</div>
                       <div className="purchase-name">{item.productName}</div>
@@ -1997,7 +2038,7 @@ onClick={openProductManager}
                     <div className={`overview-grid-cell${record.discountAmount > 0 ? ' has-discount' : ''}`}>{record.discountAmount.toLocaleString('vi-VN')}</div>
                     <div className="overview-grid-cell">{record.costAmount.toLocaleString('vi-VN')}</div>
                     <div className="overview-grid-cell">{record.revenueAmount.toLocaleString('vi-VN')}</div>
-                    {showProfit && <div className="overview-grid-cell overview-grid-profit">{Math.round(record.subtotalAmount - record.discountAmount - record.costAmount).toLocaleString('vi-VN')}</div>}
+                    {showProfit && <div className="overview-grid-cell overview-grid-profit">{Math.round(record.revenueAmount - record.costAmount).toLocaleString('vi-VN')}</div>}
                   </button>
                 )) : (
                   <div className="empty-stage">
@@ -2066,25 +2107,43 @@ onClick={openProductManager}
                 </Form.Item>
 
                 <Form.Item label={LANG.purchaseSupplier}>
-                  <Select
-                    allowClear
-                    showSearch
-                    loading={suppliersLoading}
-                    placeholder={LANG.purchaseSearchSupplier}
-                    optionFilterProp="label"
-                    value={purchaseMetaMap[activeTab?.id ?? 0]?.supplierId ?? undefined}
-                    options={suppliers.map((supplier) => ({
-                      label: supplier.code ? `${supplier.name} (${supplier.code})` : supplier.name,
-                      value: supplier.id,
-                    }))}
-                    notFoundContent={LANG.purchaseNoSuppliersFound}
-                    onChange={(value) =>
-                      activeTab &&
-                      updatePurchaseMeta(activeTab.id, {
-                        supplierId: value ?? null,
-                      })
-                    }
-                  />
+                  <div className="purchase-supplier-row">
+                    <Select
+                      allowClear
+                      showSearch
+                      className="purchase-supplier-select"
+                      loading={suppliersLoading}
+                      placeholder={LANG.purchaseSearchSupplier}
+                      optionFilterProp="label"
+                      value={purchaseMetaMap[activeTab?.id ?? 0]?.supplierId ?? undefined}
+                      options={suppliers.map((supplier) => ({
+                        label: supplier.code ? `${supplier.name} (${supplier.code})` : supplier.name,
+                        value: supplier.id,
+                      }))}
+                      notFoundContent={LANG.purchaseNoSuppliersFound}
+                      onChange={(value) =>
+                        activeTab &&
+                        updatePurchaseMeta(activeTab.id, {
+                          supplierId: value ?? null,
+                        })
+                      }
+                    />
+                    <Tooltip title={LANG.purchaseAddSupplier}>
+                      <Button
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={openCreateSupplier}
+                      />
+                    </Tooltip>
+                    <Tooltip title={LANG.purchaseEditSupplier}>
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        disabled={!purchaseMetaMap[activeTab?.id ?? 0]?.supplierId}
+                        onClick={openEditSupplier}
+                      />
+                    </Tooltip>
+                  </div>
                 </Form.Item>
 
                 <Form.Item label={LANG.purchaseSupplierOrderCode}>
@@ -2346,6 +2405,29 @@ onClick={openProductManager}
         receiptPreview={receiptPreview}
         onClose={() => setReceiptPreview(null)}
         onPrint={handlePrintReceipt}
+      />
+
+      <SupplierManager
+        open={supplierManagerOpen}
+        supplier={editingSupplier}
+        onClose={() => {
+          setSupplierManagerOpen(false);
+          setEditingSupplier(null);
+        }}
+        onSaved={(savedSupplier) => {
+          setSupplierManagerOpen(false);
+          setEditingSupplier(null);
+          setSuppliers((current) => {
+            const next = current.filter((supplier) => supplier.id !== savedSupplier.id);
+            next.push(savedSupplier);
+            next.sort((left, right) => left.name.localeCompare(right.name, 'vi'));
+            return next;
+          });
+
+          if (activeTab?.tabType === 'PURCHASE') {
+            updatePurchaseMeta(activeTab.id, { supplierId: savedSupplier.id });
+          }
+        }}
       />
 
       <ProductManager open={productManagerOpen} onClose={() => setProductManagerOpen(false)} />

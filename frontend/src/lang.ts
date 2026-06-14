@@ -145,9 +145,12 @@ export const LANG = {
   errFeatureDev: 'Ch\u1ee9c n\u0103ng \u0111ang ph\u00e1t tri\u1ec3n',
   errPrintWindow: 'Kh\u00f4ng m\u1edf \u0111\u01b0\u1ee3c c\u1eeda s\u1ed5 in',
   errLoadSuppliers: 'Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c danh m\u1ee5c nh\u00e0 cung c\u1ea5p',
+  errSupplierNameRequired: 'Vui l\u00f2ng nh\u1eadp t\u00ean nh\u00e0 cung c\u1ea5p',
+  errSupplierSave: 'Kh\u00f4ng l\u01b0u \u0111\u01b0\u1ee3c nh\u00e0 cung c\u1ea5p',
   errCompletePurchaseDev: 'Ch\u1ee9c n\u0103ng ho\u00e0n th\u00e0nh phi\u1ebfu nh\u1eadp s\u1ebd n\u1ed1i backend sau',
 
   warnNeedTab: 'C\u1ea7n \u00edt nh\u1ea5t m\u1ed9t tab POS',
+  warnSelectSupplierToEdit: 'H\u00e3y ch\u1ecdn nh\u00e0 cung c\u1ea5p \u0111\u1ec3 s\u1eeda',
 
   receiptTitle: 'H\u00d3A \u0110\u01a0N T\u1ea0M T\u00cdNH',
   receiptReturnTitle: 'PHI\u1ebeU TR\u1ea2 H\u00c0NG',
@@ -173,6 +176,8 @@ export const LANG = {
   purchaseStatus: 'Tr\u1ea1ng th\u00e1i',
   purchaseSupplierInvoiceCode: 'S\u1ed1 h\u00f3a \u0111\u01a1n \u0111\u1ea7u v\u00e0o',
   purchaseSupplier: 'Nh\u00e0 cung c\u1ea5p',
+  purchaseAddSupplier: 'Th\u00eam nh\u00e0 cung c\u1ea5p',
+  purchaseEditSupplier: 'S\u1eeda nh\u00e0 cung c\u1ea5p',
   purchaseAutoCode: 'M\u00e3 phi\u1ebfu t\u1ef1 \u0111\u1ed9ng',
   purchaseDraftStatus: 'Phi\u1ebfu t\u1ea1m',
   purchasePayable: 'C\u1ea7n tr\u1ea3 nh\u00e0 cung c\u1ea5p',
@@ -240,6 +245,19 @@ export const LANG = {
   purchaseTablePrice: '\u0110\u01a1n gi\u00e1',
   purchaseTableDiscount: 'Gi\u1ea3m gi\u00e1',
   purchaseTableTotal: 'Th\u00e0nh ti\u1ec1n',
+  supplierName: 'T\u00ean nh\u00e0 cung c\u1ea5p',
+  supplierCode: 'M\u00e3 nh\u00e0 cung c\u1ea5p',
+  supplierPhone: 'S\u1ed1 \u0111i\u1ec7n tho\u1ea1i',
+  supplierAddress: '\u0110\u1ecba ch\u1ec9',
+  supplierNamePlaceholder: 'Nh\u1eadp t\u00ean nh\u00e0 cung c\u1ea5p',
+  supplierCodePlaceholder: 'Nh\u1eadp m\u00e3 nh\u00e0 cung c\u1ea5p',
+  supplierPhonePlaceholder: 'Nh\u1eadp s\u1ed1 \u0111i\u1ec7n tho\u1ea1i',
+  supplierAddressPlaceholder: 'Nh\u1eadp \u0111\u1ecba ch\u1ec9',
+  addSupplier: 'Th\u00eam nh\u00e0 cung c\u1ea5p',
+  editSupplier: 'S\u1eeda nh\u00e0 cung c\u1ea5p',
+  saveSupplier: 'L\u01b0u nh\u00e0 cung c\u1ea5p',
+  successSupplierCreated: '\u0110\u00e3 th\u00eam nh\u00e0 cung c\u1ea5p',
+  successSupplierUpdated: '\u0110\u00e3 c\u1eadp nh\u1eadt nh\u00e0 cung c\u1ea5p',
 } as const;
 
 export type LangKeys = keyof typeof LANG;

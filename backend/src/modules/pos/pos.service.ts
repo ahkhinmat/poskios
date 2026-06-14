@@ -1268,6 +1268,16 @@ export class PosService {
         customerPaidAmount: payload.customerPaidAmount.toFixed(2),
         discountAmount: payload.discountAmount.toFixed(2),
         sourceSalesOrderId: payload.sourceSalesOrderId ?? null,
+        importDate: payload.importDate ?? null,
+        purchaseOrderCode: payload.purchaseOrderCode ?? null,
+        supplierId: payload.supplierId ?? null,
+        supplierOrderCode: payload.supplierOrderCode ?? null,
+        supplierInvoiceCode: payload.supplierInvoiceCode ?? null,
+        purchaseStatus: payload.purchaseStatus ?? null,
+        supplierPaidAmount:
+          payload.supplierPaidAmount !== undefined
+            ? payload.supplierPaidAmount.toFixed(2)
+            : '0.00',
         isActive: true,
         lastTouchedAt: new Date(),
       }),
@@ -1305,6 +1315,20 @@ export class PosService {
       draftTab.discountAmount = payload.discountAmount.toFixed(2);
     if (payload.sourceSalesOrderId !== undefined)
       draftTab.sourceSalesOrderId = payload.sourceSalesOrderId ?? null;
+    if (payload.importDate !== undefined)
+      draftTab.importDate = payload.importDate ?? null;
+    if (payload.purchaseOrderCode !== undefined)
+      draftTab.purchaseOrderCode = payload.purchaseOrderCode ?? null;
+    if (payload.supplierId !== undefined)
+      draftTab.supplierId = payload.supplierId ?? null;
+    if (payload.supplierOrderCode !== undefined)
+      draftTab.supplierOrderCode = payload.supplierOrderCode ?? null;
+    if (payload.supplierInvoiceCode !== undefined)
+      draftTab.supplierInvoiceCode = payload.supplierInvoiceCode ?? null;
+    if (payload.purchaseStatus !== undefined)
+      draftTab.purchaseStatus = payload.purchaseStatus ?? null;
+    if (payload.supplierPaidAmount !== undefined)
+      draftTab.supplierPaidAmount = payload.supplierPaidAmount.toFixed(2);
     draftTab.lastTouchedAt = new Date();
 
     await this.posDraftTabRepository.save(draftTab);
@@ -1399,6 +1423,7 @@ export class PosService {
       unitId: productUnit.unit.id,
       unitName: productUnit.unit.name,
       conversionValue: Number(productUnit.conversionValue),
+      costPrice: Number(productUnit.costPrice),
       salePrice: Number(productUnit.salePrice),
       stockOnHand: Number(productUnit.product.stockOnHand),
       allowDirectSale:
@@ -1417,6 +1442,7 @@ export class PosService {
       unitName: productUnit.unit.name,
       barcode: productUnit.barcode ?? productUnit.product.barcode,
       conversionValue: Number(productUnit.conversionValue),
+      costPrice: Number(productUnit.costPrice),
       salePrice: Number(productUnit.salePrice),
       stockOnHand: Number(productUnit.product.stockOnHand),
       allowDirectSale:
@@ -1529,6 +1555,13 @@ export class PosService {
       customerPaidAmount: Number(tab.customerPaidAmount),
       discountAmount: Number(tab.discountAmount),
       sourceSalesOrderId: tab.sourceSalesOrderId,
+      importDate: tab.importDate,
+      purchaseOrderCode: tab.purchaseOrderCode,
+      supplierId: tab.supplierId,
+      supplierOrderCode: tab.supplierOrderCode,
+      supplierInvoiceCode: tab.supplierInvoiceCode,
+      purchaseStatus: tab.purchaseStatus,
+      supplierPaidAmount: Number(tab.supplierPaidAmount ?? 0),
       isActive: tab.isActive,
       lastTouchedAt: tab.lastTouchedAt,
       items: (tab.items ?? [])
@@ -1836,6 +1869,86 @@ export class PosService {
     }));
   }
 
+  async createSupplier(data: {
+    code?: string | null;
+    name: string;
+    phoneNumber?: string | null;
+    address?: string | null;
+  }) {
+    const trimmedName = data.name?.trim();
+
+    if (!trimmedName) {
+      throw new BadRequestException('Supplier name is required');
+    }
+
+    const supplier = this.supplierRepository.create({
+      code: data.code?.trim() || null,
+      name: trimmedName,
+      phoneNumber: data.phoneNumber?.trim() || null,
+      address: data.address?.trim() || null,
+      notes: null,
+      isActive: true,
+    });
+
+    const saved = await this.supplierRepository.save(supplier);
+
+    return {
+      id: saved.id,
+      code: saved.code,
+      name: saved.name,
+      phoneNumber: saved.phoneNumber,
+      address: saved.address,
+    };
+  }
+
+  async updateSupplier(
+    id: number,
+    data: {
+      code?: string | null;
+      name?: string;
+      phoneNumber?: string | null;
+      address?: string | null;
+    },
+  ) {
+    const supplier = await this.supplierRepository.findOneBy({ id });
+
+    if (!supplier) {
+      throw new NotFoundException('Supplier not found');
+    }
+
+    if (data.name !== undefined) {
+      const trimmedName = data.name.trim();
+
+      if (!trimmedName) {
+        throw new BadRequestException('Supplier name is required');
+      }
+
+      supplier.name = trimmedName;
+    }
+
+    if (data.code !== undefined) {
+      supplier.code = data.code?.trim() || null;
+    }
+
+    if (data.phoneNumber !== undefined) {
+      supplier.phoneNumber = data.phoneNumber?.trim() || null;
+    }
+
+    if (data.address !== undefined) {
+      supplier.address = data.address?.trim() || null;
+    }
+
+    const saved = await this.supplierRepository.save(supplier);
+
+    return {
+      id: saved.id,
+      code: saved.code,
+      name: saved.name,
+      phoneNumber: saved.phoneNumber,
+      address: saved.address,
+    };
+  }
+
   async getOverviewRecords(params: { fromDate?: string; toDate?: string }) {
     const fromDate = params.fromDate?.trim()
       ? new Date(`${params.fromDate.trim()}T00:00:00`)
@@ -1908,7 +2021,7 @@ export class PosService {
           discountAmount: Number(order.discountAmount),
           totalAmount: Number(order.totalAmount),
           costAmount: Number((salesCostMap.get(order.id) ?? 0).toFixed(2)),
-          revenueAmount: Number((Number(order.subtotalAmount) - Number(order.discountAmount)).toFixed(2)),
+          revenueAmount: Number(order.totalAmount),
           eventAt: order.soldAt,
         })),
     ].sort(
@@ -1996,9 +2109,7 @@ export class PosService {
               0,
             ).toFixed(2),
           ),
-          revenueAmount: Number(
-            (Number(order.subtotalAmount) - Number(order.discountAmount)).toFixed(2),
-          ),
+          revenueAmount: Number(order.totalAmount),
         },
         items: items.map((item, index) => ({
           rowNo: index + 1,

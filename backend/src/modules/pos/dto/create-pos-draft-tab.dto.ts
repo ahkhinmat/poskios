@@ -58,6 +58,43 @@ export class CreatePosDraftTabDto {
   sourceSalesOrderId?: number | null;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  importDate?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  purchaseOrderCode?: string | null;
+
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === null || value === undefined ? null : Number(value),
+  )
+  @IsNumber()
+  supplierId?: number | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  supplierOrderCode?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  supplierInvoiceCode?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  purchaseStatus?: string | null;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value ?? 0))
+  @IsNumber()
+  supplierPaidAmount?: number;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PosDraftItemDto)

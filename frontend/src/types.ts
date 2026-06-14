@@ -21,6 +21,7 @@ export type PosProduct = {
   unitId: number;
   unitName: string;
   conversionValue: number;
+  costPrice: number;
   salePrice: number;
   stockOnHand: number;
   allowDirectSale: boolean;
@@ -55,6 +56,7 @@ export type PosProductUnitOption = {
   unitName: string;
   barcode: string | null;
   conversionValue: number;
+  costPrice: number;
   salePrice: number;
   stockOnHand: number;
   allowDirectSale: boolean;
@@ -76,6 +78,13 @@ export type PosDraftTab = {
   customerPaidAmount: number;
   discountAmount: number;
   sourceSalesOrderId: number | null;
+  importDate?: string | null;
+  purchaseOrderCode?: string | null;
+  supplierId?: number | null;
+  supplierOrderCode?: string | null;
+  supplierInvoiceCode?: string | null;
+  purchaseStatus?: string | null;
+  supplierPaidAmount?: number;
   isActive: boolean;
   lastTouchedAt: string;
   items: PosDraftItem[];

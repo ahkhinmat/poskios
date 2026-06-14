@@ -53,13 +53,13 @@ button {
 
 .pos-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 3fr) minmax(320px, 1fr);
   height: 100vh;
   gap: 2px;
 }
 
 .pos-grid-sale-mode {
-  grid-template-columns: 3fr 1fr;
+  grid-template-columns: minmax(0, 3fr) minmax(320px, 1fr);
 }
 
 .sale-stage {
@@ -406,7 +406,7 @@ button {
 .purchase-table-head,
 .purchase-row {
   display: grid;
-  grid-template-columns: 50px 80px 110px minmax(180px, 1fr) 68px 58px 88px 88px 80px 96px;
+  grid-template-columns: 42px 96px minmax(160px, 1fr) 64px 52px 82px 82px 72px 90px;
   align-items: center;
   gap: 6px;
 }
@@ -669,10 +669,17 @@ button {
   border-left: 1px solid #dfe4ea;
   min-height: 0;
   overflow: hidden;
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .checkout-panel-purchase {
   padding: 3px 6px;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  flex: 1 1 auto;
 }
 
 .checkout-header {
@@ -740,6 +747,24 @@ button {
 
 .purchase-inline-control {
   width: 100%;
+}
+
+.purchase-supplier-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px 28px;
+  gap: 4px;
+  align-items: center;
+}
+
+.purchase-supplier-select {
+  min-width: 0;
+}
+
+.purchase-supplier-select .ant-select-selection-item,
+.purchase-supplier-select .ant-select-selection-placeholder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .checkout-form .ant-form-item {
@@ -1005,6 +1030,15 @@ button {
   .checkout-panel {
     border-left: 0;
     border-top: 1px solid #dfe4ea;
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .checkout-panel-purchase {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 auto;
   }
 }
 

@@ -271,6 +271,45 @@ export class PosController {
     };
   }
 
+  @Post('suppliers')
+  async createSupplier(
+    @Body()
+    body: {
+      code?: string | null;
+      name: string;
+      phoneNumber?: string | null;
+      address?: string | null;
+    },
+  ) {
+    const data = await this.posService.createSupplier(body);
+
+    return {
+      success: true,
+      message: 'Supplier created',
+      data,
+    };
+  }
+
+  @Put('suppliers/:id')
+  async updateSupplier(
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body: {
+      code?: string | null;
+      name?: string;
+      phoneNumber?: string | null;
+      address?: string | null;
+    },
+  ) {
+    const data = await this.posService.updateSupplier(id, body);
+
+    return {
+      success: true,
+      message: 'Supplier updated',
+      data,
+    };
+  }
+
   @Get('overview')
   async getOverview(
     @Query('fromDate') fromDate?: string,

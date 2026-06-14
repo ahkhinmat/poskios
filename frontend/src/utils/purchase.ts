@@ -28,13 +28,13 @@ export function buildPurchaseOrderCode(sequence: number, identitySeed: number | 
 export function createDefaultPurchaseMeta(tab: PosDraftTab, allTabs: PosDraftTab[]): PurchaseMeta {
   const purchaseSequence = getPurchaseSequenceFromTab(tab, allTabs);
   return {
-    importDate: tab.lastTouchedAt ? tab.lastTouchedAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
-    purchaseOrderCode: buildPurchaseOrderCode(purchaseSequence, tab.id || tab.tabCode),
+    importDate: tab.importDate ?? (tab.lastTouchedAt ? tab.lastTouchedAt.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+    purchaseOrderCode: tab.purchaseOrderCode ?? buildPurchaseOrderCode(purchaseSequence, tab.id || tab.tabCode),
     purchaseSequence,
-    supplierOrderCode: '',
-    supplierInvoiceCode: '',
-    supplierId: null,
-    status: LANG.purchaseDraftStatus,
-    supplierPaidAmount: 0,
+    supplierOrderCode: tab.supplierOrderCode ?? '',
+    supplierInvoiceCode: tab.supplierInvoiceCode ?? '',
+    supplierId: tab.supplierId ?? null,
+    status: tab.purchaseStatus ?? LANG.purchaseDraftStatus,
+    supplierPaidAmount: tab.supplierPaidAmount ?? 0,
   };
 }
