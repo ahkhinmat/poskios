@@ -72,3 +72,7 @@ Script se tao thu muc `release\ka-mart-pos`.
 
 - Frontend: `http://localhost`
 - Backend: `http://localhost:3000/api/v1`
+
+## ACC login
+manager01 / manager123
+staff01 / staff123
