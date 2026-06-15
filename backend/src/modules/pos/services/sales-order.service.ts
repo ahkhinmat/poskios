@@ -226,7 +226,7 @@ export class SalesOrderService {
       summary: {
         itemCount: result.itemCount,
         subtotalAmount: result.subtotalAmount,
-        discountAmount: Number((result.orderDiscountAmount + result.pointsDiscountAmount).toFixed(2)),
+        discountAmount: Number(result.orderDiscountAmount.toFixed(2)),
         loyaltyDiscountAmount: result.pointsDiscountAmount,
         totalAmount: result.totalAmount,
         customerPaidAmount: Number(result.salesOrder.customerPaidAmount),
@@ -244,7 +244,7 @@ export class SalesOrderService {
         cashierName: `User ${userId}`,
         items: result.receiptItems,
         subtotalAmount: result.subtotalAmount,
-        discountAmount: Number((result.orderDiscountAmount + result.pointsDiscountAmount).toFixed(2)),
+        discountAmount: Number(result.orderDiscountAmount.toFixed(2)),
         loyaltyDiscountAmount: result.pointsDiscountAmount,
         totalAmount: result.totalAmount,
         customerPaidAmount: Number(result.salesOrder.customerPaidAmount),

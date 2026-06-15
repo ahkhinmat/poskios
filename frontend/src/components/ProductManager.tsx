@@ -209,7 +209,7 @@ export function ProductManager({ open, onClose }: Props) {
       footer={null}
       width={1400}
       style={{ top: 0 }}
-      styles={{ body: { padding: '12px 20px', height: 'calc(100vh - 110px)', overflow: 'auto' } }}
+      styles={{ body: { padding: '12px 20px', height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' } }}
     >
       <div className="product-top">
         <span className="product-count">{LANG.productTotalCount} <strong>{total}</strong></span>

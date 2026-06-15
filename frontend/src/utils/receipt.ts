@@ -69,11 +69,14 @@ export function buildReceiptViewModel(
       label: LANG.receiptProductTotal,
       value: receipt.subtotalAmount.toLocaleString('vi-VN'),
     },
-    {
+  ];
+
+  if (receipt.discountAmount > 0) {
+    summaryRows.push({
       label: LANG.discount,
       value: receipt.discountAmount.toLocaleString('vi-VN'),
-    },
-  ];
+    });
+  }
 
   if ('loyaltyDiscountAmount' in receipt && (receipt.loyaltyDiscountAmount ?? 0) > 0) {
     summaryRows.push({
