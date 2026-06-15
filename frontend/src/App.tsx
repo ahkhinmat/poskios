@@ -75,6 +75,8 @@ const paymentOptions = [
   { label: LANG.ewallet, value: 'EWALLET' },
 ];
 
+const BUILD_VERSION = __APP_BUILD_VERSION__;
+
 
 
 
@@ -1157,26 +1159,25 @@ function PosPage() {
           <meta charset="utf-8" />
           <title>${receiptCodeValue}</title>
           <style>
-            @page { size: 80mm auto; margin: 3mm; }
+            @page { size: 76mm auto; margin: 2mm; }
             * { box-sizing: border-box; }
-            html, body { margin: 0; padding: 0; width: 100%; font-family: Arial, sans-serif; color: #111; }
+            html, body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #111; }
             body { font-size: 10px; line-height: 1.25; }
-            .receipt { width: 74mm; margin: 0 auto; padding: 0 1mm; }
+            .receipt { padding: 0 1mm; }
             .center { text-align: center; }
             .store { margin: 1mm 0 1.5mm; font-size: 16px; font-weight: 700; }
             .subcenter { text-align: center; }
             .header-title { margin: 2.5mm 0 1mm; font-size: 15px; font-weight: 700; }
             .line { border-top: 1px solid #999; margin: 2mm 0; }
-            .table-head { display: grid; grid-template-columns: minmax(0, 1fr) 28px 72px; column-gap: 3mm; font-size: 10px; font-weight: 700; padding-bottom: 1mm; }
-            .table-head > :nth-child(2) { text-align: center; }
-            .table-head > :last-child { text-align: right; }
+            .table-head, .item-row { display: grid; grid-template-columns: 3fr 10mm 22mm; column-gap: 1mm; }
+            .table-head { font-weight: 700; padding-bottom: 1mm; }
+            .table-head > :nth-child(2), .item-qty { text-align: center; }
+            .table-head > :last-child, .item-total { text-align: right; }
             .item { margin-bottom: 1.8mm; padding-bottom: 1.8mm; border-bottom: 1px dashed #999; }
             .item-name { font-size: 10px; font-weight: 400; word-break: break-word; }
-            .item-row { display: grid; grid-template-columns: minmax(0, 1fr) 28px 72px; column-gap: 3mm; margin-top: 0.8mm; }
-            .item-qty { text-align: center; }
-            .item-total { text-align: right; white-space: nowrap; }
+            .item-row { margin-top: 0.8mm; }
             .summary { margin-top: 5mm; }
-            .summary-row { display: grid; grid-template-columns: minmax(0, 1fr) 72px; column-gap: 3mm; margin-top: 0.8mm; font-size: 10px; }
+            .summary-row { display: grid; grid-template-columns: 1fr 22mm; column-gap: 1mm; margin-top: 0.8mm; font-size: 10px; }
             .summary-row > :first-child { text-align: right; font-weight: 700; }
             .summary-row > :last-child { text-align: right; white-space: nowrap; font-weight: 700; }
             .summary-row:not(.total) > :first-child, .summary-row:not(.total) > :last-child { font-weight: 400; }
@@ -1999,7 +2000,10 @@ onClick={openProductManager}
             <>
               <div className="checkout-header">
                 <div className="checkout-user">{LANG.overviewTitle}</div>
-                <div className="checkout-time">{filteredOverviewRecords.length}</div>
+                <div className="checkout-meta">
+                  <div className="checkout-time">{filteredOverviewRecords.length}</div>
+                  <div className="checkout-build">{BUILD_VERSION}</div>
+                </div>
               </div>
               <div className="overview-grid-top">
                 <div className="overview-grid-count">{LANG.overviewTotalRecords}: <strong>{filteredOverviewRecords.length}</strong></div>
@@ -2067,7 +2071,10 @@ onClick={openProductManager}
             <>
               <div className="checkout-header">
                 <div className="checkout-user">{isPurchaseTab ? LANG.purchaseHeader : LANG.cashier}</div>
-                <div className="checkout-time">{LANG.storeNameSale}</div>
+                <div className="checkout-meta">
+                  <div className="checkout-time">{LANG.storeNameSale}</div>
+                  <div className="checkout-build">{BUILD_VERSION}</div>
+                </div>
               </div>
 
               {isPurchaseTab ? (

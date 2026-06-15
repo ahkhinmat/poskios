@@ -11,19 +11,31 @@ import { Unit } from './modules/pos/entities/unit.entity';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env', 'backend/.env'],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const dbPort = Number(configService.get<string>('DB_PORT', '1433'));
+        const requireEnv = (key: string) => {
+          const value = configService.get<string>(key)?.trim();
+
+          if (!value) {
+            throw new Error(`Missing required environment variable: ${key}`);
+          }
+
+          return value;
+        };
+
+        const dbPortValue = configService.get<string>('DB_PORT', '1433');
+        const dbPort = Number(dbPortValue);
 
         return {
           type: 'mssql' as const,
-          host: configService.get<string>('DB_HOST', '10.22.10.22'),
+          host: requireEnv('DB_HOST'),
           port: Number.isNaN(dbPort) ? 1433 : dbPort,
-          username: configService.get<string>('DB_USERNAME', 'sa'),
-          password: configService.get<string>('DB_PASSWORD', 'abc1234!'),
-          database: configService.get<string>('DB_NAME', 'POS'),
+          username: requireEnv('DB_USERNAME'),
+          password: requireEnv('DB_PASSWORD'),
+          database: requireEnv('DB_NAME'),
           options: {
             encrypt: configService.get<string>('DB_ENCRYPT', 'false') === 'true',
             trustServerCertificate:

@@ -1,8 +1,18 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+  const cwd = process.cwd();
+  const port = process.env.PORT ?? 3000;
+  const dbHost = process.env.DB_HOST ?? 'not set';
+
+  logger.log(`CWD (process.cwd): ${cwd}`);
+  logger.log(`Script: ${__filename}`);
+  logger.log(`PORT: ${port}`);
+  logger.log(`DB_HOST: ${dbHost}`);
+
   const app = await NestFactory.create(AppModule);
   const configuredOrigins = (process.env.CORS_ORIGIN?.split(',') ?? [])
     .map((origin) => origin.trim())
@@ -25,6 +35,12 @@ async function bootstrap() {
     },
     credentials: false,
   });
+
+  app.use((req, _res, next) => {
+    Logger.debug(`${req.method} ${req.originalUrl}`, 'HTTP');
+    next();
+  });
+
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({
@@ -33,6 +49,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(port);
+  logger.log(`Backend listening on port ${port}`);
 }
 bootstrap();
