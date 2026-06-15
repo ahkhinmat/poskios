@@ -1,6 +1,5 @@
 ﻿import {
   App as AntApp,
-  AutoComplete,
   Button,
   ConfigProvider,
   DatePicker,
@@ -10,7 +9,6 @@
   InputNumber,
   List,
   Modal,
-  Radio,
   Select,
   Spin,
   Tag,
@@ -22,15 +20,12 @@ import type { InputRef } from 'antd';
 import {
   AppstoreOutlined,
   DeleteOutlined,
-  EditOutlined,
   EyeOutlined,
   MinusOutlined,
   MoreOutlined,
   PlusOutlined,
   PrinterOutlined,
   SearchOutlined,
-  ShoppingCartOutlined,
-  SwapOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -38,6 +33,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
 import { LANG } from './lang';
 import { ReceiptModal } from './components/ReceiptModal';
+import { CheckoutPanel } from './components/CheckoutPanel';
 import { ProductManager } from './components/ProductManager';
 import { SupplierManager } from './components/SupplierManager';
 import { extractApiErrorMessage } from './utils/error';
@@ -257,23 +253,6 @@ function PosPage() {
   const overviewGrossProfit = useMemo(
     () => filteredOverviewRecords.reduce((sum, record) => sum + (record.revenueAmount - record.costAmount), 0),
     [filteredOverviewRecords],
-  );
-  const customerSearchOptions = useMemo(
-    () =>
-      customerSearchResults.map((customer) => ({
-        value: customer.phoneNumber,
-        label: (
-          <div>
-            <div>
-              <strong>{customer.fullName ?? LANG.customerNew}</strong>
-            </div>
-            <div>
-              {customer.phoneNumber} · {LANG.customerPoints}: {formatPoints(customer.currentPoints)}
-            </div>
-          </div>
-        ),
-      })),
-    [customerSearchResults],
   );
 
   useEffect(() => {
@@ -703,30 +682,6 @@ function PosPage() {
     } finally {
       setCustomerLookupLoading(false);
     }
-  }
-
-  function handleSelectCustomerSearch(phoneNumber: string) {
-    const customer =
-      customerSearchResults.find((item) => item.phoneNumber === phoneNumber) ?? null;
-
-    if (!customer) {
-      updateActiveTab({
-        customerPhone: phoneNumber || null,
-        customerId: null,
-        customerName: null,
-        redeemedPoints: 0,
-      });
-      return;
-    }
-
-    setCustomerLookup(customer);
-    setCustomerSearchResults([]);
-    updateActiveTab({
-      customerPhone: customer.phoneNumber,
-      customerId: customer.id,
-      customerName: customer.fullName,
-      redeemedPoints: Math.min(activeTab?.redeemedPoints ?? 0, customer.currentPoints),
-    });
   }
 
   async function openLoyaltyHistory() {
@@ -2140,507 +2095,46 @@ onClick={openProductManager}
           )}
         </section>
 
-        <aside className={`checkout-panel ${isPurchaseTab ? 'checkout-panel-purchase' : ''} ${currentView === 'OVERVIEW' ? 'checkout-panel-overview' : ''}`}>
-          {currentView === 'OVERVIEW' ? (
-            <>
-              <div className="checkout-header">
-                <div className="checkout-user">{LANG.overviewTitle}</div>
-                <div className="checkout-meta">
-                  <div className="checkout-time">{filteredOverviewRecords.length}</div>
-                  <div className="checkout-build">{BUILD_VERSION}</div>
-                </div>
-              </div>
-              <div className="overview-grid-top">
-                <div className="overview-grid-count">{LANG.overviewTotalRecords}: <strong>{filteredOverviewRecords.length}</strong></div>
-                <Select
-                  size="small"
-                  value={overviewRecordTypeFilter}
-                  options={[
-                    { label: LANG.overviewFilterAll, value: 'ALL' },
-                    { label: LANG.overviewTypeSale, value: 'SALE' },
-                    { label: LANG.overviewTypeReturn, value: 'RETURN' },
-                    { label: LANG.overviewTypePurchase, value: 'PURCHASE' },
-                  ]}
-                  onChange={(value) =>
-                    setOverviewRecordTypeFilter(value as 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE')
-                  }
-                />
-              </div>
-              <div className={`overview-grid-head${showProfit ? '' : ' overview-grid-hide-profit'}`}>
-                <div className="overview-grid-cell">{LANG.overviewHeaderCode}</div>
-                <div className="overview-grid-cell">{LANG.overviewHeaderTime}</div>
-                <div className="overview-grid-cell">{LANG.overviewHeaderTotal}</div>
-                <div className="overview-grid-cell">{LANG.overviewHeaderDiscount}</div>
-                <div className="overview-grid-cell">{LANG.overviewHeaderLoyaltyDiscount}</div>
-                <div className="overview-grid-cell">{LANG.overviewHeaderCost}</div>
-                <div className="overview-grid-cell">{LANG.overviewHeaderRevenue}</div>
-                {showProfit && <div className="overview-grid-cell">{LANG.overviewGrossProfit}</div>}
-              </div>
-              <div className="overview-grid-body">
-                {filteredOverviewRecords.length ? filteredOverviewRecords.map((record) => (
-                  <button
-                    key={`${record.recordType}-${record.id}`}
-                    type="button"
-                    className={`overview-grid-row overview-grid-row-${record.recordType.toLowerCase()}${showProfit ? '' : ' overview-grid-hide-profit'} ${overviewDetail?.header.id === record.id && overviewDetail?.header.recordType === record.recordType ? ' is-active' : ''}`}
-                    onClick={() => void loadOverviewDetail(record.recordType, record.id)}
-                  >
-                    <div className="overview-grid-cell overview-grid-code">
-                      <span className={`overview-grid-badge overview-badge-${record.recordType.toLowerCase()}`}>
-                        {record.recordType === 'PURCHASE' ? 'NK' : record.recordType === 'RETURN' ? 'TH' : 'BH'}
-                      </span>
-                      {record.code}
-                    </div>
-                    <div className="overview-grid-cell">{dayjs(record.eventAt).format('DD/MM/YYYY HH:mm')}</div>
-                    <div className="overview-grid-cell">{record.subtotalAmount.toLocaleString('vi-VN')}</div>
-                    <div className={`overview-grid-cell${record.discountAmount > 0 ? ' has-discount' : ''}`}>{record.discountAmount.toLocaleString('vi-VN')}</div>
-                    <div className={`overview-grid-cell${record.loyaltyDiscountAmount > 0 ? ' has-discount' : ''}`}>{record.loyaltyDiscountAmount.toLocaleString('vi-VN')}</div>
-                    <div className="overview-grid-cell">{Math.round(record.costAmount).toLocaleString('vi-VN')}</div>
-                    <div className="overview-grid-cell">{Math.round(record.revenueAmount).toLocaleString('vi-VN')}</div>
-                    {showProfit && <div className="overview-grid-cell overview-grid-profit">{Math.round(record.revenueAmount - record.costAmount).toLocaleString('vi-VN')}</div>}
-                  </button>
-                )) : (
-                  <div className="empty-stage">
-                    <Empty description={LANG.overviewEmpty} />
-                  </div>
-                )}
-              </div>
-              <div className={`overview-grid-foot${showProfit ? '' : ' overview-grid-hide-profit'}`}>
-                <div className="overview-grid-cell overview-grid-foot-label">{LANG.overviewTotalValue}</div>
-                <div className="overview-grid-cell overview-grid-foot-val"></div>
-                <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalAmount.toLocaleString('vi-VN')}</div>
-                <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalDiscount.toLocaleString('vi-VN')}</div>
-                <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalLoyaltyDiscount.toLocaleString('vi-VN')}</div>
-                <div className="overview-grid-cell overview-grid-foot-val">{Math.round(overviewTotalCost).toLocaleString('vi-VN')}</div>
-                <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalRevenue.toLocaleString('vi-VN')}</div>
-                {showProfit && <div className="overview-grid-cell overview-grid-foot-val">{Math.round(overviewGrossProfit).toLocaleString('vi-VN')}</div>}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="checkout-header">
-                <div className="checkout-user">{isPurchaseTab ? LANG.purchaseHeader : LANG.cashier}</div>
-                <div className="checkout-meta">
-                  <div className="checkout-time">{LANG.storeNameSale}</div>
-                  <div className="checkout-build">{BUILD_VERSION}</div>
-                </div>
-              </div>
-
-              {isPurchaseTab ? (
-                <div className="checkout-form checkout-form-purchase">
-              <div className="purchase-status-top">
-                <span className="purchase-status-label">{LANG.purchaseStatus}</span>
-                <Tag color="red" className="purchase-status-tag">
-                  {purchaseMetaMap[activeTab?.id ?? 0]?.status ?? LANG.purchaseDraftStatus}
-                </Tag>
-              </div>
-
-              <div className="purchase-inline-row">
-                <span className="purchase-inline-label">{LANG.purchaseImportDate}</span>
-                <DatePicker
-                  className="purchase-inline-control"
-                  value={
-                    purchaseMetaMap[activeTab?.id ?? 0]?.importDate
-                      ? dayjs(purchaseMetaMap[activeTab?.id ?? 0]?.importDate)
-                      : dayjs()
-                  }
-                  format="DD/MM/YYYY"
-                  onChange={(date) => {
-                    if (activeTab) {
-                      updatePurchaseMeta(activeTab.id, {
-                        importDate: date
-                          ? date.format('YYYY-MM-DD')
-                          : new Date().toISOString().slice(0, 10),
-                      });
-                    }
-                  }}
-                />
-              </div>
-
-              <Form layout="vertical">
-                <Form.Item label={LANG.purchaseOrderCode}>
-                  <Input
-                    value={
-                      purchaseMetaMap[activeTab?.id ?? 0]?.purchaseOrderCode ??
-                      activeTab?.tabCode ??
-                      ''
-                    }
-                    readOnly
-                  />
-                </Form.Item>
-
-                <Form.Item label={LANG.purchaseSupplier}>
-                  <div className="purchase-supplier-row">
-                    <Select
-                      allowClear
-                      showSearch
-                      className="purchase-supplier-select"
-                      loading={suppliersLoading}
-                      placeholder={LANG.purchaseSearchSupplier}
-                      optionFilterProp="label"
-                      value={purchaseMetaMap[activeTab?.id ?? 0]?.supplierId ?? undefined}
-                      options={suppliers.map((supplier) => ({
-                        label: supplier.code ? `${supplier.name} (${supplier.code})` : supplier.name,
-                        value: supplier.id,
-                      }))}
-                      notFoundContent={LANG.purchaseNoSuppliersFound}
-                      onChange={(value) =>
-                        activeTab &&
-                        updatePurchaseMeta(activeTab.id, {
-                          supplierId: value ?? null,
-                        })
-                      }
-                    />
-                    <Tooltip title={LANG.purchaseAddSupplier}>
-                      <Button
-                        size="small"
-                        icon={<PlusOutlined />}
-                        onClick={openCreateSupplier}
-                      />
-                    </Tooltip>
-                    <Tooltip title={LANG.purchaseEditSupplier}>
-                      <Button
-                        size="small"
-                        icon={<EditOutlined />}
-                        disabled={!purchaseMetaMap[activeTab?.id ?? 0]?.supplierId}
-                        onClick={openEditSupplier}
-                      />
-                    </Tooltip>
-                  </div>
-                </Form.Item>
-
-                <Form.Item label={LANG.purchaseSupplierOrderCode}>
-                  <Input
-                    value={purchaseMetaMap[activeTab?.id ?? 0]?.supplierOrderCode ?? ''}
-                    onChange={(event) =>
-                      activeTab &&
-                      updatePurchaseMeta(activeTab.id, {
-                        supplierOrderCode: event.target.value,
-                      })
-                    }
-                  />
-                </Form.Item>
-
-                <Form.Item label={LANG.purchaseSupplierInvoiceCode}>
-                  <Input
-                    value={purchaseMetaMap[activeTab?.id ?? 0]?.supplierInvoiceCode ?? ''}
-                    onChange={(event) =>
-                      activeTab &&
-                      updatePurchaseMeta(activeTab.id, {
-                        supplierInvoiceCode: event.target.value,
-                      })
-                    }
-                  />
-                </Form.Item>
-              </Form>
-
-              <div className="summary-rows">
-                <div className="summary-row">
-                  <Text>{LANG.subtotalSale}</Text>
-                  <Text>{summary.subtotal.toLocaleString('vi-VN')}</Text>
-                </div>
-                <div className="summary-row">
-                  <Text>{LANG.discount}</Text>
-                  <InputNumber
-                    min={0}
-                    controls={false}
-                    value={activeTab?.discountAmount ?? 0}
-                    onChange={(value) =>
-                      updateActiveTab({ discountAmount: Number(value ?? 0) })
-                    }
-                  />
-                </div>
-                <div className="summary-row summary-row-primary">
-                  <Text>{LANG.purchasePayable}</Text>
-                  <Text>{summary.total.toLocaleString('vi-VN')}</Text>
-                </div>
-                <div className="summary-row">
-                  <Text>{LANG.purchasePaidAmount}</Text>
-                  <InputNumber
-                    min={0}
-                    controls={false}
-                    value={purchaseMetaMap[activeTab?.id ?? 0]?.supplierPaidAmount ?? 0}
-                    onChange={(value) =>
-                      activeTab &&
-                      updatePurchaseMeta(activeTab.id, {
-                        supplierPaidAmount: Number(value ?? 0),
-                      })
-                    }
-                  />
-                </div>
-                <div className="summary-row">
-                  <Text>{LANG.purchaseDebtAmount}</Text>
-                  <Text>
-                    {Math.max(
-                      0,
-                      summary.total -
-                        (purchaseMetaMap[activeTab?.id ?? 0]?.supplierPaidAmount ?? 0),
-                    ).toLocaleString('vi-VN')}
-                  </Text>
-                </div>
-              </div>
-                </div>
-              ) : (
-              <Form layout="vertical" className="checkout-form">
-            <Form.Item label={LANG.customer}>
-              <>
-                <div className="customer-input-row">
-                  <AutoComplete
-                    className="customer-autocomplete"
-                    value={activeTab?.customerPhone ?? ''}
-                    options={customerSearchOptions}
-                    onSelect={(value) => handleSelectCustomerSearch(String(value))}
-                    onChange={(value) =>
-                      updateActiveTab({
-                        customerPhone: String(value || '').trim() || null,
-                        customerId: null,
-                        customerName: null,
-                        redeemedPoints: 0,
-                      })
-                    }
-                    filterOption={false}
-                  >
-                    <Input placeholder={LANG.placeholderCustomer} />
-                  </AutoComplete>
-                  <Tooltip
-                    title={
-                      activeTab?.customerName
-                        ? LANG.editCustomerName
-                        : LANG.addCustomerName
-                    }
-                  >
-                    <Button icon={<PlusOutlined />} onClick={openCustomerNameModal} />
-                  </Tooltip>
-                </div>
-                <div className="customer-loyalty-meta">
-                  <Text type="secondary">
-                    {customerLookup
-                      ? `${customerLookup.fullName ?? activeTab?.customerName ?? LANG.customerNew} · ${LANG.customerPoints}: ${formatPoints(customerLookup.currentPoints)}`
-                      : activeTab?.customerPhone
-                        ? `${activeTab?.customerName ?? LANG.customerNew} · ${LANG.customerPoints}: ${formatPoints(0)}`
-                        : LANG.customerPoints}
-                  </Text>
-                  <div className="customer-loyalty-actions">
-                    <Button
-                      size="small"
-                      disabled={!customerLookup?.id}
-                      onClick={() => void openLoyaltyHistory()}
-                    >
-                      {LANG.pointHistory}
-                    </Button>
-                    <Button
-                      size="small"
-                      onClick={() => setLoyaltySettingsOpen(true)}
-                    >
-                      {LANG.loyaltyConfig}
-                    </Button>
-                    {customerLookupLoading && <Spin size="small" />}
-                  </div>
-                </div>
-              </>
-            </Form.Item>
-
-            <div className="summary-rows">
-              {isReturnTab ? (
-                <>
-                  <div className="summary-row">
-                    <Text>{LANG.subtotalReturn}</Text>
-                    <Text>{summary.subtotal.toLocaleString('vi-VN')}</Text>
-                  </div>
-                  <div className="summary-row">
-                    <Text>{LANG.discount}</Text>
-                    <InputNumber
-                      min={0}
-                      controls={false}
-                      value={activeTab?.discountAmount ?? 0}
-                      onChange={(value) =>
-                        updateActiveTab({ discountAmount: Number(value ?? 0) })
-                      }
-                    />
-                  </div>
-                  <div className="summary-row">
-                    <Text>{LANG.returnFee}</Text>
-                    <InputNumber
-                      min={0}
-                      controls={false}
-                      value={activeTab?.customerPaidAmount ?? 0}
-                      onChange={(value) =>
-                        updateActiveTab({ customerPaidAmount: Number(value ?? 0) })
-                      }
-                    />
-                  </div>
-                  <div className="summary-row summary-row-primary">
-                    <Text>{LANG.refund}</Text>
-                    <Text>
-                      {Math.max(0, summary.subtotal - (activeTab?.discountAmount ?? 0) - (activeTab?.customerPaidAmount ?? 0)).toLocaleString('vi-VN')}
-                    </Text>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="summary-row">
-                    <Text>{LANG.subtotalSale}</Text>
-                    <Text>{summary.subtotal.toLocaleString('vi-VN')}</Text>
-                  </div>
-                  <div className="summary-row">
-                    <div className="summary-label-with-meta">
-                      <Text>{LANG.discount}</Text>
-                      {summary.subtotal > 0 ? (
-                        <Text
-                          style={{
-                            color: summary.grossProfitPercent < 0 ? '#ff4d4f' : '#52c41a',
-                            fontWeight: 600,
-                            fontSize: 13,
-                          }}
-                        >
-                          {LANG.grossProfitRateShort}{' '}
-                          {summary.grossProfitPercent.toLocaleString('vi-VN', {
-                            minimumFractionDigits: 1,
-                            maximumFractionDigits: 1,
-                          })}
-                          %
-                        </Text>
-                      ) : null}
-                    </div>
-                    <InputNumber
-                      min={0}
-                      controls={false}
-                      value={activeTab?.discountAmount ?? 0}
-                      onChange={(value) =>
-                        updateActiveTab({ discountAmount: Number(value ?? 0) })
-                      }
-                    />
-                  </div>
-                  <div className="summary-row">
-                    <Text>{LANG.redeemPoints}</Text>
-                    <InputNumber
-                      min={0}
-                      step={0.0001}
-                      controls={false}
-                      value={activeTab?.redeemedPoints ?? 0}
-                      onChange={(value) =>
-                        updateActiveTab({
-                          redeemedPoints: Number(
-                            Math.max(
-                              0,
-                              Math.min(
-                                Number(value ?? 0),
-                                customerLookup?.currentPoints ?? Number(value ?? 0),
-                                loyaltySettings?.redeemAmountPerPoint
-                                  ? Number(
-                                      (summary.rawTotal / loyaltySettings.redeemAmountPerPoint).toFixed(4),
-                                    )
-                                  : Number(value ?? 0),
-                              ),
-                            ).toFixed(4),
-                          ),
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="summary-row">
-                    <Text>{LANG.loyaltyDiscount}</Text>
-                    <Text>{summary.pointsDiscount.toLocaleString('vi-VN')}</Text>
-                  </div>
-                  <div className="summary-row summary-row-primary">
-                    <Text>{LANG.customerPay}</Text>
-                    <Text>{summary.total.toLocaleString('vi-VN')}</Text>
-                  </div>
-                  <div className="summary-row">
-                    <Text>{LANG.earnPointsEstimate}</Text>
-                    <Text>
-                      {loyaltySettings?.earnAmountPerPoint
-                        ? formatPoints(
-                            Number((summary.total / loyaltySettings.earnAmountPerPoint).toFixed(4)),
-                          )
-                        : formatPoints(0)}
-                    </Text>
-                  </div>
-                  <div className="summary-row">
-                    <Text>{LANG.customerPaid}</Text>
-                    <InputNumber
-                      min={0}
-                      controls={false}
-                      readOnly
-                      value={summary.total}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-
-            <Form.Item label={LANG.paymentMethod}>
-              <Radio.Group
-                className="payment-methods"
-                value={activeTab?.paymentMethod ?? 'CASH'}
-                options={paymentOptions}
-                onChange={(event) =>
-                  updateActiveTab({ paymentMethod: event.target.value })
-                }
-              />
-            </Form.Item>
-              </Form>
-              )}
-
-              <div className="payment-quick">
-                <button type="button" className="quick-money">
-                  {summary.total.toLocaleString('vi-VN')}
-                </button>
-              </div>
-
-              <div className="checkout-actions">
-                {isPurchaseTab ? (
-                  <>
-                    <Button
-                      className="print-button"
-                      onClick={() => handlePrintReceipt(buildDraftReceipt())}
-                    >
-                      {LANG.print}
-                    </Button>
-                    <Button
-                      type="primary"
-                      className="pay-button"
-                      loading={checkingOut}
-                      onClick={() => void handleCheckout()}
-                    >
-                      {LANG.purchaseComplete}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      className="print-button"
-                      onClick={() => handlePrintReceipt(buildDraftReceipt())}
-                    >
-                      {LANG.print}
-                    </Button>
-                    {isReturnTab ? (
-                      <Button
-                        type="primary"
-                        danger
-                        className="pay-button"
-                        icon={<SwapOutlined />}
-                        loading={checkingOut}
-                        onClick={() => void handleCheckout()}
-                      >
-                        {LANG.completeReturn}
-                      </Button>
-                    ) : (
-                      <Button
-                        type="primary"
-                        className="pay-button"
-                        icon={<ShoppingCartOutlined />}
-                        loading={checkingOut}
-                        onClick={() => void handleCheckout()}
-                      >
-                        {LANG.completePayment}
-                      </Button>
-                    )}
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </aside>
+        <CheckoutPanel
+          currentView={currentView}
+          isPurchaseTab={isPurchaseTab}
+          isReturnTab={isReturnTab}
+          activeTab={activeTab}
+          summary={summary}
+          purchaseMetaMap={purchaseMetaMap}
+          suppliers={suppliers}
+          suppliersLoading={suppliersLoading}
+          customerLookup={customerLookup}
+          customerSearchResults={customerSearchResults}
+          customerLookupLoading={customerLookupLoading}
+          loyaltySettings={loyaltySettings}
+          overviewLoading={overviewLoading}
+          overviewRecordTypeFilter={overviewRecordTypeFilter}
+          showProfit={showProfit}
+          overviewTotalAmount={overviewTotalAmount}
+          overviewTotalDiscount={overviewTotalDiscount}
+          overviewTotalLoyaltyDiscount={overviewTotalLoyaltyDiscount}
+          overviewTotalCost={overviewTotalCost}
+          overviewTotalRevenue={overviewTotalRevenue}
+          overviewGrossProfit={overviewGrossProfit}
+          filteredOverviewRecords={filteredOverviewRecords}
+          overviewDetail={overviewDetail}
+          checkingOut={checkingOut}
+          buildVersion={BUILD_VERSION}
+          onSetOverviewRecordTypeFilter={setOverviewRecordTypeFilter}
+          onLoadOverviewDetail={loadOverviewDetail}
+          onUpdatePurchaseMeta={updatePurchaseMeta}
+          onUpdateActiveTab={updateActiveTab}
+          onOpenCreateSupplier={openCreateSupplier}
+          onOpenEditSupplier={openEditSupplier}
+          onOpenCustomerNameModal={openCustomerNameModal}
+          onSetLoyaltySettingsOpen={setLoyaltySettingsOpen}
+          onOpenLoyaltyHistory={openLoyaltyHistory}
+          onPrintReceipt={() => handlePrintReceipt(buildDraftReceipt())}
+          onCheckout={handleCheckout}
+          formatPoints={formatPoints}
+          paymentOptions={paymentOptions}
+        />
       </div>
 
       <Modal
