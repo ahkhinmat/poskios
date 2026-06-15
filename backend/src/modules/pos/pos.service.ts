@@ -10,6 +10,7 @@ import { SearchPosProductsQueryDto } from './dto/search-pos-products-query.dto';
 import { UpdatePosDraftTabDto } from './dto/update-pos-draft-tab.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { ProductImportService } from './product-import.service';
 import { CategorySupplierService } from './services/category-supplier.service';
 import { CustomerLoyaltyService } from './services/customer-loyalty.service';
@@ -183,6 +184,16 @@ export class PosService {
 
   async updateLoyaltySettings(payload: UpdateLoyaltySettingsDto) {
     return this.customerLoyaltyService.updateLoyaltySettings(payload);
+  }
+
+  // ── Settings ──
+
+  async getAllSettings() {
+    return this.settingService.getAllSettings();
+  }
+
+  async updateSettings(payload: UpdateSettingsDto) {
+    return this.settingService.updateSettings(payload);
   }
 
   // ── Overview ──

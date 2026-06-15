@@ -40,6 +40,18 @@ export type LoyaltySettings = {
   pointsExpiryDays: number | null;
 };
 
+export type AppSettings = {
+  storeName: string;
+  storeAddress: string;
+  storePhoneNumber: string;
+  receiptHeader: string;
+  receiptFooter: string;
+  loyaltyEarnAmountPerPoint: number;
+  loyaltyRedeemAmountPerPoint: number;
+  loyaltyMinimumRedeemPoints: number;
+  loyaltyPointsExpiryDays: number | null;
+};
+
 export type LoyaltyPointHistoryItem = {
   id: number;
   salesOrderId: number | null;

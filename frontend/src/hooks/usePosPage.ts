@@ -11,6 +11,7 @@ import { createDefaultPurchaseMeta, getNextTabNumber } from '../utils/purchase';
 import { buildReceiptDocumentHtml } from '../utils/receipt';
 import type {
   ApiEnvelope,
+  AppSettings,
   CheckoutResponse,
   Customer,
   CustomerSearchResponse,
@@ -69,6 +70,7 @@ export function usePosPage() {
   const [customerLookup, setCustomerLookup] = useState<Customer | null>(null);
   const [customerSearchResults, setCustomerSearchResults] = useState<Customer[]>([]);
   const [customerLookupLoading, setCustomerLookupLoading] = useState(false);
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [loyaltySettings, setLoyaltySettings] = useState<LoyaltySettings | null>(null);
   const [loyaltyHistoryOpen, setLoyaltyHistoryOpen] = useState(false);
   const [loyaltyHistory, setLoyaltyHistory] = useState<LoyaltyHistoryResponse | null>(null);
@@ -195,6 +197,7 @@ export function usePosPage() {
       void loadSuppliers();
     }
     void loadLoyaltySettings();
+    void loadAppSettings();
   }, []);
 
   useEffect(() => {
@@ -594,6 +597,15 @@ export function usePosPage() {
       setLoyaltySettings(response.data.data);
     } catch {
       message.error(LANG.errLoadLoyaltySettings);
+    }
+  }
+
+  async function loadAppSettings() {
+    try {
+      const response = await api.get<ApiEnvelope<AppSettings>>('/pos/settings');
+      setAppSettings(response.data.data);
+    } catch {
+      // non-critical, fallback to LANG
     }
   }
 
@@ -1115,6 +1127,12 @@ export function usePosPage() {
       return null;
     }
 
+    const s = appSettings;
+    const storeName = s?.storeName || LANG.storeNameReceipt;
+    const storeAddress = s?.storeAddress || LANG.storeAddress;
+    const storePhoneNumber = s?.storePhoneNumber || LANG.storePhoneNumber;
+    const footerMessage = s?.receiptFooter || LANG.receiptFooter;
+
     const items = activeTab.items.map((item) => ({
       productName: item.productName,
       unitName: item.unitName,
@@ -1127,9 +1145,7 @@ export function usePosPage() {
       const returnFee = activeTab.customerPaidAmount ?? 0;
       const refundAmount = Math.max(0, summary.subtotal - (activeTab.discountAmount ?? 0) - returnFee);
       return {
-        storeName: LANG.storeNameReceipt,
-        storeAddress: LANG.storeAddress,
-        storePhoneNumber: LANG.storePhoneNumber,
+        storeName, storeAddress, storePhoneNumber,
         salesOrderCode: activeTab.title,
         soldAt: new Date().toISOString(),
         cashierName: LANG.cashier,
@@ -1139,16 +1155,14 @@ export function usePosPage() {
         returnFeeAmount: returnFee,
         totalAmount: refundAmount,
         customerRefundAmount: refundAmount,
-        footerMessage: LANG.receiptFooter,
+        footerMessage,
       };
     }
 
     if (isPurchaseTab) {
       const purchasePaidAmount = purchaseMetaMap[activeTab.id]?.supplierPaidAmount ?? 0;
       return {
-        storeName: LANG.storeNameReceipt,
-        storeAddress: LANG.storeAddress,
-        storePhoneNumber: LANG.storePhoneNumber,
+        storeName, storeAddress, storePhoneNumber,
         purchaseOrderCode:
           purchaseMetaMap[activeTab.id]?.purchaseOrderCode ?? activeTab.title,
         orderedAt: purchaseMetaMap[activeTab.id]?.importDate
@@ -1162,15 +1176,13 @@ export function usePosPage() {
         totalAmount: summary.total,
         supplierPaidAmount: purchasePaidAmount,
         debtAmount: Math.max(0, summary.total - purchasePaidAmount),
-        footerMessage: LANG.receiptFooter,
+        footerMessage,
       };
     }
 
     const customerPaidAmount = summary.total;
     return {
-      storeName: LANG.storeNameReceipt,
-      storeAddress: LANG.storeAddress,
-      storePhoneNumber: LANG.storePhoneNumber,
+      storeName, storeAddress, storePhoneNumber,
       salesOrderCode: activeTab.title,
       soldAt: new Date().toISOString(),
       cashierName: LANG.cashier,
@@ -1180,7 +1192,7 @@ export function usePosPage() {
       totalAmount: summary.total,
       customerPaidAmount,
       changeAmount: Math.max(0, customerPaidAmount - summary.total),
-      footerMessage: LANG.receiptFooter,
+      footerMessage,
     };
   }
 
@@ -1481,6 +1493,7 @@ export function usePosPage() {
     customerLookup,
     customerSearchResults,
     customerLookupLoading,
+    appSettings,
     loyaltySettings, setLoyaltySettings,
     loyaltyHistoryOpen, setLoyaltyHistoryOpen,
     loyaltyHistory,
@@ -1560,6 +1573,7 @@ export function usePosPage() {
     loadOverview,
     loadOverviewDetail,
     loadSuppliers,
+    loadAppSettings,
     updatePurchaseMeta,
     getUnitOptionsForItem,
     loadProductUnitOptions,

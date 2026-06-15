@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   App as AntApp,
   Button,
@@ -23,6 +24,7 @@ import { PosModals } from '../components/PosModals';
 import { PurchaseTable } from '../components/PurchaseTable';
 import { ReturnSearchPanel } from '../components/ReturnSearchPanel';
 import { SaleList } from '../components/SaleList';
+import { SettingsPage } from '../components/SettingsPage';
 import { usePosPage } from '../hooks/usePosPage';
 
 const paymentOptions = [
@@ -44,6 +46,7 @@ function formatPoints(value: number) {
 export function PosPage() {
   const { message } = AntApp.useApp();
   const p = usePosPage();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (p.loading) {
     return (
@@ -347,6 +350,15 @@ export function PosPage() {
                       {LANG.modeOverview}
                     </button>
                   </Tooltip>
+                  <Tooltip title={LANG.settingsTitle}>
+                    <button
+                      type="button"
+                      className="sale-mode"
+                      onClick={() => setSettingsOpen(true)}
+                    >
+                      ⚙
+                    </button>
+                  </Tooltip>
                 </>
               )}
             </div>
@@ -437,6 +449,14 @@ export function PosPage() {
         setPasswordDialogOpen={p.setPasswordDialogOpen}
         setPasswordInput={p.setPasswordInput}
         handlePasswordSubmit={p.handlePasswordSubmit}
+      />
+
+      <SettingsPage
+        open={settingsOpen}
+        onClose={() => {
+          setSettingsOpen(false);
+          void p.loadAppSettings();
+        }}
       />
     </div>
   );

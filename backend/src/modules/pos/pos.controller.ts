@@ -29,6 +29,7 @@ import { SearchPosProductsQueryDto } from './dto/search-pos-products-query.dto';
 import { UpdatePosDraftTabDto } from './dto/update-pos-draft-tab.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 type UploadedExcelFile = {
   originalname: string;
@@ -364,6 +365,29 @@ export class PosController {
   @Put('loyalty/settings')
   async updateLoyaltySettings(@Body() body: UpdateLoyaltySettingsDto) {
     const data = await this.posService.updateLoyaltySettings(body);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Get('settings')
+  async getAllSettings() {
+    const data = await this.posService.getAllSettings();
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Roles('MANAGER')
+  @Put('settings')
+  async updateSettings(@Body() body: UpdateSettingsDto) {
+    const data = await this.posService.updateSettings(body);
 
     return {
       success: true,
