@@ -4,7 +4,7 @@ import {
   MoreOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import { Empty, InputNumber, Select, Tag } from 'antd';
+import { Empty, InputNumber, message, Select, Tag } from 'antd';
 import { LANG } from '../lang';
 import type { PosDraftItem, PosProductUnitOption } from '../types';
 
@@ -120,7 +120,7 @@ export function SaleList({
           <div className="sale-cell sale-total">
             {item.lineTotal.toLocaleString('vi-VN')}
           </div>
-          <button type="button" className="sale-icon-button sale-icon-more" aria-label={`${LANG.itemOptions} ${item.productName}`}>
+          <button type="button" className="sale-icon-button sale-icon-more" aria-label={`${LANG.itemOptions} ${item.productName}`} onClick={() => message.info(LANG.errFeatureDev)}>
             <MoreOutlined />
           </button>
         </div>

@@ -136,9 +136,6 @@ export function PosPage() {
               <Tag color={p.isManager ? 'blue' : 'default'}>
                 {p.authUser?.fullName} · {p.authUser?.roleCode}
               </Tag>
-              <Tag color={p.saving ? 'processing' : 'success'}>
-                {p.saving ? LANG.saving : LANG.synced}
-              </Tag>
               <Tooltip title="Dang xuat">
                 <Button
                   size="small"
@@ -383,6 +380,7 @@ export function PosPage() {
           filteredOverviewRecords={p.filteredOverviewRecords}
           overviewDetail={p.overviewDetail}
           checkingOut={p.checkingOut}
+          saving={p.saving}
           buildVersion={BUILD_VERSION}
           canManage={p.isManager}
           onSetOverviewRecordTypeFilter={p.setOverviewRecordTypeFilter}

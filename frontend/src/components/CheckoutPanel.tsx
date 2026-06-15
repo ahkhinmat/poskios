@@ -8,6 +8,7 @@ import {
   InputNumber,
   Radio,
   Select,
+  Skeleton,
   Spin,
   Tag,
   Tooltip,
@@ -58,6 +59,7 @@ type CheckoutPanelProps = {
   filteredOverviewRecords: OverviewRecord[];
   overviewDetail: OverviewDetail | null;
   checkingOut: boolean;
+  saving: boolean;
   buildVersion: string;
   canManage: boolean;
   onSetOverviewRecordTypeFilter: (value: 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE') => void;
@@ -101,6 +103,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
     filteredOverviewRecords,
     overviewDetail,
     checkingOut,
+    saving,
     buildVersion,
     canManage,
     onSetOverviewRecordTypeFilter,
@@ -177,7 +180,11 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
               </button>
             )) : (
               <div className="empty-stage">
-                <Empty description={overviewLoading ? LANG.saving : LANG.overviewEmpty} />
+                {overviewLoading ? (
+                  <Skeleton active paragraph={{ rows: 4 }} />
+                ) : (
+                  <Empty description={LANG.overviewEmpty} />
+                )}
               </div>
             )}
           </div>
@@ -358,85 +365,84 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
             </div>
           ) : (
             <Form layout="vertical" className="checkout-form">
-              <Form.Item label={LANG.customer}>
-                <>
-                  <div className="customer-input-row">
-                    <AutoComplete
-                      className="customer-autocomplete"
-                      value={activeTab?.customerPhone ?? ''}
-                      options={customerSearchResults.map((customer) => ({
-                        value: customer.phoneNumber,
-                        label: (
+              <Form.Item
+                label={
+                  <span className="customer-label-text">
+                    {customerLookup
+                      ? `${LANG.customer}: ${customerLookup.fullName ?? activeTab?.customerName ?? LANG.customerNew} · ${formatPoints(customerLookup.currentPoints)} ${LANG.pointsUnit}`
+                      : activeTab?.customerPhone
+                        ? `${LANG.customer}: ${activeTab?.customerName ?? LANG.customerNew} · 0 ${LANG.pointsUnit}`
+                        : LANG.customer}
+                  </span>
+                }
+              >
+                <div className="customer-input-row">
+                  <AutoComplete
+                    className="customer-autocomplete"
+                    value={activeTab?.customerPhone ?? ''}
+                    options={customerSearchResults.map((customer) => ({
+                      value: customer.phoneNumber,
+                      label: (
+                        <div>
                           <div>
-                            <div>
-                              <strong>{customer.fullName ?? LANG.customerNew}</strong>
-                            </div>
-                            <div>
-                              {customer.phoneNumber} · {LANG.customerPoints}: {formatPoints(customer.currentPoints)}
-                            </div>
+                            <strong>{customer.fullName ?? LANG.customerNew}</strong>
                           </div>
-                        ),
-                      }))}
-                      onSelect={(value) => {
-                        const customer = customerSearchResults.find((item) => item.phoneNumber === value) ?? null;
-                        if (customer) {
-                          onUpdateActiveTab({
-                            customerPhone: customer.phoneNumber,
-                            customerId: customer.id,
-                            customerName: customer.fullName,
-                          });
-                        }
-                      }}
-                      onChange={(value) =>
+                          <div>
+                            {customer.phoneNumber} · {LANG.customerPoints}: {formatPoints(customer.currentPoints)}
+                          </div>
+                        </div>
+                      ),
+                    }))}
+                    onSelect={(value) => {
+                      const customer = customerSearchResults.find((item) => item.phoneNumber === value) ?? null;
+                      if (customer) {
                         onUpdateActiveTab({
-                          customerPhone: String(value || '').trim() || null,
-                          customerId: null,
-                          customerName: null,
-                          redeemedPoints: 0,
-                        })
+                          customerPhone: customer.phoneNumber,
+                          customerId: customer.id,
+                          customerName: customer.fullName,
+                        });
                       }
-                      filterOption={false}
+                    }}
+                    onChange={(value) =>
+                      onUpdateActiveTab({
+                        customerPhone: String(value || '').trim() || null,
+                        customerId: null,
+                        customerName: null,
+                        redeemedPoints: 0,
+                      })
+                    }
+                    filterOption={false}
+                  >
+                    <Input placeholder={LANG.placeholderCustomer} />
+                  </AutoComplete>
+                  <Tooltip
+                    title={
+                      activeTab?.customerName
+                        ? LANG.editCustomerName
+                        : LANG.addCustomerName
+                    }
+                  >
+                    <Button icon={<PlusOutlined />} onClick={onOpenCustomerNameModal} />
+                  </Tooltip>
+                  <div className="customer-loyalty-actions">
+                    <Button
+                      size="small"
+                      disabled={!customerLookup?.id}
+                      onClick={onOpenLoyaltyHistory}
                     >
-                      <Input placeholder={LANG.placeholderCustomer} />
-                    </AutoComplete>
-                    <Tooltip
-                      title={
-                        activeTab?.customerName
-                          ? LANG.editCustomerName
-                          : LANG.addCustomerName
-                      }
-                    >
-                      <Button icon={<PlusOutlined />} onClick={onOpenCustomerNameModal} />
-                    </Tooltip>
-                  </div>
-                  <div className="customer-loyalty-meta">
-                    <Text type="secondary">
-                      {customerLookup
-                        ? `${customerLookup.fullName ?? activeTab?.customerName ?? LANG.customerNew} · ${LANG.customerPoints}: ${formatPoints(customerLookup.currentPoints)}`
-                        : activeTab?.customerPhone
-                          ? `${activeTab?.customerName ?? LANG.customerNew} · ${LANG.customerPoints}: ${formatPoints(0)}`
-                          : LANG.customerPoints}
-                    </Text>
-                    <div className="customer-loyalty-actions">
+                      {LANG.pointHistory}
+                    </Button>
+                    {canManage && (
                       <Button
                         size="small"
-                        disabled={!customerLookup?.id}
-                        onClick={onOpenLoyaltyHistory}
+                        onClick={() => onSetLoyaltySettingsOpen(true)}
                       >
-                        {LANG.pointHistory}
+                        {LANG.loyaltyConfig}
                       </Button>
-                      {canManage && (
-                        <Button
-                          size="small"
-                          onClick={() => onSetLoyaltySettingsOpen(true)}
-                        >
-                          {LANG.loyaltyConfig}
-                        </Button>
-                      )}
-                      {customerLookupLoading && <Spin size="small" />}
-                    </div>
+                    )}
+                    {customerLookupLoading && <Spin size="small" />}
                   </div>
-                </>
+                </div>
               </Form.Item>
 
               <div className="summary-rows">
@@ -560,10 +566,22 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
                       <InputNumber
                         min={0}
                         controls={false}
-                        readOnly
-                        value={summary.total}
+                        value={activeTab?.customerPaidAmount ?? 0}
+                        onChange={(value) =>
+                          onUpdateActiveTab({ customerPaidAmount: Number(value ?? 0) })
+                        }
                       />
                     </div>
+                    {(() => {
+                      const paid = activeTab?.customerPaidAmount ?? 0;
+                      const changeAmount = paid - summary.total;
+                      return changeAmount > 0 ? (
+                        <div className="summary-row summary-row-change">
+                          <Text>{LANG.change}</Text>
+                          <Text>{changeAmount.toLocaleString('vi-VN')}</Text>
+                        </div>
+                      ) : null;
+                    })()}
                   </>
                 )}
               </div>
@@ -581,10 +599,28 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
             </Form>
           )}
 
-          <div className="payment-quick">
-            <button type="button" className="quick-money">
-              {summary.total.toLocaleString('vi-VN')}
-            </button>
+          {!isReturnTab && !isPurchaseTab && (
+            <div className="payment-quick">
+              <button type="button" className="quick-money" onClick={() => onUpdateActiveTab({ customerPaidAmount: 100000 })}>
+                100,000
+              </button>
+              <button type="button" className="quick-money" onClick={() => onUpdateActiveTab({ customerPaidAmount: 200000 })}>
+                200,000
+              </button>
+              <button type="button" className="quick-money" onClick={() => onUpdateActiveTab({ customerPaidAmount: 500000 })}>
+                500,000
+              </button>
+              <button type="button" className="quick-money quick-money-exact" onClick={() => onUpdateActiveTab({ customerPaidAmount: summary.total })}>
+                {LANG.exactChange}
+              </button>
+            </div>
+          )}
+
+          <div className={`process-bar${saving || checkingOut ? ' process-bar-active' : ''}${!saving && !checkingOut ? ' process-bar-done' : ''}`}>
+            <span className="process-bar-dot" />
+            <span className="process-bar-label">
+              {saving ? LANG.saving : checkingOut ? LANG.checkingOut : LANG.synced}
+            </span>
           </div>
 
           <div className="checkout-actions">

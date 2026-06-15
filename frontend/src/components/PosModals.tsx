@@ -141,11 +141,18 @@ export function PosModals({
           dataSource={loyaltyHistory?.items ?? []}
           locale={{ emptyText: LANG.overviewEmpty }}
           renderItem={(item) => (
-            <List.Item>
-              <div className="loyalty-history-item">
-                <div>
-                  <Text strong>{item.transactionType}</Text>
+              <List.Item>
+                <div className="loyalty-history-item">
                   <div>
+                    <Text strong>{({
+                      EARN: LANG.transactionEarn,
+                      REDEEM: LANG.transactionRedeem,
+                      SALE_OUT: LANG.transactionSaleOut,
+                      RETURN_IN: LANG.transactionReturnIn,
+                      RETURN_REVERSE: LANG.transactionReturnReverse,
+                      PURCHASE_IN: LANG.transactionPurchaseIn,
+                    } as Record<string, string>)[item.transactionType] ?? item.transactionType}</Text>
+                    <div>
                     <Text type="secondary">
                       {new Date(item.transactionAt).toLocaleString('vi-VN')}
                     </Text>

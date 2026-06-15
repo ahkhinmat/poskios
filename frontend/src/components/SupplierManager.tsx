@@ -36,11 +36,19 @@ export function SupplierManager({ open, supplier, onClose, onSaved }: Props) {
     setAddress(supplier?.address ?? '');
   }, [open, supplier]);
 
+  const PHONE_REGEX = /^(0[3|5|7|8|9])[0-9]{8}$/;
+
   async function handleSaveSupplier() {
     const trimmedName = name.trim();
+    const trimmedPhone = phoneNumber.trim();
 
     if (!trimmedName) {
       message.warning(LANG.errSupplierNameRequired);
+      return;
+    }
+
+    if (trimmedPhone && !PHONE_REGEX.test(trimmedPhone)) {
+      message.warning(LANG.errSupplierPhoneInvalid);
       return;
     }
 
@@ -107,7 +115,8 @@ export function SupplierManager({ open, supplier, onClose, onSaved }: Props) {
         </Form.Item>
 
         <Form.Item label={LANG.supplierAddress}>
-          <Input
+          <Input.TextArea
+            rows={3}
             value={address}
             onChange={(event) => setAddress(event.target.value)}
             placeholder={LANG.supplierAddressPlaceholder}
