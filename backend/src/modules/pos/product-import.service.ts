@@ -229,6 +229,61 @@ export class ProductImportService {
       await this.productRepository.save(batch);
     }
 
+    // Upsert ProductUnit for each product
+    const productUnitKeys = new Set<string>();
+    const productUnitsToSave: ProductUnit[] = [];
+
+    for (const row of rows) {
+      const unit = unitMap.get(this.normalizeLookupKey(row.unitName));
+      if (!unit) continue;
+      const product = productsToSave.find(
+        (p) => p.productCode === row.productCode,
+      );
+      if (!product || !product.id) continue;
+
+      const key = `${product.id}:${unit.id}`;
+      if (productUnitKeys.has(key)) continue;
+      productUnitKeys.add(key);
+
+      const existingProductUnit = await this.productUnitRepository.findOneBy({
+        productId: product.id,
+        unitId: unit.id,
+      });
+
+      if (existingProductUnit) {
+        existingProductUnit.barcode = row.barcode;
+        existingProductUnit.conversionValue = row.conversionValue;
+        existingProductUnit.costPrice = row.costPrice;
+        existingProductUnit.salePrice = row.salePrice;
+        existingProductUnit.allowDirectSale = row.allowDirectSale;
+        existingProductUnit.isDefaultForPos =
+          this.toNumber(row.conversionValue) <= 1;
+        existingProductUnit.isSmallestUnit =
+          this.toNumber(row.conversionValue) <= 1;
+        existingProductUnit.isActive = row.isActive;
+        productUnitsToSave.push(existingProductUnit);
+      } else {
+        productUnitsToSave.push(
+          this.productUnitRepository.create({
+            productId: product.id,
+            unitId: unit.id,
+            barcode: row.barcode,
+            conversionValue: row.conversionValue,
+            costPrice: row.costPrice,
+            salePrice: row.salePrice,
+            allowDirectSale: row.allowDirectSale,
+            isDefaultForPos: this.toNumber(row.conversionValue) <= 1,
+            isSmallestUnit: this.toNumber(row.conversionValue) <= 1,
+            isActive: row.isActive,
+          }),
+        );
+      }
+    }
+
+    for (const batch of this.chunkArray(productUnitsToSave, 100)) {
+      await this.productUnitRepository.save(batch);
+    }
+
     return {
       fileName: file.originalname,
       worksheetName,

@@ -2339,22 +2339,7 @@ onClick={openProductManager}
                   <Text>{summary.subtotal.toLocaleString('vi-VN')}</Text>
                 </div>
                 <div className="summary-row">
-                  <div className="summary-label-with-meta">
-                    <Text>{LANG.discount}</Text>
-                    {!isReturnTab && !isPurchaseTab && summary.subtotal > 0 ? (
-                      <Text
-                        type={summary.grossProfitPercent < 0 ? 'danger' : 'secondary'}
-                        className="summary-label-meta"
-                      >
-                        {LANG.grossProfitRateShort}{' '}
-                        {summary.grossProfitPercent.toLocaleString('vi-VN', {
-                          minimumFractionDigits: 1,
-                          maximumFractionDigits: 1,
-                        })}
-                        %
-                      </Text>
-                    ) : null}
-                  </div>
+                  <Text>{LANG.discount}</Text>
                   <InputNumber
                     min={0}
                     controls={false}
@@ -2497,7 +2482,25 @@ onClick={openProductManager}
                     <Text>{summary.subtotal.toLocaleString('vi-VN')}</Text>
                   </div>
                   <div className="summary-row">
-                    <Text>{LANG.discount}</Text>
+                    <div className="summary-label-with-meta">
+                      <Text>{LANG.discount}</Text>
+                      {summary.subtotal > 0 ? (
+                        <Text
+                          style={{
+                            color: summary.grossProfitPercent < 0 ? '#ff4d4f' : '#52c41a',
+                            fontWeight: 600,
+                            fontSize: 13,
+                          }}
+                        >
+                          {LANG.grossProfitRateShort}{' '}
+                          {summary.grossProfitPercent.toLocaleString('vi-VN', {
+                            minimumFractionDigits: 1,
+                            maximumFractionDigits: 1,
+                          })}
+                          %
+                        </Text>
+                      ) : null}
+                    </div>
                     <InputNumber
                       min={0}
                       controls={false}
@@ -2505,7 +2508,7 @@ onClick={openProductManager}
                       onChange={(value) =>
                         updateActiveTab({ discountAmount: Number(value ?? 0) })
                       }
-                      />
+                    />
                   </div>
                   <div className="summary-row">
                     <Text>{LANG.redeemPoints}</Text>
