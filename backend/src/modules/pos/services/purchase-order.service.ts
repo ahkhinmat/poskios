@@ -97,7 +97,7 @@ export class PurchaseOrderService {
         isActive: true,
       }));
 
-      purchaseOrder.purchaseOrderCode = await this.generatePurchaseOrderCode(manager, purchaseOrder.id);
+      purchaseOrder.purchaseOrderCode = await this.generatePurchaseOrderCode(manager, purchaseOrder.id, setting.purchaseOrderPrefix);
       await manager.save(PurchaseOrder, purchaseOrder);
 
       const receiptItems: ReceiptItem[] = [];
@@ -184,7 +184,7 @@ export class PurchaseOrderService {
     };
   }
 
-  private async generatePurchaseOrderCode(manager: DataSource['manager'], purchaseOrderId: number) {
+  private async generatePurchaseOrderCode(manager: DataSource['manager'], purchaseOrderId: number, prefix: string) {
     const previousCount = await manager
       .createQueryBuilder(PurchaseOrder, 'purchaseOrder')
       .where('purchaseOrder.Id < :purchaseOrderId', { purchaseOrderId })
@@ -192,6 +192,6 @@ export class PurchaseOrderService {
 
     const sequence = previousCount + 1;
     const identity = String(purchaseOrderId).padStart(6, '0');
-    return `PNH${String(sequence).padStart(4, '0')}${identity}`;
+    return `${prefix}${String(sequence).padStart(4, '0')}${identity}`;
   }
 }

@@ -212,7 +212,7 @@ export function ProductManager({ open, onClose }: Props) {
       styles={{ body: { padding: '12px 20px', height: 'calc(100vh - 110px)', overflow: 'auto' } }}
     >
       <div className="product-top">
-        <span className="product-count">Tổng số: <strong>{total}</strong></span>
+        <span className="product-count">{LANG.productTotalCount} <strong>{total}</strong></span>
         <Input.Search
           className="product-search"
           placeholder={LANG.searchProducts}
@@ -223,7 +223,7 @@ export function ProductManager({ open, onClose }: Props) {
           {LANG.addProduct}
         </Button>
         <Button icon={<UploadOutlined />} onClick={() => { setImportOpen(true); setImportResult(null); setImportError(null); }}>
-          Import Excel
+          {LANG.productImportExcel}
         </Button>
       </div>
 
@@ -271,7 +271,7 @@ export function ProductManager({ open, onClose }: Props) {
             </div>
           )
         )}
-        {loading && <div className="product-loading">Đang tải...</div>}
+        {loading && <div className="product-loading">{LANG.productLoading}</div>}
       </div>
 
       <Modal
@@ -290,7 +290,7 @@ export function ProductManager({ open, onClose }: Props) {
           <Input
             value={formProductCode}
             onChange={(e) => setFormProductCode(e.target.value)}
-            placeholder="VD: SP001"
+            placeholder={LANG.productCodePlaceholder}
           />
           <div className="product-form-label">{LANG.scanBarcode}</div>
           <Input
@@ -303,7 +303,7 @@ export function ProductManager({ open, onClose }: Props) {
           <Input
             value={formName}
             onChange={(e) => setFormName(e.target.value)}
-            placeholder="Nhập tên sản phẩm"
+            placeholder={LANG.productNamePlaceholder}
           />
           <div className="product-form-label">{LANG.productCost}</div>
           <InputNumber
@@ -328,7 +328,7 @@ export function ProductManager({ open, onClose }: Props) {
             onChange={(v) => setFormUnitId(v)}
             options={units.map((u) => ({ value: u.id, label: u.name }))}
             style={{ width: '100%' }}
-            placeholder="Chọn ĐVT"
+            placeholder={LANG.productUnitPlaceholder}
             filterOption={(input, option) =>
               (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
             }
@@ -343,7 +343,7 @@ export function ProductManager({ open, onClose }: Props) {
       </Modal>
 
       <Modal
-        title="Import sản phẩm từ Excel"
+        title={LANG.productImportTitle}
         open={importOpen}
         onCancel={() => { setImportOpen(false); setImportResult(null); setImportError(null); }}
         footer={null}
@@ -362,11 +362,11 @@ export function ProductManager({ open, onClose }: Props) {
               setImportError(null);
               setImportResult(null);
               importStartRef.current = Date.now();
-              setImportProgressText('Đang phân tích file Excel...');
+              setImportProgressText(LANG.productImportParsing);
               try {
                 const formData = new FormData();
                 formData.append('file', options.file as File);
-                setImportProgressText('Đang xử lý...');
+                setImportProgressText(LANG.productImportProcessing);
                 const res = await api.post<ApiEnvelope<{
                   fileName: string;
                   totalRows: number;
@@ -374,10 +374,10 @@ export function ProductManager({ open, onClose }: Props) {
                   updatedProducts: number;
                 }>>('/pos/products/import/upsert', formData);
                 setImportResult(res.data.data);
-                message.success(`Import hoàn tất: ${res.data.data.totalRows} dòng (tạo ${res.data.data.createdProducts}, cập nhật ${res.data.data.updatedProducts})`);
+                message.success(LANG.productImportCompleted(res.data.data.totalRows, res.data.data.createdProducts, res.data.data.updatedProducts));
                 resetSearch(searchKeywordRef.current);
               } catch (err: any) {
-                const msg = err?.response?.data?.message ?? err?.message ?? 'Import thất bại';
+                const msg = err?.response?.data?.message ?? err?.message ?? LANG.productImportFailed;
                 setImportError(typeof msg === 'string' ? msg : JSON.stringify(msg));
               } finally {
                 setImporting(false);
@@ -386,25 +386,25 @@ export function ProductManager({ open, onClose }: Props) {
           >
             {importResult ? (
               <div style={{ textAlign: 'center', padding: 20 }}>
-                <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: '#52c41a' }}>Import thành công</div>
-                <div>Tên file: {importResult.fileName}</div>
-                <div>Tổng số dòng: {importResult.totalRows}</div>
-                <div>Thêm mới: {importResult.createdProducts}</div>
-                <div>Cập nhật: {importResult.updatedProducts}</div>
+                <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: '#52c41a' }}>{LANG.productImportSuccess}</div>
+                <div>{LANG.productImportFileName} {importResult.fileName}</div>
+                <div>{LANG.productImportTotalRows} {importResult.totalRows}</div>
+                <div>{LANG.productImportCreated} {importResult.createdProducts}</div>
+                <div>{LANG.productImportUpdated} {importResult.updatedProducts}</div>
               </div>
             ) : importing ? (
               <div style={{ textAlign: 'center', padding: 20 }}>
-                <div style={{ fontSize: 16, color: '#1890ff', marginBottom: 8 }}>Đang import...</div>
+                <div style={{ fontSize: 16, color: '#1890ff', marginBottom: 8 }}>{LANG.productImportInProgress}</div>
                 <div style={{ color: '#555', marginBottom: 4 }}>{importProgressText}</div>
-                <div style={{ color: '#888', fontSize: 13 }}>Đã chạy: {elapsedSec}s</div>
+                <div style={{ color: '#888', fontSize: 13 }}>{LANG.productImportElapsed} {elapsedSec}s</div>
               </div>
             ) : (
               <div style={{ textAlign: 'center', padding: 20 }}>
                 <p className="ant-upload-drag-icon">
                   <UploadOutlined style={{ fontSize: 48, color: '#40a9ff' }} />
                 </p>
-                <p className="ant-upload-text">Nhấp hoặc kéo thả file Excel vào đây</p>
-                <p className="ant-upload-hint">Chỉ hỗ trợ file .xlsx</p>
+                <p className="ant-upload-text">{LANG.productImportDropHint}</p>
+                <p className="ant-upload-hint">{LANG.productImportFormatHint}</p>
               </div>
             )}
           </Upload.Dragger>
@@ -418,7 +418,7 @@ export function ProductManager({ open, onClose }: Props) {
           {importResult && (
             <div style={{ textAlign: 'center', marginTop: 16 }}>
               <Button onClick={() => { setImportOpen(false); setImportResult(null); setImportError(null); }}>
-                Đóng
+                {LANG.close}
               </Button>
             </div>
           )}

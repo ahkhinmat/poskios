@@ -309,6 +309,87 @@ export const LANG = {
   saveSupplier: 'Lưu nhà cung cấp',
   successSupplierCreated: 'Đã thêm nhà cung cấp',
   successSupplierUpdated: 'Đã cập nhật nhà cung cấp',
+
+  // Login page
+  loginSuccess: 'Đăng nhập thành công',
+  loginFailed: 'Đăng nhập thất bại',
+  loginMark: 'KA',
+  loginTitle: 'KA MART POS',
+  loginSubtitle: 'Đăng nhập hệ thống',
+  loginUsernameLabel: 'Tài khoản',
+  loginUsernameRequired: 'Nhập tài khoản',
+  loginPasswordLabel: 'Mật khẩu',
+  loginPasswordRequired: 'Nhập mật khẩu',
+  loginButton: 'Đăng nhập',
+
+  // Logout
+  logoutTooltip: 'Đăng xuất',
+  logoutSuccess: 'Đã đăng xuất',
+
+  // Permission warnings
+  errManagerOnlyImport: 'Chỉ Manager được nhập hàng',
+  errManagerOnlyCategory: 'Chỉ Manager được quản lý danh mục',
+  errManagerOnlyLoyaltyConfig: 'Chỉ Manager được cấu hình tích điểm',
+  errManagerOnlyOverview: 'Chỉ Manager được xem tổng quan',
+
+  // Overview badges
+  overviewBadgePurchase: 'NK',
+  overviewBadgeReturn: 'TH',
+  overviewBadgeSale: 'BH',
+
+  // Settings messages
+  settingsLoadError: 'Không thể tải cấu hình',
+  settingsSaved: 'Đã lưu',
+  settingsSaveError: 'Lỗi lưu cấu hình',
+  settingsDays: 'ngày',
+
+  // Product manager
+  productTotalCount: 'Tổng số:',
+  productImportExcel: 'Import Excel',
+  productLoading: 'Đang tải...',
+  productCodePlaceholder: 'VD: SP001',
+  productNamePlaceholder: 'Nhập tên sản phẩm',
+  productUnitPlaceholder: 'Chọn ĐVT',
+  productImportTitle: 'Import sản phẩm từ Excel',
+  productImportParsing: 'Đang phân tích file Excel...',
+  productImportProcessing: 'Đang xử lý...',
+  productImportCompleted: (total: number, created: number, updated: number) => `Import hoàn tất: ${total} dòng (tạo ${created}, cập nhật ${updated})`,
+  productImportFailed: 'Import thất bại',
+  productImportSuccess: 'Import thành công',
+  productImportFileName: 'Tên file:',
+  productImportTotalRows: 'Tổng số dòng:',
+  productImportCreated: 'Thêm mới:',
+  productImportUpdated: 'Cập nhật:',
+  productImportInProgress: 'Đang import...',
+  productImportElapsed: 'Đã chạy:',
+  productImportDropHint: 'Nhấp hoặc kéo thả file Excel vào đây',
+  productImportFormatHint: 'Chỉ hỗ trợ file .xlsx',
+
+  // Overview detail
+  purchaseTableQtyShort: 'Số lượng',
+
+  // Extended settings labels
+  settingsSectionPayment: 'THANH TOÁN',
+  settingsSectionCode: 'MÃ TỰ ĐỘNG',
+  settingsSectionSearch: 'TÌM KIẾM',
+  settingsSectionOther: 'KHÁC',
+  settingsCurrencySuffix: 'Ký hiệu tiền tệ',
+  settingsLocale: 'Ngôn ngữ/định dạng',
+  settingsReceiptPaperWidth: 'Khổ giấy in',
+  settingsReceiptPoweredBy: 'Chữ cuối hóa đơn',
+  settingsDefaultPaymentMethod: 'PTTT mặc định',
+  settingsQuickPayAmount1: 'Nút nhanh 1',
+  settingsQuickPayAmount2: 'Nút nhanh 2',
+  settingsQuickPayAmount3: 'Nút nhanh 3',
+  settingsSalesOrderPrefix: 'Tiền tố HĐ bán',
+  settingsReturnOrderPrefix: 'Tiền tố HĐ trả',
+  settingsPurchaseOrderPrefix: 'Tiền tố phiếu nhập',
+  settingsProductSearchMaxResults: 'KQ tìm kiếm SP',
+  settingsInvoiceSearchMaxResults: 'KQ tìm HĐ',
+  settingsCustomerSearchMaxResults: 'KQ tìm KH',
+  settingsDefaultAddQuantity: 'SL mặc định thêm',
+  settingsOverviewPassword: 'Mật khẩu tổng quan',
+  settingsCashierLabel: 'Nhãn thu ngân',
 } as const;
 
 export type LangKeys = keyof typeof LANG;

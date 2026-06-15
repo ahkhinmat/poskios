@@ -48,7 +48,8 @@ export class CustomerLoyaltyService {
       subQb.orWhere('customer.fullName LIKE :nameKeyword', { nameKeyword: `%${rawKeyword}%` });
     }));
 
-    const customers = await qb.orderBy('customer.fullName', 'ASC').addOrderBy('customer.id', 'DESC').take(10).getMany();
+    const setting = await this.settingService.getOrCreateSetting();
+    const customers = await qb.orderBy('customer.fullName', 'ASC').addOrderBy('customer.id', 'DESC').take(setting.customerSearchMaxResults).getMany();
 
     return {
       items: customers.map((customer) => ({
@@ -84,10 +85,11 @@ export class CustomerLoyaltyService {
     const customer = await this.customerRepository.findOne({ where: { id: customerId, isActive: true } });
     if (!customer) throw new NotFoundException('Customer not found');
 
+    const setting = await this.settingService.getOrCreateSetting();
     const items = await this.loyaltyPointTransactionRepository.find({
       where: { customerId },
       order: { transactionAt: 'DESC', id: 'DESC' },
-      take: 50,
+      take: setting.customerSearchMaxResults * 5,
     });
 
     return {

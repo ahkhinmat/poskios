@@ -139,7 +139,7 @@ export function PosPage() {
               <Tag color={p.isManager ? 'blue' : 'default'}>
                 {p.authUser?.fullName} · {p.authUser?.roleCode}
               </Tag>
-              <Tooltip title="Dang xuat">
+              <Tooltip title={LANG.logoutTooltip}>
                 <Button
                   size="small"
                   icon={<LogoutOutlined />}
@@ -391,10 +391,10 @@ export function PosPage() {
           overviewGrossProfit={p.overviewGrossProfit}
           filteredOverviewRecords={p.filteredOverviewRecords}
           overviewDetail={p.overviewDetail}
+          appSettings={p.appSettings}
           checkingOut={p.checkingOut}
           saving={p.saving}
           buildVersion={BUILD_VERSION}
-          canManage={p.isManager}
           onSetOverviewRecordTypeFilter={p.setOverviewRecordTypeFilter}
           onLoadOverviewDetail={p.loadOverviewDetail}
           onUpdatePurchaseMeta={p.updatePurchaseMeta}
@@ -402,7 +402,6 @@ export function PosPage() {
           onOpenCreateSupplier={p.openCreateSupplier}
           onOpenEditSupplier={p.openEditSupplier}
           onOpenCustomerNameModal={p.openCustomerNameModal}
-          onSetLoyaltySettingsOpen={p.setLoyaltySettingsOpen}
           onOpenLoyaltyHistory={p.openLoyaltyHistory}
           onPrintReceipt={() => p.handlePrintReceipt(p.buildDraftReceipt())}
           onCheckout={p.handleCheckout}

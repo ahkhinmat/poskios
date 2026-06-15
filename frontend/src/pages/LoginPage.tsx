@@ -3,6 +3,7 @@ import { App as AntApp, Button, Form, Input } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { api } from '../api';
 import { useAuth } from '../auth-context';
+import { LANG } from '../lang';
 import { extractApiErrorMessage } from '../utils/error';
 import type { ApiEnvelope, LoginResponse } from '../types';
 
@@ -24,9 +25,9 @@ export function LoginPage() {
       );
 
       handleLoginResponse(response.data.data);
-      message.success('Dang nhap thanh cong');
+      message.success(LANG.loginSuccess);
     } catch (error: unknown) {
-      message.error(extractApiErrorMessage(error, 'Dang nhap that bai'));
+      message.error(extractApiErrorMessage(error, LANG.loginFailed));
     } finally {
       setLoggingIn(false);
     }
@@ -36,10 +37,10 @@ export function LoginPage() {
     <div className="login-shell">
       <div className="login-panel">
         <div className="login-brand">
-          <div className="login-mark">KA</div>
+          <div className="login-mark">{LANG.loginMark}</div>
           <div>
-            <div className="login-title">KA MART POS</div>
-            <div className="login-subtitle">Dang nhap he thong</div>
+            <div className="login-title">{LANG.loginTitle}</div>
+            <div className="login-subtitle">{LANG.loginSubtitle}</div>
           </div>
         </div>
 
@@ -52,8 +53,8 @@ export function LoginPage() {
         >
           <Form.Item
             name="username"
-            label="Tai khoan"
-            rules={[{ required: true, message: 'Nhap tai khoan' }]}
+            label={LANG.loginUsernameLabel}
+            rules={[{ required: true, message: LANG.loginUsernameRequired }]}
           >
             <Input
               autoFocus
@@ -64,8 +65,8 @@ export function LoginPage() {
 
           <Form.Item
             name="password"
-            label="Mat khau"
-            rules={[{ required: true, message: 'Nhap mat khau' }]}
+            label={LANG.loginPasswordLabel}
+            rules={[{ required: true, message: LANG.loginPasswordRequired }]}
           >
             <Input.Password
               prefix={<LockOutlined />}
@@ -80,7 +81,7 @@ export function LoginPage() {
             loading={loggingIn}
             className="login-submit"
           >
-            Dang nhap
+            {LANG.loginButton}
           </Button>
         </Form>
       </div>

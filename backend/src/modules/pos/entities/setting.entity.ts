@@ -21,6 +21,57 @@ export class Setting {
   @Column({ name: 'ReceiptFooter', type: 'nvarchar', length: 500, nullable: true })
   receiptFooter!: string | null;
 
+  @Column({ name: 'CurrencySuffix', type: 'nvarchar', length: 10 })
+  currencySuffix!: string;
+
+  @Column({ name: 'Locale', type: 'nvarchar', length: 10 })
+  locale!: string;
+
+  @Column({ name: 'ReceiptPaperWidth', type: 'nvarchar', length: 10 })
+  receiptPaperWidth!: string;
+
+  @Column({ name: 'ReceiptPoweredBy', type: 'nvarchar', length: 200 })
+  receiptPoweredBy!: string;
+
+  @Column({ name: 'DefaultPaymentMethod', type: 'nvarchar', length: 20 })
+  defaultPaymentMethod!: string;
+
+  @Column({ name: 'QuickPayAmount1', type: 'decimal', precision: 18, scale: 0 })
+  quickPayAmount1!: number;
+
+  @Column({ name: 'QuickPayAmount2', type: 'decimal', precision: 18, scale: 0 })
+  quickPayAmount2!: number;
+
+  @Column({ name: 'QuickPayAmount3', type: 'decimal', precision: 18, scale: 0 })
+  quickPayAmount3!: number;
+
+  @Column({ name: 'SalesOrderPrefix', type: 'nvarchar', length: 10 })
+  salesOrderPrefix!: string;
+
+  @Column({ name: 'ReturnOrderPrefix', type: 'nvarchar', length: 10 })
+  returnOrderPrefix!: string;
+
+  @Column({ name: 'PurchaseOrderPrefix', type: 'nvarchar', length: 10 })
+  purchaseOrderPrefix!: string;
+
+  @Column({ name: 'ProductSearchMaxResults', type: 'int' })
+  productSearchMaxResults!: number;
+
+  @Column({ name: 'InvoiceSearchMaxResults', type: 'int' })
+  invoiceSearchMaxResults!: number;
+
+  @Column({ name: 'CustomerSearchMaxResults', type: 'int' })
+  customerSearchMaxResults!: number;
+
+  @Column({ name: 'DefaultAddQuantity', type: 'decimal', precision: 18, scale: 2 })
+  defaultAddQuantity!: number;
+
+  @Column({ name: 'OverviewPassword', type: 'nvarchar', length: 50 })
+  overviewPassword!: string;
+
+  @Column({ name: 'CashierLabel', type: 'nvarchar', length: 50 })
+  cashierLabel!: string;
+
   @Column({
     name: 'LoyaltyEarnAmountPerPoint',
     type: 'decimal',

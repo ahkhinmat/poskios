@@ -91,7 +91,7 @@ export function usePosPage() {
   const showProfit = overviewRecordTypeFilter === 'SALE';
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
-  const overviewPassword = import.meta.env.VITE_OVERVIEW_PASSWORD ?? '11111';
+  const overviewPassword = import.meta.env.VITE_OVERVIEW_PASSWORD ?? appSettings?.overviewPassword ?? '11111';
   const isManager = authUser?.roleCode === 'MANAGER';
   const saveTimerRef = useRef<number | null>(null);
   const searchInputRef = useRef<InputRef>(null);
@@ -100,7 +100,7 @@ export function usePosPage() {
 
   function handleLogout() {
     logout();
-    message.success('Da dang xuat');
+    message.success(LANG.logoutSuccess);
     navigate('/login');
   }
 
@@ -479,22 +479,22 @@ export function usePosPage() {
             customerName: null,
             customerPhone: null,
             note: null,
-            paymentMethod: 'CASH',
-            customerPaidAmount: 0,
-            discountAmount: 0,
-            sourceSalesOrderId: null,
-            isActive: true,
-            lastTouchedAt: new Date().toISOString(),
-            items: [],
-          },
-          tabs,
-        )),
-        ...patch,
-      },
-    }));
-  }
+          paymentMethod: appSettings?.defaultPaymentMethod ?? 'CASH',
+          customerPaidAmount: 0,
+          discountAmount: 0,
+          sourceSalesOrderId: null,
+          isActive: true,
+          lastTouchedAt: new Date().toISOString(),
+          items: [],
+        },
+        tabs,
+      )),
+      ...patch,
+    },
+  }));
+}
 
-  async function createDraftTab(
+async function createDraftTab(
     title?: string,
     tabType: 'SALE' | 'RETURN' | 'PURCHASE' = 'SALE',
   ) {
@@ -512,7 +512,7 @@ export function usePosPage() {
       customerName: null,
       customerPhone: null,
       note: null,
-      paymentMethod: 'CASH',
+      paymentMethod: appSettings?.defaultPaymentMethod ?? 'CASH',
       customerPaidAmount: 0,
       discountAmount: 0,
       redeemedPoints: 0,
@@ -652,7 +652,7 @@ export function usePosPage() {
     setCurrentView('POS');
 
     if (tabType === 'PURCHASE' && !isManager) {
-      message.warning('Chi Manager duoc nhap hang');
+      message.warning(LANG.errManagerOnlyImport);
       return;
     }
 
@@ -782,7 +782,7 @@ export function usePosPage() {
   ) {
     try {
       const response = await api.get<ApiEnvelope<SearchResponse>>('/pos/products/search', {
-        params: { keyword, limit: 8 },
+        params: { keyword, limit: appSettings?.productSearchMaxResults ?? 8 },
       });
       const items = response.data.data.items;
 
@@ -956,10 +956,10 @@ export function usePosPage() {
           unitName: product.unitName,
           conversionValue: product.conversionValue,
           stockOnHand: product.stockOnHand,
-          quantity: 1,
+          quantity: appSettings?.defaultAddQuantity ?? 1,
           unitPrice,
           discountAmount: 0,
-          lineTotal: unitPrice,
+          lineTotal: (appSettings?.defaultAddQuantity ?? 1) * unitPrice,
           note: null,
           sortOrder: 1,
         };
@@ -1225,7 +1225,7 @@ export function usePosPage() {
     try {
       if (isPurchaseTab) {
         if (!isManager) {
-          message.warning('Chi Manager duoc nhap hang');
+          message.warning(LANG.errManagerOnlyImport);
           return;
         }
 
@@ -1292,7 +1292,7 @@ export function usePosPage() {
           redeemedPoints: activeTab.redeemedPoints ?? 0,
           paymentMethod: activeTab.paymentMethod,
           customerPaidAmount:
-            activeTab.paymentMethod === 'CASH'
+            activeTab.paymentMethod === (appSettings?.defaultPaymentMethod ?? 'CASH')
               ? checkoutPaidAmount
               : summary.total,
           items: activeTab.items.map((item) => ({
@@ -1337,7 +1337,7 @@ export function usePosPage() {
 
   function openProductManager() {
     if (!isManager) {
-      message.warning('Chi Manager duoc quan ly danh muc');
+      message.warning(LANG.errManagerOnlyCategory);
       return;
     }
 
@@ -1346,7 +1346,7 @@ export function usePosPage() {
 
   async function handleSaveLoyaltySettings() {
     if (!isManager) {
-      message.warning('Chi Manager duoc cau hinh tich diem');
+      message.warning(LANG.errManagerOnlyLoyaltyConfig);
       return;
     }
 
@@ -1444,7 +1444,7 @@ export function usePosPage() {
 
   function handleOpenOverview() {
     if (!isManager) {
-      message.warning('Chi Manager duoc xem tong quan');
+      message.warning(LANG.errManagerOnlyOverview);
       return;
     }
 

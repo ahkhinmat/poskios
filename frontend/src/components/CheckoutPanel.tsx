@@ -21,7 +21,7 @@ import {
   SwapOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { Customer, LoyaltySettings, OverviewDetail, OverviewRecord, PosDraftTab, PurchaseMeta, Supplier } from '../types';
+import type { AppSettings, Customer, LoyaltySettings, OverviewDetail, OverviewRecord, PosDraftTab, PurchaseMeta, Supplier } from '../types';
 import { LANG } from '../lang';
 
 const { Text } = Typography;
@@ -56,12 +56,12 @@ type CheckoutPanelProps = {
   overviewTotalCost: number;
   overviewTotalRevenue: number;
   overviewGrossProfit: number;
+  appSettings: AppSettings | null;
   filteredOverviewRecords: OverviewRecord[];
   overviewDetail: OverviewDetail | null;
   checkingOut: boolean;
   saving: boolean;
   buildVersion: string;
-  canManage: boolean;
   onSetOverviewRecordTypeFilter: (value: 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE') => void;
   onLoadOverviewDetail: (recordType: OverviewRecord['recordType'], id: number) => Promise<void>;
   onUpdatePurchaseMeta: (tabId: number, patch: Partial<PurchaseMeta>) => void;
@@ -69,7 +69,6 @@ type CheckoutPanelProps = {
   onOpenCreateSupplier: () => void;
   onOpenEditSupplier: () => void;
   onOpenCustomerNameModal: () => void;
-  onSetLoyaltySettingsOpen: (v: boolean) => void;
   onOpenLoyaltyHistory: () => void;
   onPrintReceipt: () => void;
   onCheckout: () => Promise<void>;
@@ -105,7 +104,6 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
     checkingOut,
     saving,
     buildVersion,
-    canManage,
     onSetOverviewRecordTypeFilter,
     onLoadOverviewDetail,
     onUpdatePurchaseMeta,
@@ -113,10 +111,10 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
     onOpenCreateSupplier,
     onOpenEditSupplier,
     onOpenCustomerNameModal,
-    onSetLoyaltySettingsOpen,
     onOpenLoyaltyHistory,
     onPrintReceipt,
     onCheckout,
+    appSettings,
     formatPoints,
     paymentOptions,
   } = props;
@@ -166,7 +164,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
               >
                 <div className="overview-grid-cell overview-grid-code">
                   <span className={`overview-grid-badge overview-badge-${record.recordType.toLowerCase()}`}>
-                    {record.recordType === 'PURCHASE' ? 'NK' : record.recordType === 'RETURN' ? 'TH' : 'BH'}
+                    {record.recordType === 'PURCHASE' ? LANG.overviewBadgePurchase : record.recordType === 'RETURN' ? LANG.overviewBadgeReturn : LANG.overviewBadgeSale}
                   </span>
                   {record.code}
                 </div>
@@ -424,24 +422,15 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
                   >
                     <Button icon={<PlusOutlined />} onClick={onOpenCustomerNameModal} />
                   </Tooltip>
-                  <div className="customer-loyalty-actions">
-                    <Button
-                      size="small"
-                      disabled={!customerLookup?.id}
-                      onClick={onOpenLoyaltyHistory}
-                    >
-                      {LANG.pointHistory}
-                    </Button>
-                    {canManage && (
-                      <Button
-                        size="small"
-                        onClick={() => onSetLoyaltySettingsOpen(true)}
-                      >
-                        {LANG.loyaltyConfig}
-                      </Button>
-                    )}
-                    {customerLookupLoading && <Spin size="small" />}
-                  </div>
+                  <Button
+                    size="small"
+                    disabled={!customerLookup?.id}
+                    onClick={onOpenLoyaltyHistory}
+                    style={{ marginLeft: 6 }}
+                  >
+                    {LANG.pointHistory}
+                  </Button>
+                  {customerLookupLoading && <Spin size="small" />}
                 </div>
               </Form.Item>
 
@@ -601,14 +590,14 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
 
           {!isReturnTab && !isPurchaseTab && (
             <div className="payment-quick">
-              <button type="button" className="quick-money" onClick={() => onUpdateActiveTab({ customerPaidAmount: 100000 })}>
-                100,000
+              <button type="button" className="quick-money" onClick={() => onUpdateActiveTab({ customerPaidAmount: appSettings?.quickPayAmount1 ?? 100000 })}>
+                {(appSettings?.quickPayAmount1 ?? 100000).toLocaleString(appSettings?.locale ?? 'vi-VN')}
               </button>
-              <button type="button" className="quick-money" onClick={() => onUpdateActiveTab({ customerPaidAmount: 200000 })}>
-                200,000
+              <button type="button" className="quick-money" onClick={() => onUpdateActiveTab({ customerPaidAmount: appSettings?.quickPayAmount2 ?? 200000 })}>
+                {(appSettings?.quickPayAmount2 ?? 200000).toLocaleString(appSettings?.locale ?? 'vi-VN')}
               </button>
-              <button type="button" className="quick-money" onClick={() => onUpdateActiveTab({ customerPaidAmount: 500000 })}>
-                500,000
+              <button type="button" className="quick-money" onClick={() => onUpdateActiveTab({ customerPaidAmount: appSettings?.quickPayAmount3 ?? 500000 })}>
+                {(appSettings?.quickPayAmount3 ?? 500000).toLocaleString(appSettings?.locale ?? 'vi-VN')}
               </button>
               <button type="button" className="quick-money quick-money-exact" onClick={() => onUpdateActiveTab({ customerPaidAmount: summary.total })}>
                 {LANG.exactChange}

@@ -11,6 +11,7 @@ import { Product } from '../entities/product.entity';
 import { SalesOrderItem } from '../entities/sales-order-item.entity';
 import { SalesOrder } from '../entities/sales-order.entity';
 import { Setting } from '../entities/setting.entity';
+import { SettingService } from './setting.service';
 
 type ReceiptItem = {
   productName: string;
@@ -39,6 +40,7 @@ export class SalesOrderService {
     private readonly settingRepository: Repository<Setting>,
     @InjectRepository(LoyaltyPointTransaction)
     private readonly loyaltyPointTransactionRepository: Repository<LoyaltyPointTransaction>,
+    private readonly settingService: SettingService,
   ) {}
 
   async checkout(userId: number, payload: PosCheckoutDto, setting: Setting) {
@@ -92,17 +94,17 @@ export class SalesOrderService {
       const totalAmount = Number((subtotalAmount - lineDiscountAmount - orderDiscountAmount - pointsDiscountAmount).toFixed(2));
       if (totalAmount < 0) throw new BadRequestException('Invalid checkout total');
 
-      if (payload.paymentMethod === 'CASH' && payload.customerPaidAmount < totalAmount) {
+      if (payload.paymentMethod === setting.defaultPaymentMethod && payload.customerPaidAmount < totalAmount) {
         throw new BadRequestException('Customer paid amount must be greater than or equal to total amount');
       }
 
-      const changeAmount = payload.paymentMethod === 'CASH'
+      const changeAmount = payload.paymentMethod === setting.defaultPaymentMethod
         ? Number((payload.customerPaidAmount - totalAmount).toFixed(2))
         : 0;
 
       const earnAmountPerPoint = Number(setting.loyaltyEarnAmountPerPoint ?? '10000');
       const earnedPoints = earnAmountPerPoint > 0 ? Number((totalAmount / earnAmountPerPoint).toFixed(4)) : 0;
-      const salesOrderCode = await this.generateSalesOrderCode(manager, 'HD');
+      const salesOrderCode = await this.generateSalesOrderCode(manager, setting.salesOrderPrefix);
       const soldAt = new Date();
 
       const salesOrder = await manager.save(SalesOrder, manager.create(SalesOrder, {
@@ -296,7 +298,7 @@ export class SalesOrderService {
       if (refundAmount < 0) throw new BadRequestException('Invalid return checkout total');
       if (payload.customerRefundAmount < refundAmount) throw new BadRequestException('Customer refund amount must be greater than or equal to refund total');
 
-      const salesOrderCode = await this.generateSalesOrderCode(manager, 'TH');
+      const salesOrderCode = await this.generateSalesOrderCode(manager, setting.returnOrderPrefix);
       const soldAt = new Date();
 
       const salesOrder = await manager.save(SalesOrder, manager.create(SalesOrder, {
@@ -476,7 +478,8 @@ export class SalesOrderService {
     if (hasFromDate) query.andWhere('so.soldAt >= :fromDate', { fromDate: new Date(params.fromDate!) });
     if (hasToDate) query.andWhere('so.soldAt <= :toDate', { toDate: new Date(params.toDate! + 'T23:59:59.999') });
 
-    const orders = await query.take(20).orderBy('so.id', 'DESC').getMany();
+    const setting = await this.settingService.getOrCreateSetting();
+    const orders = await query.take(setting.invoiceSearchMaxResults).orderBy('so.id', 'DESC').getMany();
 
     return {
       items: orders.map((o) => ({
@@ -515,7 +518,7 @@ export class SalesOrderService {
     };
   }
 
-  private async generateSalesOrderCode(manager: DataSource['manager'], prefix: 'HD' | 'TH') {
+  private async generateSalesOrderCode(manager: DataSource['manager'], prefix: string) {
     const latest = await manager.findOne(SalesOrder, { where: {}, order: { id: 'DESC' } });
     const nextId = (latest?.id ?? 0) + 1;
     return `${prefix}${String(nextId).padStart(7, '0')}`;

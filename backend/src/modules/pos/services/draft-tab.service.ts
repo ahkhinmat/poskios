@@ -8,6 +8,7 @@ import { PosDraftTabItem } from '../entities/pos-draft-tab-item.entity';
 import { PosDraftTab } from '../entities/pos-draft-tab.entity';
 import { Product } from '../entities/product.entity';
 import { ProductUnit } from '../entities/product-unit.entity';
+import { SettingService } from './setting.service';
 
 @Injectable()
 export class DraftTabService {
@@ -20,6 +21,7 @@ export class DraftTabService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(ProductUnit)
     private readonly productUnitRepository: Repository<ProductUnit>,
+    private readonly settingService: SettingService,
   ) {}
 
   async listDraftTabs(userId: number) {
@@ -47,7 +49,7 @@ export class DraftTabService {
         customerPhone: payload.customerPhone ?? null,
         customerId: payload.customerId ?? null,
         note: payload.note ?? null,
-        paymentMethod: payload.paymentMethod ?? 'CASH',
+        paymentMethod: payload.paymentMethod ?? (await this.settingService.getOrCreateSetting()).defaultPaymentMethod,
         customerPaidAmount: payload.customerPaidAmount.toFixed(2),
         discountAmount: payload.discountAmount.toFixed(2),
         redeemedPoints: payload.redeemedPoints ?? 0,

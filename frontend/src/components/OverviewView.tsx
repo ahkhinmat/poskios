@@ -66,7 +66,7 @@ export function OverviewView({
           <div>{LANG.purchaseTableNo}</div>
           <div>{LANG.purchaseTableName}</div>
           <div>{LANG.purchaseTableUnit}</div>
-          <div>{LANG.purchaseTableQty.replace(' nhập', '')}</div>
+          <div>{LANG.purchaseTableQtyShort}</div>
           <div>{LANG.purchaseTablePrice}</div>
           <div>{LANG.purchaseTableTotal}</div>
         </div>
