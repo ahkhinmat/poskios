@@ -1,30 +1,29 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   Post,
   Query,
 } from '@nestjs/common';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { ReturnCheckoutDto } from './dto/return-checkout.dto';
 import { PosService } from './pos.service';
 
+@Roles('STAFF', 'MANAGER')
 @Controller('returns')
 export class ReturnsController {
   constructor(private readonly posService: PosService) {}
 
   @Get('invoices/search')
   async searchInvoices(
-    @Headers('x-user-id') userIdHeader: string | undefined,
     @Query('invoiceCode') invoiceCode: string | undefined,
     @Query('productCode') productCode: string | undefined,
     @Query('fromDate') fromDate: string | undefined,
     @Query('toDate') toDate: string | undefined,
   ) {
-    this.resolveUserId(userIdHeader);
-
     const data = await this.posService.searchReturnInvoice({
       invoiceCode,
       productCode,
@@ -41,11 +40,8 @@ export class ReturnsController {
 
   @Get('invoices/:id/items')
   async getInvoiceItems(
-    @Headers('x-user-id') userIdHeader: string | undefined,
     @Param('id') id: string,
   ) {
-    this.resolveUserId(userIdHeader);
-
     const data = await this.posService.getReturnInvoiceItems(Number(id));
 
     return {
@@ -57,11 +53,11 @@ export class ReturnsController {
 
   @Post('checkout')
   async returnCheckout(
-    @Headers('x-user-id') userIdHeader: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() body: ReturnCheckoutDto,
   ) {
     const data = await this.posService.returnCheckout(
-      this.resolveUserId(userIdHeader),
+      user.id,
       body,
     );
 
@@ -70,15 +66,5 @@ export class ReturnsController {
       message: 'Return checkout successful',
       data,
     };
-  }
-
-  private resolveUserId(userIdHeader?: string) {
-    const parsed = Number(userIdHeader);
-
-    if (!(Number.isInteger(parsed) && parsed > 0)) {
-      throw new BadRequestException('x-user-id header is required');
-    }
-
-    return parsed;
   }
 }

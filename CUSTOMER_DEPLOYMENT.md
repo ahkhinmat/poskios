@@ -37,6 +37,8 @@ DB_NAME=POS
 DB_ENCRYPT=false
 DB_TRUST_CERT=true
 PORT=3000
+JWT_SECRET=doi-thanh-chuoi-ngau-nhien-dai
+JWT_EXPIRES_IN=8h
 ```
 
 ## Khoi tao database vi may khach chua co POS
@@ -46,6 +48,8 @@ Chay theo thu tu:
 1. Chay [docs/sqlserver-create-pos-db.sql](/d:/React/poskios/docs/sqlserver-create-pos-db.sql)
 2. Chay [docs/sqlserver-mvp-schema.sql](/d:/React/poskios/docs/sqlserver-mvp-schema.sql)
 3. Neu can user test, chay [docs/sqlserver-seed-test-users.sql](/d:/React/poskios/docs/sqlserver-seed-test-users.sql)
+   - Manager test: `manager01` / `manager123`
+   - Staff test: `staff01` / `staff123`
 
 Neu DB da ton tai tu ban cu, chay them [docs/sqlserver-alter-product-variant-group.sql](/d:/React/poskios/docs/sqlserver-alter-product-variant-group.sql) truoc khi import lai Excel.
 

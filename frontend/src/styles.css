@@ -44,6 +44,62 @@ button {
   place-items: center;
 }
 
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    linear-gradient(135deg, rgba(22, 163, 74, 0.14), transparent 38%),
+    #edf0f5;
+}
+
+.login-panel {
+  width: min(420px, 100%);
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(31, 37, 50, 0.12);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.login-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #16a34a;
+  color: #fff;
+  font-weight: 800;
+}
+
+.login-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.login-subtitle {
+  font-size: 13px;
+  color: #667085;
+}
+
+.login-form .ant-form-item {
+  margin-bottom: 14px;
+}
+
+.login-submit {
+  margin-top: 6px;
+}
+
 .pos-shell {
   min-height: 100vh;
   height: 100vh;
@@ -132,7 +188,9 @@ button {
 
 .topbar-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 4px;
 }
 
 .topbar-actions .ant-tag {
@@ -145,6 +203,14 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.topbar-actions .ant-btn {
+  width: 28px;
+  height: 24px;
+  border: 0;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .search-results-inline {

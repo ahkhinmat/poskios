@@ -59,6 +59,7 @@ type CheckoutPanelProps = {
   overviewDetail: OverviewDetail | null;
   checkingOut: boolean;
   buildVersion: string;
+  canManage: boolean;
   onSetOverviewRecordTypeFilter: (value: 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE') => void;
   onLoadOverviewDetail: (recordType: OverviewRecord['recordType'], id: number) => Promise<void>;
   onUpdatePurchaseMeta: (tabId: number, patch: Partial<PurchaseMeta>) => void;
@@ -101,6 +102,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
     overviewDetail,
     checkingOut,
     buildVersion,
+    canManage,
     onSetOverviewRecordTypeFilter,
     onLoadOverviewDetail,
     onUpdatePurchaseMeta,
@@ -423,12 +425,14 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
                       >
                         {LANG.pointHistory}
                       </Button>
-                      <Button
-                        size="small"
-                        onClick={() => onSetLoyaltySettingsOpen(true)}
-                      >
-                        {LANG.loyaltyConfig}
-                      </Button>
+                      {canManage && (
+                        <Button
+                          size="small"
+                          onClick={() => onSetLoyaltySettingsOpen(true)}
+                        >
+                          {LANG.loyaltyConfig}
+                        </Button>
+                      )}
                       {customerLookupLoading && <Spin size="small" />}
                     </div>
                   </div>

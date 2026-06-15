@@ -1,5 +1,7 @@
 DECLARE @ManagerRoleId INT;
 DECLARE @StaffRoleId INT;
+DECLARE @ManagerPasswordHash NVARCHAR(255) = N'$2b$10$8YWUg7w2cVCneu/gAb1VAeLiSc9oZCD554zyGUZ.oo16INXlzIT3a'; -- manager123
+DECLARE @StaffPasswordHash NVARCHAR(255) = N'$2b$10$tCI/yf0zWIJkE.YCaxB/t.ODFTrCo7yTzWYtzE3xROxq5hPDvmyzS'; -- staff123
 
 SELECT @ManagerRoleId = Id FROM dbo.Roles WHERE Code = N'MANAGER';
 SELECT @StaffRoleId = Id FROM dbo.Roles WHERE Code = N'STAFF';
@@ -9,7 +11,6 @@ BEGIN
     RAISERROR(N'Roles MANAGER/STAFF not found. Run schema seed first.', 16, 1);
     RETURN;
 END
-GO
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Username = N'manager01')
 BEGIN
@@ -29,7 +30,7 @@ BEGIN
     (
         (SELECT Id FROM dbo.Roles WHERE Code = N'MANAGER'),
         N'manager01',
-        N'temp',
+        @ManagerPasswordHash,
         N'Manager Test',
         NULL,
         NULL,
@@ -38,7 +39,15 @@ BEGIN
         SYSDATETIME()
     );
 END
-GO
+ELSE
+BEGIN
+    UPDATE dbo.Users
+    SET PasswordHash = @ManagerPasswordHash,
+        RoleId = @ManagerRoleId,
+        IsActive = 1,
+        UpdatedAt = SYSDATETIME()
+    WHERE Username = N'manager01';
+END
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Username = N'staff01')
 BEGIN
@@ -58,7 +67,7 @@ BEGIN
     (
         (SELECT Id FROM dbo.Roles WHERE Code = N'STAFF'),
         N'staff01',
-        N'temp',
+        @StaffPasswordHash,
         N'Staff Test',
         NULL,
         NULL,
@@ -67,7 +76,15 @@ BEGIN
         SYSDATETIME()
     );
 END
-GO
+ELSE
+BEGIN
+    UPDATE dbo.Users
+    SET PasswordHash = @StaffPasswordHash,
+        RoleId = @StaffRoleId,
+        IsActive = 1,
+        UpdatedAt = SYSDATETIME()
+    WHERE Username = N'staff01';
+END
 
 SELECT Id, Username, FullName, RoleId, IsActive
 FROM dbo.Users

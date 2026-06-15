@@ -21,16 +21,19 @@ import {
   AppstoreOutlined,
   DeleteOutlined,
   EyeOutlined,
+  LockOutlined,
+  LogoutOutlined,
   MinusOutlined,
   MoreOutlined,
   PlusOutlined,
   PrinterOutlined,
   SearchOutlined,
+  UserOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api } from './api';
+import { api, clearAuthSession, getStoredAuthUser, setAuthSession } from './api';
 import { LANG } from './lang';
 import { ReceiptModal } from './components/ReceiptModal';
 import { CheckoutPanel } from './components/CheckoutPanel';
@@ -41,6 +44,7 @@ import { createDefaultPurchaseMeta, getNextTabNumber } from './utils/purchase';
 import { buildReceiptDocumentHtml } from './utils/receipt';
 import type {
   ApiEnvelope,
+  AuthUser,
   CheckoutResponse,
   Customer,
   CustomerSearchResponse,
@@ -48,6 +52,7 @@ import type {
   InvoiceItemsResponse,
   InvoiceSearchItem,
   InvoiceSearchResponse,
+  LoginResponse,
   LoyaltyHistoryResponse,
   LoyaltySettings,
   PosDraftItem,
@@ -104,13 +109,127 @@ export function App() {
       }}
     >
       <AntApp>
-        <PosPage />
+        <AuthGate />
       </AntApp>
     </ConfigProvider>
   );
 }
 
-function PosPage() {
+function AuthGate() {
+  const { message } = AntApp.useApp();
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() =>
+    getStoredAuthUser(),
+  );
+
+  function handleLoggedIn(user: AuthUser) {
+    setAuthUser(user);
+  }
+
+  function handleLogout() {
+    clearAuthSession();
+    setAuthUser(null);
+    message.success('Da dang xuat');
+  }
+
+  if (!authUser) {
+    return <LoginPage onLoggedIn={handleLoggedIn} />;
+  }
+
+  return <PosPage authUser={authUser} onLogout={handleLogout} />;
+}
+
+type LoginPageProps = {
+  onLoggedIn: (user: AuthUser) => void;
+};
+
+function LoginPage({ onLoggedIn }: LoginPageProps) {
+  const { message } = AntApp.useApp();
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  async function handleLogin(values: { username: string; password: string }) {
+    setLoggingIn(true);
+
+    try {
+      const response = await api.post<ApiEnvelope<LoginResponse>>(
+        '/auth/login',
+        {
+          username: values.username.trim(),
+          password: values.password,
+        },
+      );
+
+      setAuthSession(response.data.data.accessToken, response.data.data.user);
+      onLoggedIn(response.data.data.user);
+      message.success('Dang nhap thanh cong');
+    } catch (error: unknown) {
+      message.error(extractApiErrorMessage(error, 'Dang nhap that bai'));
+    } finally {
+      setLoggingIn(false);
+    }
+  }
+
+  return (
+    <div className="login-shell">
+      <div className="login-panel">
+        <div className="login-brand">
+          <div className="login-mark">KA</div>
+          <div>
+            <div className="login-title">KA MART POS</div>
+            <div className="login-subtitle">Dang nhap he thong</div>
+          </div>
+        </div>
+
+        <Form
+          layout="vertical"
+          className="login-form"
+          onFinish={(values) =>
+            void handleLogin(values as { username: string; password: string })
+          }
+        >
+          <Form.Item
+            name="username"
+            label="Tai khoan"
+            rules={[{ required: true, message: 'Nhap tai khoan' }]}
+          >
+            <Input
+              autoFocus
+              prefix={<UserOutlined />}
+              autoComplete="username"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="password"
+            label="Mat khau"
+            rules={[{ required: true, message: 'Nhap mat khau' }]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              autoComplete="current-password"
+            />
+          </Form.Item>
+
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            loading={loggingIn}
+            className="login-submit"
+          >
+            Dang nhap
+          </Button>
+        </Form>
+      </div>
+    </div>
+  );
+}
+
+type PosPageProps = {
+  authUser: AuthUser;
+  onLogout: () => void;
+};
+
+function PosPage({ authUser, onLogout }: PosPageProps) {
   const { message } = AntApp.useApp();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -165,6 +284,7 @@ function PosPage() {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const overviewPassword = import.meta.env.VITE_OVERVIEW_PASSWORD ?? '11111';
+  const isManager = authUser.roleCode === 'MANAGER';
   const saveTimerRef = useRef<number | null>(null);
   const searchInputRef = useRef<InputRef>(null);
   const searchKeywordRef = useRef('');
@@ -257,7 +377,9 @@ function PosPage() {
 
   useEffect(() => {
     void bootstrapDraftTabs();
-    void loadSuppliers();
+    if (isManager) {
+      void loadSuppliers();
+    }
     void loadLoyaltySettings();
   }, []);
 
@@ -703,6 +825,11 @@ function PosPage() {
   async function ensureTabOfType(tabType: 'SALE' | 'RETURN' | 'PURCHASE') {
     setCurrentView('POS');
 
+    if (tabType === 'PURCHASE' && !isManager) {
+      message.warning('Chi Manager duoc nhap hang');
+      return;
+    }
+
     if (activeTab?.tabType === tabType) return;
 
     const existing = tabs.find((tab) => tab.tabType === tabType);
@@ -715,6 +842,10 @@ function PosPage() {
   }
 
   async function loadOverview(selectRecord = true, fromDate?: string, toDate?: string) {
+    if (!isManager) {
+      return;
+    }
+
     setOverviewLoading(true);
     try {
       const response = await api.get<ApiEnvelope<{ items: OverviewRecord[] }>>('/pos/overview', {
@@ -1270,6 +1401,11 @@ function PosPage() {
     setCheckingOut(true);
     try {
       if (isPurchaseTab) {
+        if (!isManager) {
+          message.warning('Chi Manager duoc nhap hang');
+          return;
+        }
+
         const purchaseMeta = purchaseMetaMap[activeTab.id] ?? createDefaultPurchaseMeta(activeTab, tabs);
         const response = await api.post<ApiEnvelope<PurchaseCheckoutResponse>>('/pos/purchase-orders/checkout', {
           purchaseOrderCode: purchaseMeta.purchaseOrderCode,
@@ -1377,10 +1513,20 @@ function PosPage() {
   }
 
   function openProductManager() {
+    if (!isManager) {
+      message.warning('Chi Manager duoc quan ly danh muc');
+      return;
+    }
+
     setProductManagerOpen(true);
   }
 
   async function handleSaveLoyaltySettings() {
+    if (!isManager) {
+      message.warning('Chi Manager duoc cau hinh tich diem');
+      return;
+    }
+
     if (!loyaltySettings) {
       return;
     }
@@ -1443,11 +1589,19 @@ function PosPage() {
   }
 
   function openCreateSupplier() {
+    if (!isManager) {
+      return;
+    }
+
     setEditingSupplier(null);
     setSupplierManagerOpen(true);
   }
 
   function openEditSupplier() {
+    if (!isManager) {
+      return;
+    }
+
     if (!activeTab || activeTab.tabType !== 'PURCHASE') {
       return;
     }
@@ -1468,6 +1622,11 @@ function PosPage() {
   const isOverviewPasswordRequired = import.meta.env.VITE_IS_OVERVIEW_PASSWORD !== 'false';
 
   function handleOpenOverview() {
+    if (!isManager) {
+      message.warning('Chi Manager duoc xem tong quan');
+      return;
+    }
+
     if (isOverviewPasswordRequired) {
       setPasswordInput('');
       setPasswordDialogOpen(true);
@@ -1577,9 +1736,19 @@ function PosPage() {
               {lastScannedProductName ? (
                 <Tag color="green">{LANG.scannedLabel} {lastScannedProductName}</Tag>
               ) : null}
+              <Tag color={isManager ? 'blue' : 'default'}>
+                {authUser.fullName} · {authUser.roleCode}
+              </Tag>
               <Tag color={saving ? 'processing' : 'success'}>
                 {saving ? LANG.saving : LANG.synced}
               </Tag>
+              <Tooltip title="Dang xuat">
+                <Button
+                  size="small"
+                  icon={<LogoutOutlined />}
+                  onClick={onLogout}
+                />
+              </Tooltip>
             </div>
           </div>
 
@@ -1653,21 +1822,25 @@ function PosPage() {
                       {LANG.modeReturn}
                     </button>
                   </Tooltip>
-                  <Tooltip title={LANG.modeImportTip}>
-                    <button type="button" className="sale-mode" onClick={() => { void ensureTabOfType('PURCHASE'); }}>
-                      {LANG.modeImport}
-                    </button>
-                  </Tooltip>
-                  <Tooltip title={LANG.modeCategoryTip}>
-                    <button type="button" className="sale-mode" onClick={openProductManager}>
-                      {LANG.modeCategory}
-                    </button>
-                  </Tooltip>
-                  <Tooltip title={LANG.modeOverviewTip}>
-                    <button type="button" className="sale-mode is-active">
-                      {LANG.modeOverview}
-                    </button>
-                  </Tooltip>
+                  {isManager && (
+                    <>
+                      <Tooltip title={LANG.modeImportTip}>
+                        <button type="button" className="sale-mode" onClick={() => { void ensureTabOfType('PURCHASE'); }}>
+                          {LANG.modeImport}
+                        </button>
+                      </Tooltip>
+                      <Tooltip title={LANG.modeCategoryTip}>
+                        <button type="button" className="sale-mode" onClick={openProductManager}>
+                          {LANG.modeCategory}
+                        </button>
+                      </Tooltip>
+                      <Tooltip title={LANG.modeOverviewTip}>
+                        <button type="button" className="sale-mode is-active">
+                          {LANG.modeOverview}
+                        </button>
+                      </Tooltip>
+                    </>
+                  )}
                 </div>
               </div>
             </>
@@ -2062,33 +2235,37 @@ function PosPage() {
                     {LANG.modeReturn}
                   </button>
                 </Tooltip>
-                <Tooltip title={LANG.modeImportTip}>
-                  <button
-                    type="button"
-                    className={`sale-mode ${isPurchaseTab ? 'is-active' : ''}`}
-                    onClick={() => { if (!isPurchaseTab) void ensureTabOfType('PURCHASE'); }}
-                  >
-                    {LANG.modeImport}
-                  </button>
-              </Tooltip>
-              <Tooltip title={LANG.modeCategoryTip}>
-                <button
-                  type="button"
-                  className="sale-mode"
-onClick={openProductManager}
-                >
-                  {LANG.modeCategory}
-                </button>
-              </Tooltip>
-              <Tooltip title={LANG.modeOverviewTip}>
-                <button
-                  type="button"
-                  className="sale-mode"
-                  onClick={handleOpenOverview}
-                >
-                  {LANG.modeOverview}
-                </button>
-              </Tooltip>
+              {isManager && (
+                <>
+                  <Tooltip title={LANG.modeImportTip}>
+                    <button
+                      type="button"
+                      className={`sale-mode ${isPurchaseTab ? 'is-active' : ''}`}
+                      onClick={() => { if (!isPurchaseTab) void ensureTabOfType('PURCHASE'); }}
+                    >
+                      {LANG.modeImport}
+                    </button>
+                  </Tooltip>
+                  <Tooltip title={LANG.modeCategoryTip}>
+                    <button
+                      type="button"
+                      className="sale-mode"
+                      onClick={openProductManager}
+                    >
+                      {LANG.modeCategory}
+                    </button>
+                  </Tooltip>
+                  <Tooltip title={LANG.modeOverviewTip}>
+                    <button
+                      type="button"
+                      className="sale-mode"
+                      onClick={handleOpenOverview}
+                    >
+                      {LANG.modeOverview}
+                    </button>
+                  </Tooltip>
+                </>
+              )}
             </div>
           </div>
             </>
@@ -2121,6 +2298,7 @@ onClick={openProductManager}
           overviewDetail={overviewDetail}
           checkingOut={checkingOut}
           buildVersion={BUILD_VERSION}
+          canManage={isManager}
           onSetOverviewRecordTypeFilter={setOverviewRecordTypeFilter}
           onLoadOverviewDetail={loadOverviewDetail}
           onUpdatePurchaseMeta={updatePurchaseMeta}

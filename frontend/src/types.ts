@@ -4,6 +4,20 @@ export type Category = {
   isActive: boolean;
 };
 
+export type AuthUser = {
+  id: number;
+  username: string;
+  fullName: string;
+  roleCode: 'STAFF' | 'MANAGER';
+};
+
+export type LoginResponse = {
+  accessToken: string;
+  tokenType: 'Bearer';
+  expiresIn: string;
+  user: AuthUser;
+};
+
 export type Supplier = {
   id: number;
   code: string | null;

@@ -1,11 +1,9 @@
 import {
   Body,
-  BadRequestException,
   Controller,
   DefaultValuePipe,
   Delete,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -19,6 +17,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PosService } from './pos.service';
 import { ProductImportService } from './product-import.service';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { CreatePosDraftTabDto } from './dto/create-pos-draft-tab.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { PosCheckoutDto } from './dto/pos-checkout.dto';
@@ -34,6 +35,7 @@ type UploadedExcelFile = {
   buffer: Buffer;
 };
 
+@Roles('STAFF', 'MANAGER')
 @Controller('pos')
 export class PosController {
   constructor(
@@ -43,6 +45,7 @@ export class PosController {
 
   // ── Product Management CRUD (before param routes) ──
 
+  @Roles('MANAGER')
   @Get('products/manage')
   async manageProducts(
     @Query('keyword') keyword?: string,
@@ -58,6 +61,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Post('products')
   async createProduct(@Body() body: CreateProductDto) {
     const data = await this.posService.createProduct(body);
@@ -69,6 +73,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Put('products/:id')
   async updateProduct(
     @Param('id', ParseIntPipe) id: number,
@@ -83,6 +88,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Delete('products/:id')
   @HttpCode(HttpStatus.OK)
   async deleteProduct(@Param('id', ParseIntPipe) id: number) {
@@ -128,6 +134,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Post('products/import/excel')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
@@ -141,6 +148,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Post('products/import/upsert')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
@@ -155,10 +163,8 @@ export class PosController {
   }
 
   @Get('draft-tabs')
-  async listDraftTabs(@Headers('x-user-id') userIdHeader?: string) {
-    const data = await this.posService.listDraftTabs(
-      this.resolveUserId(userIdHeader),
-    );
+  async listDraftTabs(@CurrentUser() user: AuthenticatedUser) {
+    const data = await this.posService.listDraftTabs(user.id);
 
     return {
       success: true,
@@ -169,11 +175,11 @@ export class PosController {
 
   @Post('draft-tabs')
   async createDraftTab(
-    @Headers('x-user-id') userIdHeader: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() body: CreatePosDraftTabDto,
   ) {
     const data = await this.posService.createDraftTab(
-      this.resolveUserId(userIdHeader),
+      user.id,
       body,
     );
 
@@ -187,12 +193,12 @@ export class PosController {
   @Put('draft-tabs/:draftTabId')
   async updateDraftTab(
     @Param('draftTabId', ParseIntPipe) draftTabId: number,
-    @Headers('x-user-id') userIdHeader: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() body: UpdatePosDraftTabDto,
   ) {
     const data = await this.posService.updateDraftTab(
       draftTabId,
-      this.resolveUserId(userIdHeader),
+      user.id,
       body,
     );
 
@@ -206,11 +212,11 @@ export class PosController {
   @Delete('draft-tabs/:draftTabId')
   async closeDraftTab(
     @Param('draftTabId', ParseIntPipe) draftTabId: number,
-    @Headers('x-user-id') userIdHeader: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const data = await this.posService.closeDraftTab(
       draftTabId,
-      this.resolveUserId(userIdHeader),
+      user.id,
     );
 
     return {
@@ -222,11 +228,11 @@ export class PosController {
 
   @Post('checkout')
   async checkout(
-    @Headers('x-user-id') userIdHeader: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() body: PosCheckoutDto,
   ) {
     const data = await this.posService.checkout(
-      this.resolveUserId(userIdHeader),
+      user.id,
       body,
     );
 
@@ -237,13 +243,14 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Post('purchase-orders/checkout')
   async purchaseCheckout(
-    @Headers('x-user-id') userIdHeader: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() body: PurchaseCheckoutDto,
   ) {
     const data = await this.posService.purchaseCheckout(
-      this.resolveUserId(userIdHeader),
+      user.id,
       body,
     );
 
@@ -256,6 +263,7 @@ export class PosController {
 
   // ── Category CRUD ──
 
+  @Roles('MANAGER')
   @Get('categories')
   async searchCategories(@Query('keyword') keyword?: string) {
     const data = await this.posService.searchCategories(keyword);
@@ -267,6 +275,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Get('units')
   async listUnits() {
     const data = await this.posService.listUnits();
@@ -278,6 +287,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Get('suppliers')
   async listSuppliers(@Query('keyword') keyword?: string) {
     const data = await this.posService.listSuppliers(keyword);
@@ -350,6 +360,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Put('loyalty/settings')
   async updateLoyaltySettings(@Body() body: UpdateLoyaltySettingsDto) {
     const data = await this.posService.updateLoyaltySettings(body);
@@ -361,6 +372,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Post('suppliers')
   async createSupplier(
     @Body()
@@ -380,6 +392,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Put('suppliers/:id')
   async updateSupplier(
     @Param('id', ParseIntPipe) id: number,
@@ -400,6 +413,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Get('overview')
   async getOverview(
     @Query('fromDate') fromDate?: string,
@@ -414,6 +428,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Get('overview/:recordType/:id')
   async getOverviewDetail(
     @Param('recordType') recordType: string,
@@ -428,6 +443,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Post('categories')
   async createCategory(@Body() body: { name: string; isActive?: boolean }) {
     const data = await this.posService.createCategory(body);
@@ -439,6 +455,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Put('categories/:id')
   async updateCategory(
     @Param('id', ParseIntPipe) id: number,
@@ -453,6 +470,7 @@ export class PosController {
     };
   }
 
+  @Roles('MANAGER')
   @Delete('categories/:id')
   @HttpCode(HttpStatus.OK)
   async deleteCategory(@Param('id', ParseIntPipe) id: number) {
@@ -465,13 +483,4 @@ export class PosController {
     };
   }
 
-  private resolveUserId(userIdHeader?: string) {
-    const parsed = Number(userIdHeader);
-
-    if (!(Number.isInteger(parsed) && parsed > 0)) {
-      throw new BadRequestException('x-user-id header is required');
-    }
-
-    return parsed;
-  }
 }

@@ -1,0 +1,25 @@
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+
+@Entity({ name: 'Roles' })
+export class Role {
+  @PrimaryGeneratedColumn({ name: 'Id' })
+  id!: number;
+
+  @Column({ name: 'Code', type: 'nvarchar', length: 50 })
+  code!: string;
+
+  @Column({ name: 'Name', type: 'nvarchar', length: 100 })
+  name!: string;
+
+  @Column({ name: 'Description', type: 'nvarchar', length: 255, nullable: true })
+  description!: string | null;
+
+  @Column({ name: 'IsActive', type: 'bit' })
+  isActive!: boolean;
+
+  @Column({ name: 'CreatedAt', type: 'datetime2' })
+  createdAt!: Date;
+
+  @Column({ name: 'UpdatedAt', type: 'datetime2' })
+  updatedAt!: Date;
+}
