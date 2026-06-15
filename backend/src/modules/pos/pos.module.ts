@@ -4,6 +4,13 @@ import { PosController } from './pos.controller';
 import { PosService } from './pos.service';
 import { ProductImportService } from './product-import.service';
 import { ReturnsController } from './returns.controller';
+import { CategorySupplierService } from './services/category-supplier.service';
+import { CustomerLoyaltyService } from './services/customer-loyalty.service';
+import { DraftTabService } from './services/draft-tab.service';
+import { OverviewService } from './services/overview.service';
+import { ProductService } from './services/product.service';
+import { PurchaseOrderService } from './services/purchase-order.service';
+import { SalesOrderService } from './services/sales-order.service';
 import { Product } from './entities/product.entity';
 import { ProductUnit } from './entities/product-unit.entity';
 import { Unit } from './entities/unit.entity';
@@ -20,27 +27,28 @@ import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
 import { Customer } from './entities/customer.entity';
 import { LoyaltyPointTransaction } from './entities/loyalty-point-transaction.entity';
 
+const SERVICES = [
+  PosService,
+  ProductImportService,
+  ProductService,
+  SalesOrderService,
+  DraftTabService,
+  PurchaseOrderService,
+  CustomerLoyaltyService,
+  OverviewService,
+  CategorySupplierService,
+];
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      Category,
-      Customer,
-      InventoryTransaction,
-      LoyaltyPointTransaction,
-      Setting,
-      Supplier,
-      PurchaseOrder,
-      PurchaseOrderItem,
-      Product,
-      ProductUnit,
-      Unit,
-      PosDraftTab,
-      PosDraftTabItem,
-      SalesOrder,
-      SalesOrderItem,
+      Category, Customer, InventoryTransaction, LoyaltyPointTransaction,
+      Setting, Supplier, PurchaseOrder, PurchaseOrderItem,
+      Product, ProductUnit, Unit, PosDraftTab, PosDraftTabItem,
+      SalesOrder, SalesOrderItem,
     ]),
   ],
   controllers: [PosController, ReturnsController],
-  providers: [PosService, ProductImportService],
+  providers: SERVICES,
 })
 export class PosModule {}

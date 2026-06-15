@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -15,6 +15,8 @@ import type {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -30,14 +32,18 @@ export class AuthService {
     });
 
     if (!user || !user.role?.isActive) {
+      this.logger.warn(`Failed login attempt for username: ${username}`);
       throw new UnauthorizedException('Invalid username or password');
     }
 
     const passwordOk = await bcrypt.compare(payload.password, user.passwordHash);
 
     if (!passwordOk) {
+      this.logger.warn(`Failed login attempt (wrong password) for username: ${username}`);
       throw new UnauthorizedException('Invalid username or password');
     }
+
+    this.logger.log(`User ${username} logged in successfully`);
 
     user.lastLoginAt = new Date();
     await this.userRepository.save(user);
