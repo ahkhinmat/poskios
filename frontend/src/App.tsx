@@ -1,5 +1,6 @@
 ﻿import {
   App as AntApp,
+  AutoComplete,
   Button,
   ConfigProvider,
   DatePicker,
@@ -41,13 +42,18 @@ import { ProductManager } from './components/ProductManager';
 import { SupplierManager } from './components/SupplierManager';
 import { extractApiErrorMessage } from './utils/error';
 import { createDefaultPurchaseMeta, getNextTabNumber } from './utils/purchase';
+import { buildReceiptDocumentHtml } from './utils/receipt';
 import type {
   ApiEnvelope,
   CheckoutResponse,
+  Customer,
+  CustomerSearchResponse,
   DraftTabsResponse,
   InvoiceItemsResponse,
   InvoiceSearchItem,
   InvoiceSearchResponse,
+  LoyaltyHistoryResponse,
+  LoyaltySettings,
   PosDraftItem,
   PosDraftTab,
   PosProduct,
@@ -76,6 +82,13 @@ const paymentOptions = [
 ];
 
 const BUILD_VERSION = __APP_BUILD_VERSION__;
+
+function formatPoints(value: number) {
+  return value.toLocaleString('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  });
+}
 
 
 
@@ -132,6 +145,16 @@ function PosPage() {
   const [productManagerOpen, setProductManagerOpen] = useState(false);
   const [supplierManagerOpen, setSupplierManagerOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [customerLookup, setCustomerLookup] = useState<Customer | null>(null);
+  const [customerSearchResults, setCustomerSearchResults] = useState<Customer[]>([]);
+  const [customerLookupLoading, setCustomerLookupLoading] = useState(false);
+  const [loyaltySettings, setLoyaltySettings] = useState<LoyaltySettings | null>(null);
+  const [loyaltyHistoryOpen, setLoyaltyHistoryOpen] = useState(false);
+  const [loyaltyHistory, setLoyaltyHistory] = useState<LoyaltyHistoryResponse | null>(null);
+  const [loyaltySettingsOpen, setLoyaltySettingsOpen] = useState(false);
+  const [loyaltySettingsSaving, setLoyaltySettingsSaving] = useState(false);
+  const [customerNameModalOpen, setCustomerNameModalOpen] = useState(false);
+  const [customerNameInput, setCustomerNameInput] = useState('');
   const [purchaseMetaMap, setPurchaseMetaMap] = useState<Record<number, PurchaseMeta>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
@@ -164,15 +187,39 @@ function PosPage() {
     const items = activeTab?.items ?? [];
     const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
     const lineDiscount = items.reduce((sum, item) => sum + item.discountAmount, 0);
+    const costAmount = items.reduce((sum, item) => {
+      const unitOption = productUnitOptionsMap[item.productId]?.find(
+        (option) => option.productUnitId === item.productUnitId,
+      );
+      const costPrice = unitOption?.costPrice ?? item.unitPrice;
+
+      return sum + item.quantity * costPrice;
+    }, 0);
     const orderDiscount = activeTab?.discountAmount ?? 0;
-    const total = subtotal - lineDiscount - orderDiscount;
+    const rawTotal = subtotal - lineDiscount - orderDiscount;
+    const pointsDiscount =
+      activeTab?.tabType === 'SALE'
+        ? (activeTab?.redeemedPoints ?? 0) * (loyaltySettings?.redeemAmountPerPoint ?? 0)
+        : 0;
+    const total = rawTotal - pointsDiscount;
+    const grossProfitAmount =
+      activeTab?.tabType === 'SALE' ? total - costAmount : 0;
+    const grossProfitPercent =
+      activeTab?.tabType === 'SALE' && subtotal > 0
+        ? (grossProfitAmount / subtotal) * 100
+        : 0;
 
     return {
       itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
       subtotal,
+      costAmount,
+      rawTotal,
+      pointsDiscount,
       total,
+      grossProfitAmount,
+      grossProfitPercent,
     };
-  }, [activeTab]);
+  }, [activeTab, loyaltySettings, productUnitOptionsMap]);
 
   const isReturnTab = activeTab?.tabType === 'RETURN';
   const isPurchaseTab = activeTab?.tabType === 'PURCHASE';
@@ -191,6 +238,14 @@ function PosPage() {
     () => filteredOverviewRecords.reduce((sum, record) => sum + record.discountAmount, 0),
     [filteredOverviewRecords],
   );
+  const overviewTotalLoyaltyDiscount = useMemo(
+    () =>
+      filteredOverviewRecords.reduce(
+        (sum, record) => sum + record.loyaltyDiscountAmount,
+        0,
+      ),
+    [filteredOverviewRecords],
+  );
   const overviewTotalCost = useMemo(
     () => filteredOverviewRecords.reduce((sum, record) => sum + record.costAmount, 0),
     [filteredOverviewRecords],
@@ -203,10 +258,28 @@ function PosPage() {
     () => filteredOverviewRecords.reduce((sum, record) => sum + (record.revenueAmount - record.costAmount), 0),
     [filteredOverviewRecords],
   );
+  const customerSearchOptions = useMemo(
+    () =>
+      customerSearchResults.map((customer) => ({
+        value: customer.phoneNumber,
+        label: (
+          <div>
+            <div>
+              <strong>{customer.fullName ?? LANG.customerNew}</strong>
+            </div>
+            <div>
+              {customer.phoneNumber} · {LANG.customerPoints}: {formatPoints(customer.currentPoints)}
+            </div>
+          </div>
+        ),
+      })),
+    [customerSearchResults],
+  );
 
   useEffect(() => {
     void bootstrapDraftTabs();
     void loadSuppliers();
+    void loadLoyaltySettings();
   }, []);
 
   useEffect(() => {
@@ -302,6 +375,66 @@ function PosPage() {
 
     void Promise.all(missingProductIds.map((productId) => loadProductUnitOptions(productId)));
   }, [activeTab, productUnitOptionsMap]);
+
+  useEffect(() => {
+    if (!activeTab || isReturnTab || isPurchaseTab) {
+      setCustomerLookup(null);
+      setCustomerSearchResults([]);
+      return;
+    }
+
+    const query = String(activeTab.customerPhone ?? '').trim();
+    const normalizedPhone = query.replace(/\D+/g, '');
+
+    if (!query) {
+      setCustomerLookup(null);
+      setCustomerSearchResults([]);
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      const customers = await searchCustomers(query);
+      const customer =
+        normalizedPhone
+          ? customers.find((item) => item.phoneNumber === normalizedPhone) ?? null
+          : null;
+
+      if (!customer) {
+        if (activeTab.customerId || activeTab.customerName || (activeTab.redeemedPoints ?? 0) > 0) {
+          updateActiveTab({ customerId: null, customerName: null, redeemedPoints: 0 });
+        }
+        setCustomerLookup(null);
+        return;
+      }
+
+      setCustomerLookup(customer);
+      if (
+        activeTab.customerId !== customer.id ||
+        activeTab.customerName !== customer.fullName ||
+        activeTab.customerPhone !== customer.phoneNumber
+      ) {
+        updateActiveTab({
+          customerId: customer.id,
+          customerName: customer.fullName,
+          customerPhone: customer.phoneNumber,
+        });
+      }
+
+      if ((activeTab.redeemedPoints ?? 0) > customer.currentPoints) {
+        updateActiveTab({ redeemedPoints: customer.currentPoints });
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    activeTab?.id,
+    activeTab?.customerId,
+    activeTab?.customerName,
+    activeTab?.customerPhone,
+    activeTab?.redeemedPoints,
+    isPurchaseTab,
+    isReturnTab,
+  ]);
 
   function focusSearchInput() {
     window.setTimeout(() => {
@@ -457,12 +590,14 @@ function PosPage() {
       tabType,
       title: title ?? `${label} ${getNextTabNumber(tabs, label)}`,
       saleMode: tabType === 'PURCHASE' ? 'PURCHASE' : 'QUICK_SALE',
+      customerId: null,
       customerName: null,
       customerPhone: null,
       note: null,
       paymentMethod: 'CASH',
       customerPaidAmount: 0,
       discountAmount: 0,
+      redeemedPoints: 0,
       sourceSalesOrderId: tabType === 'RETURN' ? null : undefined,
       items: [],
     });
@@ -483,12 +618,14 @@ function PosPage() {
         tabType: tab.tabType,
         title: tab.title,
         saleMode: tab.saleMode,
+        customerId: tab.customerId ?? null,
         customerName: tab.customerName,
         customerPhone: tab.customerPhone,
         note: tab.note,
         paymentMethod: tab.paymentMethod,
         customerPaidAmount: tab.customerPaidAmount,
         discountAmount: tab.discountAmount,
+        redeemedPoints: tab.redeemedPoints ?? 0,
         sourceSalesOrderId: tab.sourceSalesOrderId,
         importDate: purchaseMeta?.importDate ?? null,
         purchaseOrderCode: purchaseMeta?.purchaseOrderCode ?? null,
@@ -533,6 +670,78 @@ function PosPage() {
             ? LANG.errCreatePurchaseTab
             : LANG.errCreateTab,
       );
+    }
+  }
+
+  async function loadLoyaltySettings() {
+    try {
+      const response = await api.get<ApiEnvelope<LoyaltySettings>>('/pos/loyalty/settings');
+      setLoyaltySettings(response.data.data);
+    } catch {
+      message.error(LANG.errLoadLoyaltySettings);
+    }
+  }
+
+  async function searchCustomers(keyword?: string | null) {
+    const rawKeyword = String(keyword ?? '').trim();
+    if (!rawKeyword || isReturnTab || isPurchaseTab) {
+      setCustomerSearchResults([]);
+      return [];
+    }
+
+    setCustomerLookupLoading(true);
+    try {
+      const response = await api.get<ApiEnvelope<CustomerSearchResponse>>('/pos/customers/search', {
+        params: { keyword: rawKeyword },
+      });
+      const items = response.data.data.items;
+      setCustomerSearchResults(items);
+      return items;
+    } catch {
+      message.error(LANG.errLoadCustomer);
+      return [];
+    } finally {
+      setCustomerLookupLoading(false);
+    }
+  }
+
+  function handleSelectCustomerSearch(phoneNumber: string) {
+    const customer =
+      customerSearchResults.find((item) => item.phoneNumber === phoneNumber) ?? null;
+
+    if (!customer) {
+      updateActiveTab({
+        customerPhone: phoneNumber || null,
+        customerId: null,
+        customerName: null,
+        redeemedPoints: 0,
+      });
+      return;
+    }
+
+    setCustomerLookup(customer);
+    setCustomerSearchResults([]);
+    updateActiveTab({
+      customerPhone: customer.phoneNumber,
+      customerId: customer.id,
+      customerName: customer.fullName,
+      redeemedPoints: Math.min(activeTab?.redeemedPoints ?? 0, customer.currentPoints),
+    });
+  }
+
+  async function openLoyaltyHistory() {
+    if (!customerLookup?.id) {
+      return;
+    }
+
+    try {
+      const response = await api.get<ApiEnvelope<LoyaltyHistoryResponse>>(
+        `/pos/customers/${customerLookup.id}/point-history`,
+      );
+      setLoyaltyHistory(response.data.data);
+      setLoyaltyHistoryOpen(true);
+    } catch {
+      message.error(LANG.errLoadPointHistory);
     }
   }
 
@@ -1091,135 +1300,7 @@ function PosPage() {
       return;
     }
 
-    const summaryRows = 'returnFeeAmount' in receipt
-      ? `
-          <div class="summary-row"><span>${LANG.receiptProductTotal}:</span><span>${receipt.subtotalAmount.toLocaleString('vi-VN')}</span></div>
-          <div class="summary-row"><span>${LANG.discount}:</span><span>${receipt.discountAmount.toLocaleString('vi-VN')}</span></div>
-          <div class="summary-row total"><span>${LANG.totalReturn}:</span><span>${receipt.totalAmount.toLocaleString('vi-VN')}</span></div>
-          <div class="summary-row"><span>${LANG.refund}:</span><span>${receipt.customerRefundAmount.toLocaleString('vi-VN')}</span></div>`
-      : 'supplierPaidAmount' in receipt
-        ? `
-          <div class="summary-row"><span>${LANG.receiptProductTotal}:</span><span>${receipt.subtotalAmount.toLocaleString('vi-VN')}</span></div>
-          <div class="summary-row"><span>${LANG.discount}:</span><span>${receipt.discountAmount.toLocaleString('vi-VN')}</span></div>
-          <div class="summary-row total"><span>${LANG.purchasePayable}:</span><span>${receipt.totalAmount.toLocaleString('vi-VN')}</span></div>
-          <div class="summary-row"><span>${LANG.receiptPaidSupplier}:</span><span>${receipt.supplierPaidAmount.toLocaleString('vi-VN')}</span></div>
-          <div class="summary-row"><span>${LANG.receiptDebtSupplier}:</span><span>${receipt.debtAmount.toLocaleString('vi-VN')}</span></div>`
-      : `
-          <div class="summary-row"><span>${LANG.receiptProductTotal}:</span><span>${receipt.subtotalAmount.toLocaleString('vi-VN')}</span></div>
-          <div class="summary-row"><span>${LANG.discount}:</span><span>${receipt.discountAmount.toLocaleString('vi-VN')}</span></div>
-          <div class="summary-row total"><span>${LANG.totalPayment}:</span><span>${receipt.totalAmount.toLocaleString('vi-VN')}</span></div>`;
-
-    const receiptTitle =
-      'returnFeeAmount' in receipt
-        ? LANG.receiptReturnTitle
-        : 'supplierPaidAmount' in receipt
-          ? LANG.receiptPurchaseTitle
-          : LANG.receiptTitle;
-
-    const itemsHtml = receipt.items
-      .map(
-        (item) => `
-          <div class="item">
-            <div class="item-name">${item.productName} - (${item.unitName})</div>
-            <div class="item-row">
-              <div class="item-price">${item.unitPrice.toLocaleString('vi-VN')}</div>
-              <div class="item-qty">${item.quantity}</div>
-              <div class="item-total">${item.lineTotal.toLocaleString('vi-VN')}</div>
-            </div>
-          </div>
-        `,
-      )
-      .join('');
-
-    const receiptCodeLabel =
-      'supplierPaidAmount' in receipt ? LANG.receiptPurchaseCode : LANG.receiptCode;
-    const receiptCodeValue =
-      'supplierPaidAmount' in receipt ? receipt.purchaseOrderCode : receipt.salesOrderCode;
-    const receiptDateValue =
-      'supplierPaidAmount' in receipt ? receipt.orderedAt : receipt.soldAt;
-    const receiptDateText = new Date(receiptDateValue)
-      .toLocaleString('vi-VN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      })
-      .replace(',', '');
-    const supplierLine =
-      'supplierPaidAmount' in receipt && receipt.supplierName
-        ? `<div class="subcenter">${LANG.receiptSupplier}: ${receipt.supplierName}</div>`
-        : '';
-
-    printWindow.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>${receiptCodeValue}</title>
-          <style>
-            @page { size: 76mm auto; margin: 2mm; }
-            * { box-sizing: border-box; }
-            html, body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #111; }
-            body { font-size: 10px; line-height: 1.25; }
-            .receipt { padding: 0 1mm; }
-            .center { text-align: center; }
-            .store { margin: 1mm 0 1.5mm; font-size: 16px; font-weight: 700; }
-            .subcenter { text-align: center; }
-            .header-title { margin: 2.5mm 0 1mm; font-size: 15px; font-weight: 700; }
-            .line { border-top: 1px solid #999; margin: 2mm 0; }
-            .table-head, .item-row { display: grid; grid-template-columns: 3fr 10mm 22mm; column-gap: 1mm; }
-            .table-head { font-weight: 700; padding-bottom: 1mm; }
-            .table-head > :nth-child(2), .item-qty { text-align: center; }
-            .table-head > :last-child, .item-total { text-align: right; }
-            .item { margin-bottom: 1.8mm; padding-bottom: 1.8mm; border-bottom: 1px dashed #999; }
-            .item-name { font-size: 10px; font-weight: 400; word-break: break-word; }
-            .item-row { margin-top: 0.8mm; }
-            .summary { margin-top: 5mm; }
-            .summary-row { display: grid; grid-template-columns: 1fr 22mm; column-gap: 1mm; margin-top: 0.8mm; font-size: 10px; }
-            .summary-row > :first-child { text-align: right; font-weight: 700; }
-            .summary-row > :last-child { text-align: right; white-space: nowrap; font-weight: 700; }
-            .summary-row:not(.total) > :first-child, .summary-row:not(.total) > :last-child { font-weight: 400; }
-            .summary-row.total { font-size: 11px; }
-            .footer { margin-top: 24mm; text-align: center; }
-            .footer-secondary { margin-top: 1mm; text-align: center; font-size: 10px; }
-          </style>
-        </head>
-        <body>
-          <div class="receipt">
-            <div class="center">
-              <div class="store">${LANG.storeNameReceipt}</div>
-              <div class="subcenter">${LANG.storeAddress}</div>
-              <div class="subcenter">${LANG.storePhoneNumber}</div>
-              <div class="header-title">${receiptTitle}</div>
-              <div class="subcenter">${receiptCodeLabel}: ${receiptCodeValue}</div>
-              <div class="subcenter">${receiptDateText}</div>
-              ${supplierLine}
-            </div>
-            <div class="line"></div>
-            <div class="table-head">
-              <div>${LANG.receiptUnitPrice}</div>
-              <div>${LANG.receiptQty}</div>
-              <div>${LANG.receiptTotal}</div>
-            </div>
-            <div class="line"></div>
-            ${itemsHtml}
-            <div class="summary">
-              ${summaryRows}
-            </div>
-            <div class="footer">${LANG.receiptFooter}</div>
-            <div class="footer-secondary">${LANG.receiptPoweredBy}</div>
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.onafterprint = function() { window.close(); };
-            };
-          </script>
-        </body>
-      </html>
-    `);
+    printWindow.document.write(buildReceiptDocumentHtml(receipt));
     printWindow.document.close();
   }
 
@@ -1289,10 +1370,12 @@ function PosPage() {
       } else {
         const response = await api.post<ApiEnvelope<CheckoutResponse>>('/pos/checkout', {
           saleMode: activeTab.saleMode,
+          customerId: activeTab.customerId ?? null,
           customerName: activeTab.customerName,
           customerPhone: activeTab.customerPhone,
           note: activeTab.note,
           discountAmount: activeTab.discountAmount,
+          redeemedPoints: activeTab.redeemedPoints ?? 0,
           paymentMethod: activeTab.paymentMethod,
           customerPaidAmount:
             activeTab.paymentMethod === 'CASH'
@@ -1340,6 +1423,68 @@ function PosPage() {
 
   function openProductManager() {
     setProductManagerOpen(true);
+  }
+
+  async function handleSaveLoyaltySettings() {
+    if (!loyaltySettings) {
+      return;
+    }
+
+    setLoyaltySettingsSaving(true);
+    try {
+      const response = await api.put<ApiEnvelope<LoyaltySettings>>('/pos/loyalty/settings', loyaltySettings);
+      setLoyaltySettings(response.data.data);
+      setLoyaltySettingsOpen(false);
+      message.success(LANG.loyaltySettingsSaved);
+    } catch {
+      message.error(LANG.errSaveLoyaltySettings);
+    } finally {
+      setLoyaltySettingsSaving(false);
+    }
+  }
+
+  function openCustomerNameModal() {
+    setCustomerNameInput(activeTab?.customerName ?? customerLookup?.fullName ?? '');
+    setCustomerNameModalOpen(true);
+  }
+
+  async function handleSaveCustomerName() {
+    const trimmed = customerNameInput.trim();
+    const phoneNumber = String(activeTab?.customerPhone ?? '').replace(/\D+/g, '');
+
+    if (!trimmed) {
+      message.warning(LANG.errCustomerNameRequired);
+      return;
+    }
+
+    if (!phoneNumber) {
+      message.warning(LANG.errCustomerPhoneRequired);
+      return;
+    }
+
+    try {
+      const response = await api.post<ApiEnvelope<Customer>>(
+        '/pos/customers/upsert-by-phone',
+        {
+          phoneNumber,
+          fullName: trimmed,
+        },
+      );
+
+      const customer = response.data.data;
+      setCustomerLookup(customer);
+      setCustomerSearchResults([]);
+      updateActiveTab({
+        customerPhone: customer.phoneNumber,
+        customerId: customer.id,
+        customerName: customer.fullName,
+        redeemedPoints: Math.min(activeTab?.redeemedPoints ?? 0, customer.currentPoints),
+      });
+      setCustomerNameModalOpen(false);
+      message.success(LANG.customerNameSaved);
+    } catch {
+      message.error(LANG.errCustomerSave);
+    }
   }
 
   function openCreateSupplier() {
@@ -2026,6 +2171,7 @@ onClick={openProductManager}
                 <div className="overview-grid-cell">{LANG.overviewHeaderTime}</div>
                 <div className="overview-grid-cell">{LANG.overviewHeaderTotal}</div>
                 <div className="overview-grid-cell">{LANG.overviewHeaderDiscount}</div>
+                <div className="overview-grid-cell">{LANG.overviewHeaderLoyaltyDiscount}</div>
                 <div className="overview-grid-cell">{LANG.overviewHeaderCost}</div>
                 <div className="overview-grid-cell">{LANG.overviewHeaderRevenue}</div>
                 {showProfit && <div className="overview-grid-cell">{LANG.overviewGrossProfit}</div>}
@@ -2047,6 +2193,7 @@ onClick={openProductManager}
                     <div className="overview-grid-cell">{dayjs(record.eventAt).format('DD/MM/YYYY HH:mm')}</div>
                     <div className="overview-grid-cell">{record.subtotalAmount.toLocaleString('vi-VN')}</div>
                     <div className={`overview-grid-cell${record.discountAmount > 0 ? ' has-discount' : ''}`}>{record.discountAmount.toLocaleString('vi-VN')}</div>
+                    <div className={`overview-grid-cell${record.loyaltyDiscountAmount > 0 ? ' has-discount' : ''}`}>{record.loyaltyDiscountAmount.toLocaleString('vi-VN')}</div>
                     <div className="overview-grid-cell">{Math.round(record.costAmount).toLocaleString('vi-VN')}</div>
                     <div className="overview-grid-cell">{Math.round(record.revenueAmount).toLocaleString('vi-VN')}</div>
                     {showProfit && <div className="overview-grid-cell overview-grid-profit">{Math.round(record.revenueAmount - record.costAmount).toLocaleString('vi-VN')}</div>}
@@ -2062,6 +2209,7 @@ onClick={openProductManager}
                 <div className="overview-grid-cell overview-grid-foot-val"></div>
                 <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalAmount.toLocaleString('vi-VN')}</div>
                 <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalDiscount.toLocaleString('vi-VN')}</div>
+                <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalLoyaltyDiscount.toLocaleString('vi-VN')}</div>
                 <div className="overview-grid-cell overview-grid-foot-val">{Math.round(overviewTotalCost).toLocaleString('vi-VN')}</div>
                 <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalRevenue.toLocaleString('vi-VN')}</div>
                 {showProfit && <div className="overview-grid-cell overview-grid-foot-val">{Math.round(overviewGrossProfit).toLocaleString('vi-VN')}</div>}
@@ -2191,7 +2339,22 @@ onClick={openProductManager}
                   <Text>{summary.subtotal.toLocaleString('vi-VN')}</Text>
                 </div>
                 <div className="summary-row">
-                  <Text>{LANG.discount}</Text>
+                  <div className="summary-label-with-meta">
+                    <Text>{LANG.discount}</Text>
+                    {!isReturnTab && !isPurchaseTab && summary.subtotal > 0 ? (
+                      <Text
+                        type={summary.grossProfitPercent < 0 ? 'danger' : 'secondary'}
+                        className="summary-label-meta"
+                      >
+                        {LANG.grossProfitRateShort}{' '}
+                        {summary.grossProfitPercent.toLocaleString('vi-VN', {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        })}
+                        %
+                      </Text>
+                    ) : null}
+                  </div>
                   <InputNumber
                     min={0}
                     controls={false}
@@ -2234,13 +2397,61 @@ onClick={openProductManager}
               ) : (
               <Form layout="vertical" className="checkout-form">
             <Form.Item label={LANG.customer}>
-              <Input
-                value={activeTab?.customerName ?? ''}
-                onChange={(event) =>
-                  updateActiveTab({ customerName: event.target.value || null })
-                }
-                placeholder={LANG.placeholderCustomer}
-              />
+              <>
+                <div className="customer-input-row">
+                  <AutoComplete
+                    className="customer-autocomplete"
+                    value={activeTab?.customerPhone ?? ''}
+                    options={customerSearchOptions}
+                    onSelect={(value) => handleSelectCustomerSearch(String(value))}
+                    onChange={(value) =>
+                      updateActiveTab({
+                        customerPhone: String(value || '').trim() || null,
+                        customerId: null,
+                        customerName: null,
+                        redeemedPoints: 0,
+                      })
+                    }
+                    filterOption={false}
+                  >
+                    <Input placeholder={LANG.placeholderCustomer} />
+                  </AutoComplete>
+                  <Tooltip
+                    title={
+                      activeTab?.customerName
+                        ? LANG.editCustomerName
+                        : LANG.addCustomerName
+                    }
+                  >
+                    <Button icon={<PlusOutlined />} onClick={openCustomerNameModal} />
+                  </Tooltip>
+                </div>
+                <div className="customer-loyalty-meta">
+                  <Text type="secondary">
+                    {customerLookup
+                      ? `${customerLookup.fullName ?? activeTab?.customerName ?? LANG.customerNew} · ${LANG.customerPoints}: ${formatPoints(customerLookup.currentPoints)}`
+                      : activeTab?.customerPhone
+                        ? `${activeTab?.customerName ?? LANG.customerNew} · ${LANG.customerPoints}: ${formatPoints(0)}`
+                        : LANG.customerPoints}
+                  </Text>
+                  <div className="customer-loyalty-actions">
+                    <Button
+                      size="small"
+                      disabled={!customerLookup?.id}
+                      onClick={() => void openLoyaltyHistory()}
+                    >
+                      {LANG.pointHistory}
+                    </Button>
+                    <Button
+                      size="small"
+                      onClick={() => setLoyaltySettingsOpen(true)}
+                    >
+                      {LANG.loyaltyConfig}
+                    </Button>
+                    {customerLookupLoading && <Spin size="small" />}
+                  </div>
+                </div>
+              </>
             </Form.Item>
 
             <div className="summary-rows">
@@ -2294,11 +2505,52 @@ onClick={openProductManager}
                       onChange={(value) =>
                         updateActiveTab({ discountAmount: Number(value ?? 0) })
                       }
+                      />
+                  </div>
+                  <div className="summary-row">
+                    <Text>{LANG.redeemPoints}</Text>
+                    <InputNumber
+                      min={0}
+                      step={0.0001}
+                      controls={false}
+                      value={activeTab?.redeemedPoints ?? 0}
+                      onChange={(value) =>
+                        updateActiveTab({
+                          redeemedPoints: Number(
+                            Math.max(
+                              0,
+                              Math.min(
+                                Number(value ?? 0),
+                                customerLookup?.currentPoints ?? Number(value ?? 0),
+                                loyaltySettings?.redeemAmountPerPoint
+                                  ? Number(
+                                      (summary.rawTotal / loyaltySettings.redeemAmountPerPoint).toFixed(4),
+                                    )
+                                  : Number(value ?? 0),
+                              ),
+                            ).toFixed(4),
+                          ),
+                        })
+                      }
                     />
+                  </div>
+                  <div className="summary-row">
+                    <Text>{LANG.loyaltyDiscount}</Text>
+                    <Text>{summary.pointsDiscount.toLocaleString('vi-VN')}</Text>
                   </div>
                   <div className="summary-row summary-row-primary">
                     <Text>{LANG.customerPay}</Text>
                     <Text>{summary.total.toLocaleString('vi-VN')}</Text>
+                  </div>
+                  <div className="summary-row">
+                    <Text>{LANG.earnPointsEstimate}</Text>
+                    <Text>
+                      {loyaltySettings?.earnAmountPerPoint
+                        ? formatPoints(
+                            Number((summary.total / loyaltySettings.earnAmountPerPoint).toFixed(4)),
+                          )
+                        : formatPoints(0)}
+                    </Text>
                   </div>
                   <div className="summary-row">
                     <Text>{LANG.customerPaid}</Text>
@@ -2420,6 +2672,143 @@ onClick={openProductManager}
         onClose={() => setReceiptPreview(null)}
         onPrint={handlePrintReceipt}
       />
+
+      <Modal
+        title={LANG.pointHistory}
+        open={loyaltyHistoryOpen}
+        onCancel={() => setLoyaltyHistoryOpen(false)}
+        footer={null}
+        width={640}
+        destroyOnClose
+      >
+        <div className="loyalty-history-header">
+          <Text strong>{loyaltyHistory?.customer.fullName ?? LANG.customerNew}</Text>
+          <Text type="secondary">
+            {loyaltyHistory?.customer.phoneNumber ?? ''} · {LANG.customerPoints}:{' '}
+            {formatPoints(loyaltyHistory?.customer.currentPoints ?? 0)}
+          </Text>
+        </div>
+        <List
+          dataSource={loyaltyHistory?.items ?? []}
+          locale={{ emptyText: LANG.overviewEmpty }}
+          renderItem={(item) => (
+            <List.Item>
+              <div className="loyalty-history-item">
+                <div>
+                  <Text strong>{item.transactionType}</Text>
+                  <div>
+                    <Text type="secondary">
+                      {new Date(item.transactionAt).toLocaleString('vi-VN')}
+                    </Text>
+                  </div>
+                  {item.notes && <div><Text type="secondary">{item.notes}</Text></div>}
+                </div>
+                <div className="loyalty-history-values">
+                  <Text strong>{item.pointsChange > 0 ? `+${formatPoints(item.pointsChange)}` : formatPoints(item.pointsChange)}</Text>
+                  <Text type="secondary">{formatPoints(item.balanceAfter)}</Text>
+                </div>
+              </div>
+            </List.Item>
+          )}
+        />
+      </Modal>
+
+      <Modal
+        title={LANG.customerName}
+        open={customerNameModalOpen}
+        onCancel={() => setCustomerNameModalOpen(false)}
+        onOk={handleSaveCustomerName}
+        okText={LANG.save}
+        cancelText={LANG.cancel}
+        destroyOnClose
+      >
+        <Form layout="vertical">
+          <Form.Item label={LANG.customerPhone}>
+            <Input value={activeTab?.customerPhone ?? ''} readOnly />
+          </Form.Item>
+        </Form>
+        <Input
+          value={customerNameInput}
+          onChange={(event) => setCustomerNameInput(event.target.value)}
+          placeholder={LANG.customerName}
+          maxLength={150}
+        />
+      </Modal>
+
+      <Modal
+        title={LANG.loyaltyConfig}
+        open={loyaltySettingsOpen}
+        onCancel={() => setLoyaltySettingsOpen(false)}
+        onOk={() => void handleSaveLoyaltySettings()}
+        confirmLoading={loyaltySettingsSaving}
+        okText={LANG.saveConfig}
+        cancelText={LANG.cancel}
+        destroyOnClose
+      >
+        <Form layout="vertical" className="loyalty-settings-form">
+          <Form.Item label={LANG.earnAmountPerPoint}>
+            <InputNumber
+              min={1}
+              controls={false}
+              value={loyaltySettings?.earnAmountPerPoint ?? 10000}
+              onChange={(value) =>
+                setLoyaltySettings((current) => ({
+                  earnAmountPerPoint: Number(value ?? 10000),
+                  redeemAmountPerPoint: current?.redeemAmountPerPoint ?? 1000,
+                  minimumRedeemPoints: current?.minimumRedeemPoints ?? 10,
+                  pointsExpiryDays: current?.pointsExpiryDays ?? null,
+                }))
+              }
+            />
+          </Form.Item>
+          <Form.Item label={LANG.redeemAmountPerPoint}>
+            <InputNumber
+              min={1}
+              controls={false}
+              value={loyaltySettings?.redeemAmountPerPoint ?? 1000}
+              onChange={(value) =>
+                setLoyaltySettings((current) => ({
+                  earnAmountPerPoint: current?.earnAmountPerPoint ?? 10000,
+                  redeemAmountPerPoint: Number(value ?? 1000),
+                  minimumRedeemPoints: current?.minimumRedeemPoints ?? 10,
+                  pointsExpiryDays: current?.pointsExpiryDays ?? null,
+                }))
+              }
+            />
+          </Form.Item>
+          <Form.Item label={LANG.minimumRedeemPoints}>
+            <InputNumber
+              min={0}
+              step={0.0001}
+              controls={false}
+              value={loyaltySettings?.minimumRedeemPoints ?? 10}
+              onChange={(value) =>
+                setLoyaltySettings((current) => ({
+                  earnAmountPerPoint: current?.earnAmountPerPoint ?? 10000,
+                  redeemAmountPerPoint: current?.redeemAmountPerPoint ?? 1000,
+                  minimumRedeemPoints: Number(value ?? 10),
+                  pointsExpiryDays: current?.pointsExpiryDays ?? null,
+                }))
+              }
+            />
+          </Form.Item>
+          <Form.Item label={LANG.pointsExpiryDays}>
+            <InputNumber
+              min={0}
+              controls={false}
+              value={loyaltySettings?.pointsExpiryDays ?? 0}
+              onChange={(value) =>
+                setLoyaltySettings((current) => ({
+                  earnAmountPerPoint: current?.earnAmountPerPoint ?? 10000,
+                  redeemAmountPerPoint: current?.redeemAmountPerPoint ?? 1000,
+                  minimumRedeemPoints: current?.minimumRedeemPoints ?? 10,
+                  pointsExpiryDays: Number(value ?? 0) || null,
+                }))
+              }
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <SupplierManager
         open={supplierManagerOpen}

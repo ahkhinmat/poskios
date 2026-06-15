@@ -1,6 +1,7 @@
 import { Button, Modal } from 'antd';
 import { LANG } from '../lang';
-import type { ReceiptPreviewData, SaleReceiptData } from '../types';
+import type { ReceiptPreviewData } from '../types';
+import { buildReceiptViewModel } from '../utils/receipt';
 
 type Props = {
   receiptPreview: ReceiptPreviewData | null;
@@ -9,6 +10,8 @@ type Props = {
 };
 
 export function ReceiptModal({ receiptPreview, onClose, onPrint }: Props) {
+  const view = receiptPreview ? buildReceiptViewModel(receiptPreview) : null;
+
   return (
     <Modal
       title={null}
@@ -26,7 +29,7 @@ export function ReceiptModal({ receiptPreview, onClose, onPrint }: Props) {
       ]}
       width={360}
     >
-      {receiptPreview && (
+      {receiptPreview && view && (
         <div className="receipt-preview">
           <div className="receipt-center">
             <div className="receipt-store">{receiptPreview.storeName}</div>
@@ -35,76 +38,41 @@ export function ReceiptModal({ receiptPreview, onClose, onPrint }: Props) {
           </div>
           <div className="receipt-dash" />
           <div className="receipt-row">
-            <span>{'supplierPaidAmount' in receiptPreview ? LANG.receiptPurchaseCode : LANG.receiptInvoice}</span>
-            <strong>{'supplierPaidAmount' in receiptPreview ? receiptPreview.purchaseOrderCode : receiptPreview.salesOrderCode}</strong>
+            <span>{view.codeLabel}</span>
+            <strong>{view.codeValue}</strong>
           </div>
           <div className="receipt-row">
-            <span>{'supplierPaidAmount' in receiptPreview ? LANG.receiptSupplier : LANG.cashier}</span>
-            <span>{'supplierPaidAmount' in receiptPreview ? (receiptPreview.supplierName ?? '') : receiptPreview.cashierName}</span>
+            <span>{view.partyLabel}</span>
+            <span>{view.partyValue}</span>
           </div>
           <div className="receipt-row">
-            <span>{LANG.receiptDate}</span>
-            <span>{new Date('supplierPaidAmount' in receiptPreview ? receiptPreview.orderedAt : receiptPreview.soldAt).toLocaleString('vi-VN')}</span>
+            <span>{view.dateLabel}</span>
+            <span>{view.dateValue}</span>
           </div>
           <div className="receipt-dash" />
-          {receiptPreview.items.map((item, index) => (
+          {view.items.map((item, index) => (
             <div className="receipt-item" key={`${item.productName}-${index}`}>
-              <div className="receipt-item-name">{item.productName}</div>
+              <div className="receipt-item-name">
+                {item.productName} - ({item.unitName})
+              </div>
               <div className="receipt-row receipt-muted">
                 <span>
-                  {item.quantity} x {item.unitPrice.toLocaleString('vi-VN')}
+                  {item.quantityText} x {item.unitPriceText}
                 </span>
-                <span>{item.lineTotal.toLocaleString('vi-VN')}</span>
+                <span>{item.lineTotalText}</span>
               </div>
             </div>
           ))}
           <div className="receipt-dash" />
-          <div className="receipt-row">
-            <span>{LANG.receiptProductTotal}</span>
-            <span>{receiptPreview.subtotalAmount.toLocaleString('vi-VN')}</span>
-          </div>
-          <div className="receipt-row">
-            <span>{LANG.discount}</span>
-            <span>{receiptPreview.discountAmount.toLocaleString('vi-VN')}</span>
-          </div>
-          {'returnFeeAmount' in receiptPreview && (
-            <div className="receipt-row">
-              <span>{LANG.returnFee}</span>
-              <span>{receiptPreview.returnFeeAmount.toLocaleString('vi-VN')}</span>
+          {view.summaryRows.map((row) => (
+            <div
+              className={`receipt-row${row.isTotal ? ' receipt-total' : ''}`}
+              key={`${row.label}-${row.value}`}
+            >
+              <span>{row.label}</span>
+              <span>{row.value}</span>
             </div>
-          )}
-          <div className="receipt-row receipt-total">
-            <span>{'returnFeeAmount' in receiptPreview ? LANG.totalReturn : 'supplierPaidAmount' in receiptPreview ? LANG.purchasePayable : LANG.totalPayment}</span>
-            <span>{receiptPreview.totalAmount.toLocaleString('vi-VN')}</span>
-          </div>
-          {'customerRefundAmount' in receiptPreview ? (
-            <div className="receipt-row">
-              <span>{LANG.refund}</span>
-              <span>{receiptPreview.customerRefundAmount.toLocaleString('vi-VN')}</span>
-            </div>
-          ) : 'supplierPaidAmount' in receiptPreview ? (
-            <>
-              <div className="receipt-row">
-                <span>{LANG.receiptPaidSupplier}</span>
-                <span>{receiptPreview.supplierPaidAmount.toLocaleString('vi-VN')}</span>
-              </div>
-              <div className="receipt-row">
-                <span>{LANG.receiptDebtSupplier}</span>
-                <span>{receiptPreview.debtAmount.toLocaleString('vi-VN')}</span>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="receipt-row">
-                <span>{LANG.customerGiven}</span>
-                <span>{(receiptPreview as SaleReceiptData).customerPaidAmount.toLocaleString('vi-VN')}</span>
-              </div>
-              <div className="receipt-row">
-                <span>{LANG.changeAmount}</span>
-                <span>{(receiptPreview as SaleReceiptData).changeAmount.toLocaleString('vi-VN')}</span>
-              </div>
-            </>
-          )}
+          ))}
           <div className="receipt-dash" />
           <div className="receipt-center">{receiptPreview.footerMessage}</div>
         </div>

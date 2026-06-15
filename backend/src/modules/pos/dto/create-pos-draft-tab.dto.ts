@@ -33,6 +33,18 @@ export class CreatePosDraftTabDto {
   customerPhone?: string | null;
 
   @IsOptional()
+  @Transform(({ value }) =>
+    value === null || value === undefined ? null : Number(value),
+  )
+  @IsNumber()
+  customerId?: number | null;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value ?? 0))
+  @IsNumber()
+  redeemedPoints?: number;
+
+  @IsOptional()
   @IsString()
   @MaxLength(500)
   note?: string | null;

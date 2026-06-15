@@ -13,9 +13,10 @@ import {
 import { PosCheckoutItemDto } from './pos-checkout-item.dto';
 
 export class PurchaseCheckoutDto {
+  @IsOptional()
   @IsString()
   @MaxLength(50)
-  purchaseOrderCode!: string;
+  purchaseOrderCode?: string | null;
 
   @IsOptional()
   @Transform(({ value }) => (value === null || value === undefined || value === '' ? null : Number(value)))

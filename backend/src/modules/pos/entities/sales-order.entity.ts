@@ -1,4 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { decimalNumberTransformer } from './decimal.transformer';
 
 @Entity({ name: 'SalesOrders' })
 export class SalesOrder {
@@ -13,6 +14,9 @@ export class SalesOrder {
 
   @Column({ name: 'SourceSalesOrderId', type: 'int', nullable: true })
   sourceSalesOrderId!: number | null;
+
+  @Column({ name: 'CustomerId', type: 'int', nullable: true })
+  customerId!: number | null;
 
   @Column({ name: 'SalesOrderCode', type: 'nvarchar', length: 50 })
   salesOrderCode!: string;
@@ -34,6 +38,36 @@ export class SalesOrder {
 
   @Column({ name: 'CustomerPhone', type: 'nvarchar', length: 30, nullable: true })
   customerPhone!: string | null;
+
+  @Column({
+    name: 'RedeemedPoints',
+    type: 'decimal',
+    precision: 18,
+    scale: 4,
+    nullable: true,
+    transformer: decimalNumberTransformer,
+  })
+  redeemedPoints!: number | null;
+
+  @Column({
+    name: 'EarnedPoints',
+    type: 'decimal',
+    precision: 18,
+    scale: 4,
+    nullable: true,
+    transformer: decimalNumberTransformer,
+  })
+  earnedPoints!: number | null;
+
+  @Column({
+    name: 'LoyaltyDiscountAmount',
+    type: 'decimal',
+    precision: 18,
+    scale: 2,
+    nullable: true,
+    transformer: decimalNumberTransformer,
+  })
+  loyaltyDiscountAmount!: number | null;
 
   @Column({ name: 'Notes', type: 'nvarchar', length: 500, nullable: true })
   notes!: string | null;

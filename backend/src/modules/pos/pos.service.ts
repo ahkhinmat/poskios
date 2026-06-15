@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Brackets, DataSource, In, Repository } from 'typeorm';
+import { Brackets, DataSource, EntityManager, In, Repository } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { CreatePosDraftTabDto } from './dto/create-pos-draft-tab.dto';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -16,8 +16,11 @@ import { ReturnCheckoutDto } from './dto/return-checkout.dto';
 import { SearchPosProductsQueryDto } from './dto/search-pos-products-query.dto';
 import { UpdatePosDraftTabDto } from './dto/update-pos-draft-tab.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 import { Category } from './entities/category.entity';
+import { Customer } from './entities/customer.entity';
 import { InventoryTransaction } from './entities/inventory-transaction.entity';
+import { LoyaltyPointTransaction } from './entities/loyalty-point-transaction.entity';
 import { PosDraftTabItem } from './entities/pos-draft-tab-item.entity';
 import { PosDraftTab } from './entities/pos-draft-tab.entity';
 import { ProductUnit } from './entities/product-unit.entity';
@@ -44,6 +47,10 @@ export class PosService {
     private readonly categoryRepository: Repository<Category>,
     @InjectRepository(InventoryTransaction)
     private readonly inventoryTransactionRepository: Repository<InventoryTransaction>,
+    @InjectRepository(Customer)
+    private readonly customerRepository: Repository<Customer>,
+    @InjectRepository(LoyaltyPointTransaction)
+    private readonly loyaltyPointTransactionRepository: Repository<LoyaltyPointTransaction>,
     @InjectRepository(Setting)
     private readonly settingRepository: Repository<Setting>,
     @InjectRepository(Supplier)
@@ -204,10 +211,7 @@ export class PosService {
       throw new NotFoundException('Source sales order not found');
     }
 
-    const setting = await this.settingRepository.findOne({
-      where: {},
-      order: { id: 'ASC' },
-    });
+    const setting = await this.getOrCreateSetting();
 
     const result = await this.dataSource.transaction(async (manager) => {
       const productUnits = await manager.find(ProductUnit, {
@@ -288,6 +292,7 @@ export class PosService {
           createdByUserId: userId,
           cancelledByUserId: null,
           sourceSalesOrderId: payload.sourceSalesOrderId,
+          customerId: sourceSalesOrder.customerId ?? null,
           salesOrderCode,
           orderType: 'RETURN',
           status: 'COMPLETED',
@@ -295,6 +300,8 @@ export class PosService {
           paymentMethod: payload.paymentMethod,
           customerName: payload.customerName ?? sourceSalesOrder.customerName,
           customerPhone: payload.customerPhone ?? sourceSalesOrder.customerPhone,
+          redeemedPoints: null,
+          earnedPoints: null,
           notes: payload.note ?? null,
           subtotalAmount: subtotalAmount.toFixed(2),
           discountAmount: orderDiscountAmount.toFixed(2),
@@ -369,13 +376,64 @@ export class PosService {
         });
       }
 
+      let customer: Customer | null = null;
+      let reversedPoints = 0;
+
+      if (sourceSalesOrder.customerId && (sourceSalesOrder.earnedPoints ?? 0) > 0) {
+        customer = await manager.findOne(Customer, {
+          where: { id: sourceSalesOrder.customerId, isActive: true },
+        });
+
+        if (customer) {
+          const sourceTotalAmount = Number(sourceSalesOrder.totalAmount);
+          const originalEarnedPoints = Number(sourceSalesOrder.earnedPoints ?? 0);
+          const reversedBeforeRows = await manager.find(LoyaltyPointTransaction, {
+            where: {
+              salesOrderId: payload.sourceSalesOrderId,
+              transactionType: 'RETURN_REVERSE',
+            },
+          });
+          const reversedBefore = reversedBeforeRows.reduce(
+            (sum, row) => sum + Math.abs(Number(row.pointsChange)),
+            0,
+          );
+          const remainingEarnedPoints = Math.max(
+            0,
+            originalEarnedPoints - reversedBefore,
+          );
+
+          if (sourceTotalAmount > 0 && remainingEarnedPoints > 0) {
+            reversedPoints = Math.min(
+              remainingEarnedPoints,
+              Number(
+                ((refundAmount / sourceTotalAmount) * originalEarnedPoints).toFixed(4),
+              ),
+            );
+          }
+
+          if (reversedPoints > 0) {
+            await this.appendPointTransaction(manager, {
+              customer,
+              salesOrderId: payload.sourceSalesOrderId,
+              transactionType: 'RETURN_REVERSE',
+              pointsChange: -reversedPoints,
+              amountBasis: refundAmount,
+              notes: `Reverse points from return ${salesOrder.salesOrderCode}`,
+              transactionAt: soldAt,
+            });
+          }
+        }
+      }
+
       return {
         salesOrder,
+        customer,
         itemCount,
         subtotalAmount,
         orderDiscountAmount,
         returnFeeAmount,
         refundAmount,
+        reversedPoints,
         receiptItems,
       };
     });
@@ -397,6 +455,17 @@ export class PosService {
         totalAmount: result.refundAmount,
         customerRefundAmount: Number(result.salesOrder.customerPaidAmount),
         paymentMethod: result.salesOrder.paymentMethod,
+        customer: result.customer
+          ? {
+              id: result.customer.id,
+              phoneNumber: result.customer.phoneNumber,
+              fullName: result.customer.fullName,
+              currentPoints: Number(result.customer.currentPoints),
+            }
+          : null,
+        loyalty: {
+          reversedPoints: result.reversedPoints,
+        },
       },
       receiptData: {
         storeName: setting?.storeName ?? 'POS',
@@ -412,6 +481,7 @@ export class PosService {
         totalAmount: result.refundAmount,
         customerRefundAmount: Number(result.salesOrder.customerPaidAmount),
         footerMessage: setting?.receiptFooter ?? setting?.receiptHeader ?? null,
+        reversedPoints: result.reversedPoints,
       },
     };
   }
@@ -421,10 +491,7 @@ export class PosService {
       throw new BadRequestException('Cart is empty');
     }
 
-    const setting = await this.settingRepository.findOne({
-      where: {},
-      order: { id: 'ASC' },
-    });
+    const setting = await this.getOrCreateSetting();
 
     const result = await this.dataSource.transaction(async (manager) => {
       const productUnits = await manager.find(ProductUnit, {
@@ -482,9 +549,43 @@ export class PosService {
         };
       });
 
+      const customer = await this.findOrCreateCustomer(
+        manager,
+        payload.customerPhone,
+        payload.customerName,
+      );
       const orderDiscountAmount = payload.discountAmount ?? 0;
+      const redeemedPoints = Number(Number(payload.redeemedPoints ?? 0).toFixed(4));
+      const redeemAmountPerPoint = Number(
+        setting.loyaltyRedeemAmountPerPoint ?? '1000',
+      );
+      const minimumRedeemPoints =
+        Number(setting.loyaltyMinimumRedeemPoints ?? 10) || 0;
+      const pointsDiscountAmount = Number(
+        (redeemedPoints * redeemAmountPerPoint).toFixed(2),
+      );
+
+      if (redeemedPoints > 0) {
+        if (!customer) {
+          throw new BadRequestException('Customer phone is required to redeem points');
+        }
+
+        if (redeemedPoints < minimumRedeemPoints) {
+          throw new BadRequestException('Redeemed points do not meet minimum threshold');
+        }
+
+        if (customer.currentPoints < redeemedPoints) {
+          throw new BadRequestException('Customer does not have enough points');
+        }
+      }
+
       const totalAmount = Number(
-        (subtotalAmount - lineDiscountAmount - orderDiscountAmount).toFixed(2),
+        (
+          subtotalAmount -
+          lineDiscountAmount -
+          orderDiscountAmount -
+          pointsDiscountAmount
+        ).toFixed(2),
       );
 
       if (totalAmount < 0) {
@@ -505,6 +606,11 @@ export class PosService {
           ? Number((payload.customerPaidAmount - totalAmount).toFixed(2))
           : 0;
 
+      const earnAmountPerPoint = Number(
+        setting.loyaltyEarnAmountPerPoint ?? '10000',
+      );
+      const earnedPoints =
+        earnAmountPerPoint > 0 ? Number((totalAmount / earnAmountPerPoint).toFixed(4)) : 0;
       const salesOrderCode = await this.generateSalesOrderCode(manager, 'HD');
       const soldAt = new Date();
 
@@ -514,13 +620,17 @@ export class PosService {
           createdByUserId: userId,
           cancelledByUserId: null,
           sourceSalesOrderId: null,
+          customerId: customer?.id ?? payload.customerId ?? null,
           salesOrderCode,
           orderType: 'SALE',
           status: 'COMPLETED',
           saleMode: payload.saleMode,
           paymentMethod: payload.paymentMethod,
           customerName: payload.customerName ?? null,
-          customerPhone: payload.customerPhone ?? null,
+          customerPhone: customer?.phoneNumber ?? payload.customerPhone ?? null,
+          redeemedPoints,
+          earnedPoints,
+          loyaltyDiscountAmount: pointsDiscountAmount,
           notes: payload.note ?? null,
           subtotalAmount: subtotalAmount.toFixed(2),
           discountAmount: orderDiscountAmount.toFixed(2),
@@ -595,11 +705,46 @@ export class PosService {
         });
       }
 
+      if (customer && redeemedPoints > 0) {
+        await this.appendPointTransaction(manager, {
+          customer,
+          salesOrderId: salesOrder.id,
+          transactionType: 'REDEEM',
+          pointsChange: -redeemedPoints,
+          amountBasis: pointsDiscountAmount,
+          notes: `Redeem for ${salesOrder.salesOrderCode}`,
+          transactionAt: soldAt,
+        });
+      }
+
+      if (customer && earnedPoints > 0) {
+        const expiryDays = setting.loyaltyPointsExpiryDays ?? null;
+        const expireAt =
+          expiryDays && expiryDays > 0
+            ? new Date(soldAt.getTime() + expiryDays * 24 * 60 * 60 * 1000)
+            : null;
+
+        await this.appendPointTransaction(manager, {
+          customer,
+          salesOrderId: salesOrder.id,
+          transactionType: 'EARN',
+          pointsChange: earnedPoints,
+          amountBasis: totalAmount,
+          notes: `Earn from ${salesOrder.salesOrderCode}`,
+          transactionAt: soldAt,
+          expireAt,
+        });
+      }
+
       return {
         salesOrder,
+        customer,
         itemCount,
         subtotalAmount,
         orderDiscountAmount,
+        pointsDiscountAmount,
+        redeemedPoints,
+        earnedPoints,
         totalAmount,
         changeAmount,
         receiptItems,
@@ -618,11 +763,26 @@ export class PosService {
       summary: {
         itemCount: result.itemCount,
         subtotalAmount: result.subtotalAmount,
-        discountAmount: result.orderDiscountAmount,
+        discountAmount: Number(
+          (result.orderDiscountAmount + result.pointsDiscountAmount).toFixed(2),
+        ),
         totalAmount: result.totalAmount,
         customerPaidAmount: Number(result.salesOrder.customerPaidAmount),
         changeAmount: result.changeAmount,
         paymentMethod: result.salesOrder.paymentMethod,
+        customer: result.customer
+          ? {
+              id: result.customer.id,
+              phoneNumber: result.customer.phoneNumber,
+              fullName: result.customer.fullName,
+              currentPoints: Number(result.customer.currentPoints),
+            }
+          : null,
+        loyalty: {
+          redeemedPoints: result.redeemedPoints,
+          earnedPoints: result.earnedPoints,
+          loyaltyDiscountAmount: result.pointsDiscountAmount,
+        },
       },
       receiptData: {
         storeName: setting?.storeName ?? 'POS',
@@ -633,11 +793,16 @@ export class PosService {
         cashierName: `User ${userId}`,
         items: result.receiptItems,
         subtotalAmount: result.subtotalAmount,
-        discountAmount: result.orderDiscountAmount,
+        discountAmount: Number(
+          (result.orderDiscountAmount + result.pointsDiscountAmount).toFixed(2),
+        ),
+        loyaltyDiscountAmount: result.pointsDiscountAmount,
         totalAmount: result.totalAmount,
         customerPaidAmount: Number(result.salesOrder.customerPaidAmount),
         changeAmount: result.changeAmount,
         footerMessage: setting?.receiptFooter ?? setting?.receiptHeader ?? null,
+        redeemedPoints: result.redeemedPoints,
+        earnedPoints: result.earnedPoints,
       },
     };
   }
@@ -719,7 +884,7 @@ export class PosService {
           supplierId: payload.supplierId ?? null,
           createdByUserId: userId,
           approvedByUserId: userId,
-          purchaseOrderCode: payload.purchaseOrderCode,
+          purchaseOrderCode: 'PENDING',
           supplierNameSnapshot: supplier?.name ?? null,
           status: payload.status?.trim() || 'COMPLETED',
           notes: payload.note ?? null,
@@ -731,6 +896,9 @@ export class PosService {
           isActive: true,
         }),
       );
+
+      purchaseOrder.purchaseOrderCode = await this.generatePurchaseOrderCode(manager, purchaseOrder.id);
+      await manager.save(PurchaseOrder, purchaseOrder);
 
       const receiptItems: ReceiptItem[] = [];
 
@@ -1263,10 +1431,12 @@ export class PosService {
         saleMode: payload.saleMode,
         customerName: payload.customerName ?? null,
         customerPhone: payload.customerPhone ?? null,
+        customerId: payload.customerId ?? null,
         note: payload.note ?? null,
         paymentMethod: payload.paymentMethod ?? 'CASH',
         customerPaidAmount: payload.customerPaidAmount.toFixed(2),
         discountAmount: payload.discountAmount.toFixed(2),
+        redeemedPoints: payload.redeemedPoints ?? 0,
         sourceSalesOrderId: payload.sourceSalesOrderId ?? null,
         importDate: payload.importDate ?? null,
         purchaseOrderCode: payload.purchaseOrderCode ?? null,
@@ -1306,6 +1476,8 @@ export class PosService {
       draftTab.customerName = payload.customerName ?? null;
     if (payload.customerPhone !== undefined)
       draftTab.customerPhone = payload.customerPhone ?? null;
+    if (payload.customerId !== undefined)
+      draftTab.customerId = payload.customerId ?? null;
     if (payload.note !== undefined) draftTab.note = payload.note ?? null;
     if (payload.paymentMethod !== undefined)
       draftTab.paymentMethod = payload.paymentMethod;
@@ -1313,6 +1485,8 @@ export class PosService {
       draftTab.customerPaidAmount = payload.customerPaidAmount.toFixed(2);
     if (payload.discountAmount !== undefined)
       draftTab.discountAmount = payload.discountAmount.toFixed(2);
+    if (payload.redeemedPoints !== undefined)
+      draftTab.redeemedPoints = payload.redeemedPoints;
     if (payload.sourceSalesOrderId !== undefined)
       draftTab.sourceSalesOrderId = payload.sourceSalesOrderId ?? null;
     if (payload.importDate !== undefined)
@@ -1550,10 +1724,12 @@ export class PosService {
       saleMode: tab.saleMode,
       customerName: tab.customerName,
       customerPhone: tab.customerPhone,
+      customerId: tab.customerId,
       note: tab.note,
       paymentMethod: tab.paymentMethod,
       customerPaidAmount: Number(tab.customerPaidAmount),
       discountAmount: Number(tab.discountAmount),
+      redeemedPoints: tab.redeemedPoints ?? 0,
       sourceSalesOrderId: tab.sourceSalesOrderId,
       importDate: tab.importDate,
       purchaseOrderCode: tab.purchaseOrderCode,
@@ -1949,6 +2125,175 @@ export class PosService {
     };
   }
 
+  async getCustomerByPhone(phone?: string) {
+    const normalizedPhone = this.normalizePhone(phone);
+
+    if (!normalizedPhone) {
+      return null;
+    }
+
+    const customer = await this.customerRepository.findOne({
+      where: { phoneNumber: normalizedPhone, isActive: true },
+    });
+
+    if (!customer) {
+      return null;
+    }
+
+    return {
+      id: customer.id,
+      phoneNumber: customer.phoneNumber,
+      fullName: customer.fullName,
+      currentPoints: Number(customer.currentPoints),
+    };
+  }
+
+  async searchCustomers(keyword?: string) {
+    const rawKeyword = String(keyword ?? '').trim();
+    if (!rawKeyword) {
+      return { items: [] };
+    }
+
+    const normalizedPhone = this.normalizePhone(rawKeyword);
+    const qb = this.customerRepository
+      .createQueryBuilder('customer')
+      .where('customer.isActive = :isActive', { isActive: true });
+
+    qb.andWhere(
+      new Brackets((subQb) => {
+        if (normalizedPhone) {
+          subQb.where('customer.phoneNumber LIKE :phoneKeyword', {
+            phoneKeyword: `%${normalizedPhone}%`,
+          });
+        }
+
+        subQb.orWhere('customer.fullName LIKE :nameKeyword', {
+          nameKeyword: `%${rawKeyword}%`,
+        });
+      }),
+    );
+
+    const customers = await qb
+      .orderBy('customer.fullName', 'ASC')
+      .addOrderBy('customer.id', 'DESC')
+      .take(10)
+      .getMany();
+
+    return {
+      items: customers.map((customer) => ({
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        fullName: customer.fullName,
+        currentPoints: Number(customer.currentPoints),
+      })),
+    };
+  }
+
+  async upsertCustomerByPhone(input: {
+    phoneNumber?: string | null;
+    fullName?: string | null;
+  }) {
+    const phoneNumber = this.normalizePhone(input.phoneNumber);
+    const fullName = String(input.fullName ?? '').trim();
+
+    if (!phoneNumber) {
+      throw new BadRequestException('Phone number is required');
+    }
+
+    if (!fullName) {
+      throw new BadRequestException('Customer name is required');
+    }
+
+    let customer = await this.customerRepository.findOne({
+      where: { phoneNumber },
+    });
+
+    if (!customer) {
+      customer = this.customerRepository.create({
+        phoneNumber,
+        fullName,
+        currentPoints: 0,
+        isActive: true,
+      });
+    } else {
+      customer.fullName = fullName;
+      customer.isActive = true;
+    }
+
+    const saved = await this.customerRepository.save(customer);
+
+    return {
+      id: saved.id,
+      phoneNumber: saved.phoneNumber,
+      fullName: saved.fullName,
+      currentPoints: Number(saved.currentPoints),
+    };
+  }
+
+  async getCustomerPointHistory(customerId: number) {
+    const customer = await this.customerRepository.findOne({
+      where: { id: customerId, isActive: true },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const items = await this.loyaltyPointTransactionRepository.find({
+      where: { customerId },
+      order: { transactionAt: 'DESC', id: 'DESC' },
+      take: 50,
+    });
+
+    return {
+      customer: {
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        fullName: customer.fullName,
+        currentPoints: Number(customer.currentPoints),
+      },
+      items: items.map((item) => ({
+        id: item.id,
+        salesOrderId: item.salesOrderId,
+        transactionType: item.transactionType,
+        pointsChange: item.pointsChange,
+        balanceAfter: item.balanceAfter,
+        amountBasis: item.amountBasis ? Number(item.amountBasis) : null,
+        expireAt: item.expireAt,
+        notes: item.notes,
+        transactionAt: item.transactionAt,
+      })),
+    };
+  }
+
+  async getLoyaltySettings() {
+    const setting = await this.getOrCreateSetting();
+    return this.toLoyaltySettingsResponse(setting);
+  }
+
+  async updateLoyaltySettings(payload: UpdateLoyaltySettingsDto) {
+    const setting = await this.getOrCreateSetting();
+
+    if (payload.earnAmountPerPoint !== undefined) {
+      setting.loyaltyEarnAmountPerPoint = payload.earnAmountPerPoint.toFixed(2);
+    }
+
+    if (payload.redeemAmountPerPoint !== undefined) {
+      setting.loyaltyRedeemAmountPerPoint = payload.redeemAmountPerPoint.toFixed(2);
+    }
+
+    if (payload.minimumRedeemPoints !== undefined) {
+      setting.loyaltyMinimumRedeemPoints = payload.minimumRedeemPoints;
+    }
+
+    if (payload.pointsExpiryDays !== undefined) {
+      setting.loyaltyPointsExpiryDays = payload.pointsExpiryDays;
+    }
+
+    const saved = await this.settingRepository.save(setting);
+    return this.toLoyaltySettingsResponse(saved);
+  }
+
   async getOverviewRecords(params: { fromDate?: string; toDate?: string }) {
     const fromDate = params.fromDate?.trim()
       ? new Date(`${params.fromDate.trim()}T00:00:00`)
@@ -2004,6 +2349,7 @@ export class PosService {
           partyName: order.supplierNameSnapshot,
           subtotalAmount: Number(order.subtotalAmount),
           discountAmount: Number(order.discountAmount),
+          loyaltyDiscountAmount: 0,
           totalAmount: Number(order.totalAmount),
           costAmount: Number((purchaseCostMap.get(order.id) ?? Number(order.totalAmount)).toFixed(2)),
           revenueAmount: 0,
@@ -2011,19 +2357,25 @@ export class PosService {
         })),
       ...salesOrders
         .filter((order) => order.soldAt >= fromDate && order.soldAt <= toDate)
-        .map((order) => ({
-          id: order.id,
-          recordType: order.orderType === 'RETURN' ? 'RETURN' : 'SALE',
-          code: order.salesOrderCode,
-          status: order.status,
-          partyName: order.customerName,
-          subtotalAmount: Number(order.subtotalAmount),
-          discountAmount: Number(order.discountAmount),
-          totalAmount: Number(order.totalAmount),
-          costAmount: Number((salesCostMap.get(order.id) ?? 0).toFixed(2)),
-          revenueAmount: Number(order.totalAmount),
-          eventAt: order.soldAt,
-        })),
+        .map((order) => {
+          const isReturn = order.orderType === 'RETURN';
+          const costAmount = Number((salesCostMap.get(order.id) ?? 0).toFixed(2));
+
+          return {
+            id: order.id,
+            recordType: isReturn ? 'RETURN' : 'SALE',
+            code: order.salesOrderCode,
+            status: order.status,
+            partyName: order.customerName,
+            subtotalAmount: Number(order.subtotalAmount),
+            discountAmount: Number(order.discountAmount),
+            loyaltyDiscountAmount: Number(order.loyaltyDiscountAmount ?? 0),
+            totalAmount: Number(order.totalAmount),
+            costAmount: isReturn ? -costAmount : costAmount,
+            revenueAmount: isReturn ? -Number(order.totalAmount) : Number(order.totalAmount),
+            eventAt: order.soldAt,
+          };
+        }),
     ].sort(
       (left, right) =>
         new Date(right.eventAt).getTime() - new Date(left.eventAt).getTime() ||
@@ -2059,6 +2411,7 @@ export class PosService {
           partyName: order.supplierNameSnapshot,
           subtotalAmount: Number(order.subtotalAmount),
           discountAmount: Number(order.discountAmount),
+          loyaltyDiscountAmount: 0,
           totalAmount: Number(order.totalAmount),
           costAmount: Number(order.totalAmount),
           revenueAmount: 0,
@@ -2092,6 +2445,14 @@ export class PosService {
         where: { salesOrderId: id },
       });
 
+      const isReturn = normalizedType === 'RETURN';
+      const orderCostAmount = Number(
+        items.reduce(
+          (sum, item) => sum + Number(item.costPrice) * Number(item.quantity),
+          0,
+        ).toFixed(2),
+      );
+
       return {
         header: {
           id: order.id,
@@ -2102,14 +2463,10 @@ export class PosService {
           partyName: order.customerName,
           subtotalAmount: Number(order.subtotalAmount),
           discountAmount: Number(order.discountAmount),
+          loyaltyDiscountAmount: Number(order.loyaltyDiscountAmount ?? 0),
           totalAmount: Number(order.totalAmount),
-          costAmount: Number(
-            items.reduce(
-              (sum, item) => sum + Number(item.costPrice) * Number(item.quantity),
-              0,
-            ).toFixed(2),
-          ),
-          revenueAmount: Number(order.totalAmount),
+          costAmount: isReturn ? -orderCostAmount : orderCostAmount,
+          revenueAmount: isReturn ? -Number(order.totalAmount) : Number(order.totalAmount),
         },
         items: items.map((item, index) => ({
           rowNo: index + 1,
@@ -2119,15 +2476,146 @@ export class PosService {
           unitName: item.unitNameSnapshot,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
-          costPrice: Number(item.costPrice),
-          revenueAmount: Number((Number(item.unitPrice) * Number(item.quantity) - Number(item.discountAmount)).toFixed(2)),
+          costPrice: isReturn ? -Number(item.costPrice) : Number(item.costPrice),
+          revenueAmount: isReturn
+            ? -Number(item.lineTotal)
+            : Number(item.lineTotal),
           discountAmount: Number(item.discountAmount),
-          lineTotal: Number(item.lineTotal),
+          lineTotal: isReturn ? -Number(item.lineTotal) : Number(item.lineTotal),
         })),
       };
     }
 
     throw new BadRequestException('Invalid overview record type');
+  }
+
+  private async getOrCreateSetting() {
+    const existing = await this.settingRepository.findOne({
+      where: {},
+      order: { id: 'ASC' },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    return this.settingRepository.save(
+      this.settingRepository.create({
+        storeName: 'KA MART',
+        storeAddress: null,
+        storePhoneNumber: null,
+        receiptHeader: null,
+        receiptFooter: null,
+        loyaltyEarnAmountPerPoint: '10000.00',
+        loyaltyRedeemAmountPerPoint: '1000.00',
+        loyaltyMinimumRedeemPoints: 10,
+        loyaltyPointsExpiryDays: null,
+      }),
+    );
+  }
+
+  private toLoyaltySettingsResponse(setting: Setting) {
+    return {
+      earnAmountPerPoint: Number(setting.loyaltyEarnAmountPerPoint ?? '10000'),
+      redeemAmountPerPoint: Number(setting.loyaltyRedeemAmountPerPoint ?? '1000'),
+      minimumRedeemPoints: Number(setting.loyaltyMinimumRedeemPoints ?? 10),
+      pointsExpiryDays: setting.loyaltyPointsExpiryDays ?? null,
+    };
+  }
+
+  private normalizePhone(phone?: string | null) {
+    const digits = String(phone ?? '').replace(/\D+/g, '');
+    return digits || null;
+  }
+
+  private async findOrCreateCustomer(
+    manager: EntityManager,
+    customerPhone?: string | null,
+    customerName?: string | null,
+  ) {
+    const normalizedPhone = this.normalizePhone(customerPhone);
+
+    if (!normalizedPhone) {
+      return null;
+    }
+
+    const existing = await manager.findOne(Customer, {
+      where: { phoneNumber: normalizedPhone, isActive: true },
+    });
+
+    if (existing) {
+      if (!existing.fullName && customerName?.trim()) {
+        existing.fullName = customerName.trim();
+        return manager.save(Customer, existing);
+      }
+      return existing;
+    }
+
+    return manager.save(
+      Customer,
+      manager.create(Customer, {
+        phoneNumber: normalizedPhone,
+        fullName: customerName?.trim() || null,
+        currentPoints: 0,
+        isActive: true,
+      }),
+    );
+  }
+
+  private async appendPointTransaction(
+    manager: EntityManager,
+    input: {
+      customer: Customer;
+      salesOrderId?: number | null;
+      transactionType: 'EARN' | 'REDEEM' | 'RETURN_REVERSE';
+      pointsChange: number;
+      amountBasis?: number | null;
+      notes?: string | null;
+      transactionAt: Date;
+      expireAt?: Date | null;
+    },
+  ) {
+    input.customer.currentPoints = Number(
+      (Number(input.customer.currentPoints) + input.pointsChange).toFixed(4),
+    );
+    if (input.customer.currentPoints < 0) {
+      throw new BadRequestException('Customer points cannot be negative');
+    }
+
+    await manager.save(Customer, input.customer);
+
+    await manager.save(
+      LoyaltyPointTransaction,
+      manager.create(LoyaltyPointTransaction, {
+        customerId: input.customer.id,
+        salesOrderId: input.salesOrderId ?? null,
+        transactionType: input.transactionType,
+        pointsChange: input.pointsChange,
+        balanceAfter: input.customer.currentPoints,
+        amountBasis:
+          input.amountBasis === undefined || input.amountBasis === null
+            ? null
+            : input.amountBasis.toFixed(2),
+        notes: input.notes ?? null,
+        transactionAt: input.transactionAt,
+        expireAt: input.expireAt ?? null,
+      }),
+    );
+  }
+
+  private async generatePurchaseOrderCode(
+    manager: EntityManager,
+    purchaseOrderId: number,
+  ) {
+    const previousCount = await manager
+      .createQueryBuilder(PurchaseOrder, 'purchaseOrder')
+      .where('purchaseOrder.Id < :purchaseOrderId', { purchaseOrderId })
+      .getCount();
+
+    const sequence = previousCount + 1;
+    const identity = String(purchaseOrderId).padStart(6, '0');
+
+    return `PNH${String(sequence).padStart(4, '0')}${identity}`;
   }
 
   async createCategory(data: { name: string; isActive?: boolean }) {

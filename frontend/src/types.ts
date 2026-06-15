@@ -12,6 +12,32 @@ export type Supplier = {
   address: string | null;
 };
 
+export type Customer = {
+  id: number;
+  phoneNumber: string;
+  fullName: string | null;
+  currentPoints: number;
+};
+
+export type LoyaltySettings = {
+  earnAmountPerPoint: number;
+  redeemAmountPerPoint: number;
+  minimumRedeemPoints: number;
+  pointsExpiryDays: number | null;
+};
+
+export type LoyaltyPointHistoryItem = {
+  id: number;
+  salesOrderId: number | null;
+  transactionType: string;
+  pointsChange: number;
+  balanceAfter: number;
+  amountBasis: number | null;
+  expireAt: string | null;
+  notes: string | null;
+  transactionAt: string;
+};
+
 export type PosProduct = {
   id: number;
   productUnitId: number;
@@ -71,12 +97,14 @@ export type PosDraftTab = {
   tabType: string;
   title: string;
   saleMode: string;
+  customerId?: number | null;
   customerName: string | null;
   customerPhone: string | null;
   note: string | null;
   paymentMethod: string;
   customerPaidAmount: number;
   discountAmount: number;
+  redeemedPoints?: number;
   sourceSalesOrderId: number | null;
   importDate?: string | null;
   purchaseOrderCode?: string | null;
@@ -107,6 +135,10 @@ export type ReturnCheckoutResponse = {
     totalAmount: number;
     customerRefundAmount: number;
     paymentMethod: string;
+    customer: Customer | null;
+    loyalty: {
+      reversedPoints: number;
+    };
   };
   receiptData: {
     storeName: string;
@@ -128,6 +160,7 @@ export type ReturnCheckoutResponse = {
     totalAmount: number;
     customerRefundAmount: number;
     footerMessage: string | null;
+    reversedPoints?: number;
   };
 };
 
@@ -194,10 +227,17 @@ export type CheckoutResponse = {
     itemCount: number;
     subtotalAmount: number;
     discountAmount: number;
+    loyaltyDiscountAmount: number;
     totalAmount: number;
     customerPaidAmount: number;
     changeAmount: number;
     paymentMethod: string;
+    customer: Customer | null;
+    loyalty: {
+      redeemedPoints: number;
+      earnedPoints: number;
+      loyaltyDiscountAmount: number;
+    };
   };
   receiptData: {
     storeName: string;
@@ -215,10 +255,13 @@ export type CheckoutResponse = {
     }>;
     subtotalAmount: number;
     discountAmount: number;
+    loyaltyDiscountAmount?: number;
     totalAmount: number;
     customerPaidAmount: number;
     changeAmount: number;
     footerMessage: string | null;
+    redeemedPoints?: number;
+    earnedPoints?: number;
   };
 };
 
@@ -230,6 +273,7 @@ export type OverviewRecord = {
   partyName: string | null;
   subtotalAmount: number;
   discountAmount: number;
+  loyaltyDiscountAmount: number;
   totalAmount: number;
   costAmount: number;
   revenueAmount: number;
@@ -340,4 +384,13 @@ export type PurchaseMeta = {
   supplierId: number | null;
   status: string;
   supplierPaidAmount: number;
+};
+
+export type LoyaltyHistoryResponse = {
+  customer: Customer;
+  items: LoyaltyPointHistoryItem[];
+};
+
+export type CustomerSearchResponse = {
+  items: Customer[];
 };

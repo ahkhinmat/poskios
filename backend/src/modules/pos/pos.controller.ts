@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PosService } from './pos.service';
+import { ProductImportService } from './product-import.service';
 import { CreatePosDraftTabDto } from './dto/create-pos-draft-tab.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { PosCheckoutDto } from './dto/pos-checkout.dto';
@@ -26,6 +27,7 @@ import { ResolvePosProductQueryDto } from './dto/resolve-pos-product-query.dto';
 import { SearchPosProductsQueryDto } from './dto/search-pos-products-query.dto';
 import { UpdatePosDraftTabDto } from './dto/update-pos-draft-tab.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 
 type UploadedExcelFile = {
   originalname: string;
@@ -34,7 +36,10 @@ type UploadedExcelFile = {
 
 @Controller('pos')
 export class PosController {
-  constructor(private readonly posService: PosService) {}
+  constructor(
+    private readonly posService: PosService,
+    private readonly productImportService: ProductImportService,
+  ) {}
 
   // ── Product Management CRUD (before param routes) ──
 
@@ -128,6 +133,19 @@ export class PosController {
   @UseInterceptors(FileInterceptor('file'))
   async importProductsExcel(@UploadedFile() file?: UploadedExcelFile) {
     const data = await this.posService.importProductsExcel(file);
+
+    return {
+      success: true,
+      message: 'Import successful',
+      data,
+    };
+  }
+
+  @Post('products/import/upsert')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  async importProductsUpsert(@UploadedFile() file?: UploadedExcelFile) {
+    const data = await this.productImportService.importExcel(file);
 
     return {
       success: true,
@@ -263,6 +281,78 @@ export class PosController {
   @Get('suppliers')
   async listSuppliers(@Query('keyword') keyword?: string) {
     const data = await this.posService.listSuppliers(keyword);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Get('customers/by-phone')
+  async getCustomerByPhone(@Query('phone') phone?: string) {
+    const data = await this.posService.getCustomerByPhone(phone);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Get('customers/search')
+  async searchCustomers(@Query('keyword') keyword?: string) {
+    const data = await this.posService.searchCustomers(keyword);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Post('customers/upsert-by-phone')
+  async upsertCustomerByPhone(
+    @Body()
+    body: {
+      phoneNumber?: string | null;
+      fullName?: string | null;
+    },
+  ) {
+    const data = await this.posService.upsertCustomerByPhone(body);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Get('customers/:id/point-history')
+  async getCustomerPointHistory(@Param('id', ParseIntPipe) id: number) {
+    const data = await this.posService.getCustomerPointHistory(id);
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Get('loyalty/settings')
+  async getLoyaltySettings() {
+    const data = await this.posService.getLoyaltySettings();
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Put('loyalty/settings')
+  async updateLoyaltySettings(@Body() body: UpdateLoyaltySettingsDto) {
+    const data = await this.posService.updateLoyaltySettings(body);
 
     return {
       success: true,

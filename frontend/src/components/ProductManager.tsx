@@ -6,7 +6,9 @@ import {
   Modal,
   Select,
   Tag,
+  Upload,
 } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import type { InputRef } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
@@ -46,6 +48,19 @@ export function ProductManager({ open, onClose }: Props) {
   const [units, setUnits] = useState<{ id: number; name: string }[]>([]);
   const barcodeRef = useRef<InputRef>(null);
 
+  const [importOpen, setImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importProgressText, setImportProgressText] = useState('');
+  const [importResult, setImportResult] = useState<{
+    fileName: string;
+    totalRows: number;
+    createdProducts: number;
+    updatedProducts: number;
+  } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const importStartRef = useRef(0);
+  const [elapsedSec, setElapsedSec] = useState(0);
+
   async function loadPage(p: number, keyword: string, append = false) {
     setLoading(true);
     try {
@@ -79,6 +94,14 @@ export function ProductManager({ open, onClose }: Props) {
     if (!open) return;
     resetSearch('');
   }, [open]);
+
+  useEffect(() => {
+    if (!importing) { setElapsedSec(0); return; }
+    const id = setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - importStartRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [importing]);
 
   function handleScroll(e: React.UIEvent<HTMLDivElement>) {
     const el = e.currentTarget;
@@ -199,6 +222,9 @@ export function ProductManager({ open, onClose }: Props) {
         <Button type="primary" onClick={() => openForm()}>
           {LANG.addProduct}
         </Button>
+        <Button icon={<UploadOutlined />} onClick={() => { setImportOpen(true); setImportResult(null); setImportError(null); }}>
+          Import Excel
+        </Button>
       </div>
 
       <div className="product-grid-head">
@@ -313,6 +339,89 @@ export function ProductManager({ open, onClose }: Props) {
             onChange={(v) => setFormStockOnHand(v ?? 0)}
             style={{ width: '100%' }}
           />
+        </div>
+      </Modal>
+
+      <Modal
+        title="Import sản phẩm từ Excel"
+        open={importOpen}
+        onCancel={() => { setImportOpen(false); setImportResult(null); setImportError(null); }}
+        footer={null}
+        width={500}
+        destroyOnClose
+      >
+        <div style={{ padding: '16px 0' }}>
+          <Upload.Dragger
+            key={importResult ? 'result' : 'upload'}
+            name="file"
+            accept=".xlsx"
+            showUploadList={false}
+            disabled={importing || !!importResult}
+              customRequest={async (options) => {
+              setImporting(true);
+              setImportError(null);
+              setImportResult(null);
+              importStartRef.current = Date.now();
+              setImportProgressText('Đang phân tích file Excel...');
+              try {
+                const formData = new FormData();
+                formData.append('file', options.file as File);
+                setImportProgressText('Đang xử lý...');
+                const res = await api.post<ApiEnvelope<{
+                  fileName: string;
+                  totalRows: number;
+                  createdProducts: number;
+                  updatedProducts: number;
+                }>>('/pos/products/import/upsert', formData);
+                setImportResult(res.data.data);
+                message.success(`Import hoàn tất: ${res.data.data.totalRows} dòng (tạo ${res.data.data.createdProducts}, cập nhật ${res.data.data.updatedProducts})`);
+                resetSearch(searchKeywordRef.current);
+              } catch (err: any) {
+                const msg = err?.response?.data?.message ?? err?.message ?? 'Import thất bại';
+                setImportError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+              } finally {
+                setImporting(false);
+              }
+            }}
+          >
+            {importResult ? (
+              <div style={{ textAlign: 'center', padding: 20 }}>
+                <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: '#52c41a' }}>Import thành công</div>
+                <div>Tên file: {importResult.fileName}</div>
+                <div>Tổng số dòng: {importResult.totalRows}</div>
+                <div>Thêm mới: {importResult.createdProducts}</div>
+                <div>Cập nhật: {importResult.updatedProducts}</div>
+              </div>
+            ) : importing ? (
+              <div style={{ textAlign: 'center', padding: 20 }}>
+                <div style={{ fontSize: 16, color: '#1890ff', marginBottom: 8 }}>Đang import...</div>
+                <div style={{ color: '#555', marginBottom: 4 }}>{importProgressText}</div>
+                <div style={{ color: '#888', fontSize: 13 }}>Đã chạy: {elapsedSec}s</div>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: 20 }}>
+                <p className="ant-upload-drag-icon">
+                  <UploadOutlined style={{ fontSize: 48, color: '#40a9ff' }} />
+                </p>
+                <p className="ant-upload-text">Nhấp hoặc kéo thả file Excel vào đây</p>
+                <p className="ant-upload-hint">Chỉ hỗ trợ file .xlsx</p>
+              </div>
+            )}
+          </Upload.Dragger>
+
+          {importError && (
+            <div style={{ textAlign: 'center', marginTop: 12, color: '#ff4d4f' }}>
+              {importError}
+            </div>
+          )}
+
+          {importResult && (
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <Button onClick={() => { setImportOpen(false); setImportResult(null); setImportError(null); }}>
+                Đóng
+              </Button>
+            </div>
+          )}
         </div>
       </Modal>
     </Modal>

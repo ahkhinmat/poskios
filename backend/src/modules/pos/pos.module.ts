@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PosController } from './pos.controller';
 import { PosService } from './pos.service';
+import { ProductImportService } from './product-import.service';
 import { ReturnsController } from './returns.controller';
 import { Product } from './entities/product.entity';
 import { ProductUnit } from './entities/product-unit.entity';
@@ -16,12 +17,16 @@ import { Setting } from './entities/setting.entity';
 import { Supplier } from './entities/supplier.entity';
 import { PurchaseOrder } from './entities/purchase-order.entity';
 import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
+import { Customer } from './entities/customer.entity';
+import { LoyaltyPointTransaction } from './entities/loyalty-point-transaction.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Category,
+      Customer,
       InventoryTransaction,
+      LoyaltyPointTransaction,
       Setting,
       Supplier,
       PurchaseOrder,
@@ -36,6 +41,6 @@ import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
     ]),
   ],
   controllers: [PosController, ReturnsController],
-  providers: [PosService],
+  providers: [PosService, ProductImportService],
 })
 export class PosModule {}

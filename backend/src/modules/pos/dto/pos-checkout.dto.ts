@@ -41,6 +41,11 @@ export class PosCheckoutDto {
   @IsNumber()
   discountAmount = 0;
 
+  @IsOptional()
+  @Transform(({ value }) => Number(value ?? 0))
+  @IsNumber()
+  redeemedPoints?: number;
+
   @IsString()
   @MaxLength(30)
   paymentMethod!: string;

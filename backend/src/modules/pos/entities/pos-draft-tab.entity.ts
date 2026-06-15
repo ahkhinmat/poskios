@@ -1,10 +1,6 @@
-import {
-  Column,
-  Entity,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { PosDraftTabItem } from './pos-draft-tab-item.entity';
+import { decimalNumberTransformer } from './decimal.transformer';
 
 @Entity({ name: 'PosDraftTabs' })
 export class PosDraftTab {
@@ -31,6 +27,19 @@ export class PosDraftTab {
 
   @Column({ name: 'CustomerPhone', type: 'nvarchar', length: 30, nullable: true })
   customerPhone!: string | null;
+
+  @Column({ name: 'CustomerId', type: 'int', nullable: true })
+  customerId!: number | null;
+
+  @Column({
+    name: 'RedeemedPoints',
+    type: 'decimal',
+    precision: 18,
+    scale: 4,
+    nullable: true,
+    transformer: decimalNumberTransformer,
+  })
+  redeemedPoints!: number | null;
 
   @Column({ name: 'Note', type: 'nvarchar', length: 500, nullable: true })
   note!: string | null;
