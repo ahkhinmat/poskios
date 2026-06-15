@@ -18,6 +18,7 @@ import { OverviewService } from './services/overview.service';
 import { ProductService } from './services/product.service';
 import { PurchaseOrderService } from './services/purchase-order.service';
 import { SalesOrderService } from './services/sales-order.service';
+import { SettingService } from './services/setting.service';
 
 type UploadedExcelFile = {
   originalname: string;
@@ -37,6 +38,7 @@ export class PosService {
     private readonly overviewService: OverviewService,
     private readonly categorySupplierService: CategorySupplierService,
     private readonly productImportService: ProductImportService,
+    private readonly settingService: SettingService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -52,7 +54,7 @@ export class PosService {
   }
 
   async returnCheckout(userId: number, payload: ReturnCheckoutDto) {
-    const setting = await this.customerLoyaltyService.getOrCreateSetting();
+    const setting = await this.settingService.getOrCreateSetting();
     return this.salesOrderService.returnCheckout(userId, payload, setting);
   }
 
@@ -60,7 +62,7 @@ export class PosService {
 
   async checkout(userId: number, payload: PosCheckoutDto) {
     this.logger.log(`User ${userId} checking out: ${payload.items?.length ?? 0} items`);
-    const setting = await this.customerLoyaltyService.getOrCreateSetting();
+    const setting = await this.settingService.getOrCreateSetting();
     return this.salesOrderService.checkout(userId, payload, setting);
   }
 

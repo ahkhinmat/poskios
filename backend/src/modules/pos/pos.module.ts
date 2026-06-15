@@ -9,6 +9,7 @@ import { CustomerLoyaltyService } from './services/customer-loyalty.service';
 import { DraftTabService } from './services/draft-tab.service';
 import { OverviewService } from './services/overview.service';
 import { ProductService } from './services/product.service';
+import { SettingService } from './services/setting.service';
 import { PurchaseOrderService } from './services/purchase-order.service';
 import { SalesOrderService } from './services/sales-order.service';
 import { Product } from './entities/product.entity';
@@ -37,6 +38,7 @@ const SERVICES = [
   CustomerLoyaltyService,
   OverviewService,
   CategorySupplierService,
+  SettingService,
 ];
 
 @Module({

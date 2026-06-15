@@ -5,6 +5,7 @@ import { UpdateLoyaltySettingsDto } from '../dto/update-loyalty-settings.dto';
 import { Customer } from '../entities/customer.entity';
 import { LoyaltyPointTransaction } from '../entities/loyalty-point-transaction.entity';
 import { Setting } from '../entities/setting.entity';
+import { SettingService } from './setting.service';
 
 @Injectable()
 export class CustomerLoyaltyService {
@@ -15,6 +16,7 @@ export class CustomerLoyaltyService {
     private readonly loyaltyPointTransactionRepository: Repository<LoyaltyPointTransaction>,
     @InjectRepository(Setting)
     private readonly settingRepository: Repository<Setting>,
+    private readonly settingService: SettingService,
   ) {}
 
   async getCustomerByPhone(phone?: string) {
@@ -100,12 +102,12 @@ export class CustomerLoyaltyService {
   }
 
   async getLoyaltySettings() {
-    const setting = await this.getOrCreateSetting();
+    const setting = await this.settingService.getOrCreateSetting();
     return this.toLoyaltySettingsResponse(setting);
   }
 
   async updateLoyaltySettings(payload: UpdateLoyaltySettingsDto) {
-    const setting = await this.getOrCreateSetting();
+    const setting = await this.settingService.getOrCreateSetting();
 
     if (payload.earnAmountPerPoint !== undefined) setting.loyaltyEarnAmountPerPoint = payload.earnAmountPerPoint.toFixed(2);
     if (payload.redeemAmountPerPoint !== undefined) setting.loyaltyRedeemAmountPerPoint = payload.redeemAmountPerPoint.toFixed(2);
@@ -114,19 +116,6 @@ export class CustomerLoyaltyService {
 
     const saved = await this.settingRepository.save(setting);
     return this.toLoyaltySettingsResponse(saved);
-  }
-
-  async getOrCreateSetting() {
-    const existing = await this.settingRepository.findOne({ where: {}, order: { id: 'ASC' } });
-
-    if (existing) return existing;
-
-    return this.settingRepository.save(this.settingRepository.create({
-      storeName: 'KA MART', storeAddress: null, storePhoneNumber: null,
-      receiptHeader: null, receiptFooter: null,
-      loyaltyEarnAmountPerPoint: '10000.00', loyaltyRedeemAmountPerPoint: '1000.00',
-      loyaltyMinimumRedeemPoints: 10, loyaltyPointsExpiryDays: null,
-    }));
   }
 
   private toLoyaltySettingsResponse(setting: Setting) {

@@ -1,18 +1,24 @@
-﻿import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
+﻿import { lazy, Suspense } from 'react';
+import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { App as AntApp, ConfigProvider, Spin, theme } from 'antd';
 import { AuthProvider, useAuth } from './auth-context';
-import { LoginPage } from './pages/LoginPage';
-import { PosPage } from './pages/PosPage';
+
+const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
+const PosPage = lazy(() => import('./pages/PosPage').then((m) => ({ default: m.PosPage })));
+
+function PageLoading() {
+  return (
+    <div className="screen-center">
+      <Spin size="large" />
+    </div>
+  );
+}
 
 function ProtectedRoute() {
   const { user } = useAuth();
 
   if (user === undefined) {
-    return (
-      <div className="screen-center">
-        <Spin size="large" />
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (!user) {
@@ -26,13 +32,15 @@ function AppRoutes() {
   const { user } = useAuth();
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={user ? <Navigate to="/" replace /> : <LoginPage />}
-      />
-      <Route path="/*" element={<ProtectedRoute />} />
-    </Routes>
+    <Suspense fallback={<PageLoading />}>
+      <Routes>
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/" replace /> : <LoginPage />}
+        />
+        <Route path="/*" element={<ProtectedRoute />} />
+      </Routes>
+    </Suspense>
   );
 }
 

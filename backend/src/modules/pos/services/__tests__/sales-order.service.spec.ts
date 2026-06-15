@@ -3,6 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { BadRequestException } from '@nestjs/common';
 import { SalesOrderService } from '../sales-order.service';
+import { PosCheckoutDto } from '../../dto/pos-checkout.dto';
+import { ReturnCheckoutDto } from '../../dto/return-checkout.dto';
 import { SalesOrder } from '../../entities/sales-order.entity';
 import { SalesOrderItem } from '../../entities/sales-order-item.entity';
 import { Product } from '../../entities/product.entity';
@@ -35,7 +37,7 @@ describe('SalesOrderService', () => {
   describe('checkout', () => {
     it('should throw BadRequestException when cart is empty', async () => {
       await expect(
-        service.checkout(1, { items: [] } as any, {} as Setting),
+        service.checkout(1, { items: [] } as unknown as PosCheckoutDto, {} as Setting),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -43,7 +45,7 @@ describe('SalesOrderService', () => {
   describe('returnCheckout', () => {
     it('should throw BadRequestException when cart is empty', async () => {
       await expect(
-        service.returnCheckout(1, { sourceSalesOrderId: 1, items: [] } as any, {} as Setting),
+        service.returnCheckout(1, { sourceSalesOrderId: 1, items: [] } as unknown as ReturnCheckoutDto, {} as Setting),
       ).rejects.toThrow(BadRequestException);
     });
   });

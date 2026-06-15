@@ -7,8 +7,8 @@ import { ProductUnit } from '../entities/product-unit.entity';
 import { Product } from '../entities/product.entity';
 import { PurchaseOrderItem } from '../entities/purchase-order-item.entity';
 import { PurchaseOrder } from '../entities/purchase-order.entity';
-import { Setting } from '../entities/setting.entity';
 import { Supplier } from '../entities/supplier.entity';
+import { SettingService } from './setting.service';
 
 type ReceiptItem = {
   productName: string;
@@ -33,12 +33,13 @@ export class PurchaseOrderService {
     private readonly productUnitRepository: Repository<ProductUnit>,
     @InjectRepository(Supplier)
     private readonly supplierRepository: Repository<Supplier>,
+    private readonly settingService: SettingService,
   ) {}
 
   async purchaseCheckout(userId: number, payload: PurchaseCheckoutDto) {
     if (!payload.items.length) throw new BadRequestException('Purchase cart is empty');
 
-    const setting = await this.getOrCreateSetting();
+    const setting = await this.settingService.getOrCreateSetting();
     const supplier = payload.supplierId != null
       ? await this.supplierRepository.findOne({ where: { id: payload.supplierId, isActive: true as never } } as never)
       : null;
@@ -181,20 +182,6 @@ export class PurchaseOrderService {
         footerMessage: setting?.receiptFooter ?? setting?.receiptHeader ?? null,
       },
     };
-  }
-
-  async getOrCreateSetting() {
-    const settingRepo = this.purchaseOrderRepository.manager.getRepository(Setting);
-    const existing = await settingRepo.findOne({ where: {}, order: { id: 'ASC' } });
-
-    if (existing) return existing;
-
-    return settingRepo.save(settingRepo.create({
-      storeName: 'KA MART', storeAddress: null, storePhoneNumber: null,
-      receiptHeader: null, receiptFooter: null,
-      loyaltyEarnAmountPerPoint: '10000.00', loyaltyRedeemAmountPerPoint: '1000.00',
-      loyaltyMinimumRedeemPoints: 10, loyaltyPointsExpiryDays: null,
-    }));
   }
 
   private async generatePurchaseOrderCode(manager: DataSource['manager'], purchaseOrderId: number) {

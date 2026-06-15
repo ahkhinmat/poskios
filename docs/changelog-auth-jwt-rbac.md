@@ -81,3 +81,48 @@
 ## VSCode settings
 
 - `.vscode/settings.json` — formatOnSave, prettier default, single quote, UTF-8 LF
+
+## Xoa `as any` — type safety
+
+4 occurrences da duoc thay the bang kieu chinh xac:
+
+| File | Dòng | Truoc | Sau |
+|------|------|-------|-----|
+| `sales-order.service.spec.ts` | 38, 46 | `as any` | `as unknown as PosCheckoutDto` / `ReturnCheckoutDto` |
+| `usePosPage.ts` | 1248, 1303 | `{ data: ..., ... } as any` | `{ ...receiptData, ... }` (spread) |
+- Khong con `as any` nao trong codebase
+
+## Consolidate `getOrCreateSetting()`
+
+- Tao `SettingService` moi (`services/setting.service.ts`) — `@Injectable()` voi `@InjectRepository(Setting)`
+- `CustomerLoyaltyService` — inject `SettingService`, xoa method `getOrCreateSetting()` duplicate
+- `PurchaseOrderService` — inject `SettingService`, xoa method `getOrCreateSetting()` duplicate
+- `PosService` — inject `SettingService`, dung thay cho `customerLoyaltyService.getOrCreateSetting()`
+- `pos.module.ts` — them `SettingService` vao SERVICES array
+
+## Tach components tu PosPage (943 → 446 dong)
+
+| Component | File | JSX dong | Chuc nang |
+|-----------|------|----------|-----------|
+| SaleList | `components/SaleList.tsx` | 96 | Danh sach items ban hang |
+| PurchaseTable | `components/PurchaseTable.tsx` | 97 | Bang nhap hang |
+| OverviewView | `components/OverviewView.tsx` | 92 | Dashboard tong quan |
+| ReturnSearchPanel | `components/ReturnSearchPanel.tsx` | 73 | Tim hoa don tra hang |
+| PosModals | `components/PosModals.tsx` | 215 | 8 modal dialogs (close tab, receipt, lich su tich diem, ten KH, cau hinh tich diem, SupplierManager, ProductManager, password) |
+
+Moi component nhan props kieu dinh (typed props), khong con phu thuoc vao object `p` tu `usePosPage`.
+
+## Code-split route-level (React.lazy)
+
+- `LoginPage` va `PosPage` duoc lazy-load rieng (chunk rieng)
+- `App.tsx` dung `Suspense` voi `PageLoading` fallback
+- Kich thuoc chunk: LoginPage **3.5 KB**, PosPage **501 KB** (giam tu ~1.14 MB)
+
+## Integration tests (e2e)
+
+| File | Tests | Mo ta |
+|------|-------|-------|
+| `test/pos-checkout.e2e-spec.ts` | 3 | Empty cart reject, empty return reject, checkout validation |
+| `test/app.e2e-spec.ts` | 1 | Sua test cho response format moi |
+
+`npm run test:e2e` — 3 passed, `npm test` — 7 passed.
