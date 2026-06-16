@@ -225,7 +225,7 @@ export function useSearch(
     const debounceTimer = window.setTimeout(() => {
       searchKeywordRef.current = keyword;
       void searchProducts(keyword, false, true);
-    }, 250);
+    }, appSettings?.searchDebounceMs ?? 250);
 
     return () => {
       window.clearTimeout(debounceTimer);

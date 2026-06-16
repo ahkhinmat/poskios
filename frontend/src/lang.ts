@@ -390,6 +390,10 @@ export const LANG = {
   settingsDefaultAddQuantity: 'SL mặc định thêm',
   settingsOverviewPassword: 'Mật khẩu tổng quan',
   settingsCashierLabel: 'Nhãn thu ngân',
+  settingsProductManagerPageSize: 'Số dòng QL SP',
+  settingsSearchDebounceMs: 'Delay tìm kiếm (ms)',
+  settingsAutoSaveDebounceMs: 'Delay tự lưu (ms)',
+  settingsPaymentMethods: 'PT Thanh toán (dấu phẩy)',
 } as const;
 
 export type LangKeys = keyof typeof LANG;

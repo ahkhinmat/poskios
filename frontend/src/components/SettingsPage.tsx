@@ -39,6 +39,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultAddQuantity: 1,
   overviewPassword: '11111',
   cashierLabel: 'Thu ngân',
+  productManagerPageSize: 30,
+  searchDebounceMs: 250,
+  autoSaveDebounceMs: 500,
+  paymentMethods: 'CASH,BANK_TRANSFER,CARD,EWALLET',
   loyaltyEarnAmountPerPoint: 10000,
   loyaltyRedeemAmountPerPoint: 1000,
   loyaltyMinimumRedeemPoints: 10,
@@ -286,9 +290,25 @@ export function SettingsPage({ open, onClose }: Props) {
                 <span className="settings-row-label">{LANG.settingsDefaultAddQuantity}</span>
                 <span className="settings-row-value">{settings.defaultAddQuantity}</span>
               </button>
+              <button type="button" className="settings-row" onClick={() => openEditor({ key: 'searchDebounceMs', label: LANG.settingsSearchDebounceMs, type: 'number' })}>
+                <span className="settings-row-label">{LANG.settingsSearchDebounceMs}</span>
+                <span className="settings-row-value">{settings.searchDebounceMs}ms</span>
+              </button>
+              <button type="button" className="settings-row" onClick={() => openEditor({ key: 'autoSaveDebounceMs', label: LANG.settingsAutoSaveDebounceMs, type: 'number' })}>
+                <span className="settings-row-label">{LANG.settingsAutoSaveDebounceMs}</span>
+                <span className="settings-row-value">{settings.autoSaveDebounceMs}ms</span>
+              </button>
+              <button type="button" className="settings-row" onClick={() => openEditor({ key: 'paymentMethods', label: LANG.settingsPaymentMethods, type: 'text-short' })}>
+                <span className="settings-row-label">{LANG.settingsPaymentMethods}</span>
+                <span className="settings-row-value">{settings.paymentMethods}</span>
+              </button>
               <button type="button" className="settings-row" onClick={() => openEditor({ key: 'overviewPassword', label: LANG.settingsOverviewPassword, type: 'text-short' })}>
                 <span className="settings-row-label">{LANG.settingsOverviewPassword}</span>
                 <span className="settings-row-value">{'•'.repeat(settings.overviewPassword.length)}</span>
+              </button>
+              <button type="button" className="settings-row" onClick={() => openEditor({ key: 'productManagerPageSize', label: LANG.settingsProductManagerPageSize, type: 'number' })}>
+                <span className="settings-row-label">{LANG.settingsProductManagerPageSize}</span>
+                <span className="settings-row-value">{settings.productManagerPageSize}</span>
               </button>
             </div>
           </div>

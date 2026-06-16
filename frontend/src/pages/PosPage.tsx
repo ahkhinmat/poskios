@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   App as AntApp,
   Button,
@@ -32,12 +32,12 @@ import { SaleList } from '../components/SaleList';
 import { SettingsPage } from '../components/SettingsPage';
 import { usePosPage } from '../hooks/usePosPage';
 
-const paymentOptions = [
-  { label: LANG.cash, value: 'CASH' },
-  { label: LANG.bankTransfer, value: 'BANK_TRANSFER' },
-  { label: LANG.card, value: 'CARD' },
-  { label: LANG.ewallet, value: 'EWALLET' },
-];
+const PAYMENT_LABEL_MAP: Record<string, string> = {
+  CASH: LANG.cash,
+  BANK_TRANSFER: LANG.bankTransfer,
+  CARD: LANG.card,
+  EWALLET: LANG.ewallet,
+};
 
 const BUILD_VERSION = __APP_BUILD_VERSION__;
 
@@ -52,6 +52,14 @@ export function PosPage() {
   const { message } = AntApp.useApp();
   const p = usePosPage();
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const paymentOptions = useMemo(() => {
+    const methods = p.appSettings?.paymentMethods ?? 'CASH,BANK_TRANSFER,CARD,EWALLET';
+    return methods.split(',').map((code) => ({
+      value: code.trim(),
+      label: PAYMENT_LABEL_MAP[code.trim()] ?? code.trim(),
+    }));
+  }, [p.appSettings?.paymentMethods]);
 
   if (p.loading) {
     return (

@@ -27,6 +27,10 @@ const DEFAULTS = {
   defaultAddQuantity: 1,
   overviewPassword: '11111',
   cashierLabel: 'Thu ngân',
+  productManagerPageSize: 30,
+  searchDebounceMs: 250,
+  autoSaveDebounceMs: 500,
+  paymentMethods: 'CASH,BANK_TRANSFER,CARD,EWALLET',
   loyaltyEarnAmountPerPoint: '10000.00',
   loyaltyRedeemAmountPerPoint: '1000.00',
   loyaltyMinimumRedeemPoints: 10,
@@ -71,6 +75,10 @@ export class SettingService {
       defaultAddQuantity: Number(s.defaultAddQuantity),
       overviewPassword: s.overviewPassword,
       cashierLabel: s.cashierLabel,
+      productManagerPageSize: s.productManagerPageSize ?? 30,
+      searchDebounceMs: s.searchDebounceMs ?? 250,
+      autoSaveDebounceMs: s.autoSaveDebounceMs ?? 500,
+      paymentMethods: s.paymentMethods ?? 'CASH,BANK_TRANSFER,CARD,EWALLET',
       loyaltyEarnAmountPerPoint: Number(s.loyaltyEarnAmountPerPoint ?? '10000'),
       loyaltyRedeemAmountPerPoint: Number(s.loyaltyRedeemAmountPerPoint ?? '1000'),
       loyaltyMinimumRedeemPoints: Number(s.loyaltyMinimumRedeemPoints ?? 10),
@@ -103,6 +111,10 @@ export class SettingService {
     if (payload.defaultAddQuantity !== undefined) s.defaultAddQuantity = payload.defaultAddQuantity;
     if (payload.overviewPassword !== undefined) s.overviewPassword = payload.overviewPassword;
     if (payload.cashierLabel !== undefined) s.cashierLabel = payload.cashierLabel;
+    if (payload.productManagerPageSize !== undefined) s.productManagerPageSize = payload.productManagerPageSize;
+    if (payload.searchDebounceMs !== undefined) s.searchDebounceMs = payload.searchDebounceMs;
+    if (payload.autoSaveDebounceMs !== undefined) s.autoSaveDebounceMs = payload.autoSaveDebounceMs;
+    if (payload.paymentMethods !== undefined) s.paymentMethods = payload.paymentMethods || null;
     if (payload.loyaltyEarnAmountPerPoint !== undefined) s.loyaltyEarnAmountPerPoint = payload.loyaltyEarnAmountPerPoint?.toFixed(2) ?? null;
     if (payload.loyaltyRedeemAmountPerPoint !== undefined) s.loyaltyRedeemAmountPerPoint = payload.loyaltyRedeemAmountPerPoint?.toFixed(2) ?? null;
     if (payload.loyaltyMinimumRedeemPoints !== undefined) s.loyaltyMinimumRedeemPoints = payload.loyaltyMinimumRedeemPoints ?? null;
@@ -132,6 +144,10 @@ export class SettingService {
       defaultAddQuantity: Number(saved.defaultAddQuantity),
       overviewPassword: saved.overviewPassword,
       cashierLabel: saved.cashierLabel,
+      productManagerPageSize: saved.productManagerPageSize ?? 30,
+      searchDebounceMs: saved.searchDebounceMs ?? 250,
+      autoSaveDebounceMs: saved.autoSaveDebounceMs ?? 500,
+      paymentMethods: saved.paymentMethods ?? 'CASH,BANK_TRANSFER,CARD,EWALLET',
       loyaltyEarnAmountPerPoint: Number(saved.loyaltyEarnAmountPerPoint ?? '10000'),
       loyaltyRedeemAmountPerPoint: Number(saved.loyaltyRedeemAmountPerPoint ?? '1000'),
       loyaltyMinimumRedeemPoints: Number(saved.loyaltyMinimumRedeemPoints ?? 10),

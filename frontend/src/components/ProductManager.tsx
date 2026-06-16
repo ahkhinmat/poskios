@@ -22,14 +22,13 @@ type Props = {
   onClose: () => void;
 };
 
-const PAGE_SIZE = 30;
-
 export function ProductManager({ open, onClose }: Props) {
   const { message } = AntApp.useApp();
   const [products, setProducts] = useState<ManageProduct[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
   const searchKeywordRef = useRef('');
   const bodyRef = useRef<HTMLDivElement>(null);
   const [editingProduct, setEditingProduct] = useState<ManageProduct | null>(null);
@@ -62,12 +61,26 @@ export function ProductManager({ open, onClose }: Props) {
   const importStartRef = useRef(0);
   const [elapsedSec, setElapsedSec] = useState(0);
 
-  async function loadPage(p: number, keyword: string, append = false) {
+  useEffect(() => {
+    if (!open) return;
+    api.get<ApiEnvelope<{ productManagerPageSize: number }>>('/pos/settings').then((res) => {
+      const ps = res.data.data.productManagerPageSize ?? 30;
+      setPageSize(ps);
+      searchKeywordRef.current = '';
+      setPage(1);
+      setProducts([]);
+      void loadPage(1, '', false, ps);
+    }).catch(() => {
+      void loadPage(1, '', false, 30);
+    });
+  }, [open]);
+
+  async function loadPage(p: number, keyword: string, append = false, ps?: number) {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       params.set('page', String(p));
-      params.set('pageSize', String(PAGE_SIZE));
+      params.set('pageSize', String(ps ?? pageSize));
       if (keyword.trim()) params.set('keyword', keyword.trim());
       const res = await api.get<ApiEnvelope<{ items: ManageProduct[]; total: number }>>(`/pos/products/manage?${params}`);
       if (append) {
@@ -90,11 +103,6 @@ export function ProductManager({ open, onClose }: Props) {
     setProducts([]);
     void loadPage(1, value);
   }
-
-  useEffect(() => {
-    if (!open) return;
-    resetSearch('');
-  }, [open]);
 
   useEffect(() => {
     if (!importing) { setElapsedSec(0); return; }

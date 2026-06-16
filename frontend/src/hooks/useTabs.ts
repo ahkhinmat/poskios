@@ -507,7 +507,7 @@ export function useTabs(
 
     saveTimerRef.current = window.setTimeout(() => {
       void persistDraftTab(activeTab);
-    }, 500);
+    }, appSettings?.autoSaveDebounceMs ?? 500);
 
     return () => {
       if (saveTimerRef.current) {

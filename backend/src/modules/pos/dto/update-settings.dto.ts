@@ -91,6 +91,22 @@ export class UpdateSettingsDto {
   cashierLabel?: string;
 
   @IsOptional()
+  @IsNumber()
+  productManagerPageSize?: number;
+
+  @IsOptional()
+  @IsNumber()
+  searchDebounceMs?: number;
+
+  @IsOptional()
+  @IsNumber()
+  autoSaveDebounceMs?: number;
+
+  @IsOptional()
+  @IsString()
+  paymentMethods?: string | null;
+
+  @IsOptional()
   @Transform(({ value }) => (value === '' ? null : value != null ? Number(value) : null))
   @IsNumber()
   loyaltyEarnAmountPerPoint?: number | null;

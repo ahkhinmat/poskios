@@ -63,6 +63,10 @@ export type AppSettings = {
   defaultAddQuantity: number;
   overviewPassword: string;
   cashierLabel: string;
+  productManagerPageSize: number;
+  searchDebounceMs: number;
+  autoSaveDebounceMs: number;
+  paymentMethods: string;
   loyaltyEarnAmountPerPoint: number;
   loyaltyRedeemAmountPerPoint: number;
   loyaltyMinimumRedeemPoints: number;

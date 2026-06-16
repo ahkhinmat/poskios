@@ -72,6 +72,18 @@ export class Setting {
   @Column({ name: 'CashierLabel', type: 'nvarchar', length: 50 })
   cashierLabel!: string;
 
+  @Column({ name: 'ProductManagerPageSize', type: 'int', nullable: true, default: 30 })
+  productManagerPageSize!: number | null;
+
+  @Column({ name: 'SearchDebounceMs', type: 'int', nullable: true, default: 250 })
+  searchDebounceMs!: number | null;
+
+  @Column({ name: 'AutoSaveDebounceMs', type: 'int', nullable: true, default: 500 })
+  autoSaveDebounceMs!: number | null;
+
+  @Column({ name: 'PaymentMethods', type: 'nvarchar', length: 500, nullable: true })
+  paymentMethods!: string | null;
+
   @Column({
     name: 'LoyaltyEarnAmountPerPoint',
     type: 'decimal',
