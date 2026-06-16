@@ -1,6 +1,7 @@
 import {
   App as AntApp,
   Button,
+  Drawer,
   Input,
   InputNumber,
   Modal,
@@ -21,7 +22,7 @@ type Props = {
   onClose: () => void;
 };
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 30;
 
 export function ProductManager({ open, onClose }: Props) {
   const { message } = AntApp.useApp();
@@ -201,15 +202,12 @@ export function ProductManager({ open, onClose }: Props) {
   }
 
   return (
-    <Modal
-      className="product-modal-full"
+    <Drawer
       title={LANG.productTitle}
       open={open}
-      onCancel={onClose}
-      footer={null}
-      width={1400}
-      style={{ top: 0 }}
-      styles={{ body: { padding: '12px 20px', height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' } }}
+      onClose={onClose}
+      width="100vw"
+      styles={{ body: { padding: '12px 20px', display: 'flex', flexDirection: 'column' } }}
     >
       <div className="product-top">
         <span className="product-count">{LANG.productTotalCount} <strong>{total}</strong></span>
@@ -424,6 +422,6 @@ export function ProductManager({ open, onClose }: Props) {
           )}
         </div>
       </Modal>
-    </Modal>
+    </Drawer>
   );
 }

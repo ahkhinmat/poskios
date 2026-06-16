@@ -10,11 +10,16 @@ import {
 } from 'antd';
 import {
   AppstoreOutlined,
+  BarChartOutlined,
+  ContainerOutlined,
   EyeOutlined,
+  ImportOutlined,
   LogoutOutlined,
   PlusOutlined,
   PrinterOutlined,
   SearchOutlined,
+  ShoppingCartOutlined,
+  SwapOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { LANG } from '../lang';
@@ -180,7 +185,10 @@ export function PosPage() {
                     actions={[
                       <Button
                         key={product.productUnitId}
-                        type="link"
+                        type="primary"
+                        ghost
+                        size="small"
+                        style={{ borderRadius: 6, fontWeight: 600 }}
                         onClick={() => {
                           p.addProductToActiveTab(product);
                           p.clearSearchInput();
@@ -192,8 +200,14 @@ export function PosPage() {
                     ]}
                   >
                     <List.Item.Meta
-                      title={`${product.name} (${product.unitName})`}
-                      description={`${product.productCode} ${LANG.productUnitSep} ${LANG.stockLabel} ${product.stockOnHand.toLocaleString('vi-VN')} ${LANG.productUnitSep} ${product.salePrice.toLocaleString('vi-VN')}${LANG.currencySuffix}`}
+                      title={<span style={{ fontWeight: 600 }}>{product.name} <span style={{ color: '#6b7280', fontWeight: 400, fontSize: 12 }}>({product.unitName})</span></span>}
+                      description={
+                        <span style={{ fontSize: 12, color: '#6b7280' }}>
+                          <span style={{ color: '#374151', fontWeight: 500 }}>{product.productCode}</span>
+                          {' · '}{LANG.stockLabel} <strong style={{ color: product.stockOnHand > 0 ? '#16a34a' : '#ef4444' }}>{product.stockOnHand.toLocaleString('vi-VN')}</strong>
+                          {' · '}<span style={{ color: '#059669', fontWeight: 600 }}>{product.salePrice.toLocaleString('vi-VN')}{LANG.currencySuffix}</span>
+                        </span>
+                      }
                     />
                   </List.Item>
                 )}
@@ -309,7 +323,7 @@ export function PosPage() {
                   className={`sale-mode ${!p.isReturnTab && !p.isPurchaseTab ? 'is-active' : ''}`}
                   onClick={async () => { await p.ensureTabOfType('SALE'); p.focusSearchInput(); }}
                 >
-                  {LANG.modeSale}
+                  <ShoppingCartOutlined style={{ fontSize: 14 }} /> {LANG.modeSale}
                 </button>
               </Tooltip>
               <Tooltip title={LANG.modeReturnTip}>
@@ -318,7 +332,7 @@ export function PosPage() {
                     className={`sale-mode ${p.isReturnTab ? 'is-active' : ''}`}
                     onClick={() => { if (!p.isReturnTab) void p.ensureTabOfType('RETURN'); }}
                   >
-                    {LANG.modeReturn}
+                    <SwapOutlined style={{ fontSize: 14 }} /> {LANG.modeReturn}
                   </button>
                 </Tooltip>
               {p.isManager && (
@@ -329,7 +343,7 @@ export function PosPage() {
                       className={`sale-mode ${p.isPurchaseTab ? 'is-active' : ''}`}
                       onClick={() => { if (!p.isPurchaseTab) void p.ensureTabOfType('PURCHASE'); }}
                     >
-                      {LANG.modeImport}
+                      <ImportOutlined style={{ fontSize: 14 }} /> {LANG.modeImport}
                     </button>
                   </Tooltip>
                   <Tooltip title={LANG.modeCategoryTip}>
@@ -338,7 +352,7 @@ export function PosPage() {
                       className="sale-mode"
                       onClick={p.openProductManager}
                     >
-                      {LANG.modeCategory}
+                      <AppstoreOutlined style={{ fontSize: 14 }} /> {LANG.modeCategory}
                     </button>
                   </Tooltip>
                   <Tooltip title={LANG.modeOverviewTip}>
@@ -347,7 +361,7 @@ export function PosPage() {
                       className="sale-mode"
                       onClick={p.handleOpenOverview}
                     >
-                      {LANG.modeOverview}
+                      <BarChartOutlined style={{ fontSize: 14 }} /> {LANG.modeOverview}
                     </button>
                   </Tooltip>
                   <Tooltip title={LANG.settingsTitle}>
@@ -356,7 +370,7 @@ export function PosPage() {
                       className="sale-mode"
                       onClick={() => setSettingsOpen(true)}
                     >
-                      ⚙
+                      <ContainerOutlined style={{ fontSize: 14 }} /> {LANG.settingsTitle}
                     </button>
                   </Tooltip>
                 </>

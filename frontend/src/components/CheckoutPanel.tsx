@@ -434,6 +434,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
                 </div>
               </Form.Item>
 
+              <div style={{ borderTop: '1px solid #f0f2f5', marginTop: 4, paddingTop: 4 }}>
               <div className="summary-rows">
                 {isReturnTab ? (
                   <>
@@ -574,6 +575,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
                   </>
                 )}
               </div>
+              </div>
 
               <Form.Item label={LANG.paymentMethod}>
                 <Radio.Group
@@ -588,6 +590,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
             </Form>
           )}
 
+          <div style={{ borderTop: '1px solid #f0f2f5', marginTop: 2, paddingTop: 4 }} />
           {!isReturnTab && !isPurchaseTab && (
             <div className="payment-quick">
               <button type="button" className="quick-money" onClick={() => onUpdateActiveTab({ customerPaidAmount: appSettings?.quickPayAmount1 ?? 100000 })}>

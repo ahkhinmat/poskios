@@ -1,6 +1,7 @@
 import {
   App as AntApp,
   Button,
+  Drawer,
   Input,
   Modal,
   Table,
@@ -91,11 +92,10 @@ export function CategoryManager({ open, onClose }: Props) {
   }
 
   return (
-    <Modal
+    <Drawer
       title={LANG.categoryTitle}
       open={open}
-      onCancel={onClose}
-      footer={null}
+      onClose={onClose}
       width={640}
     >
       <div className="category-modal-toolbar">
@@ -181,6 +181,6 @@ export function CategoryManager({ open, onClose }: Props) {
           />
         </div>
       </Modal>
-    </Modal>
+    </Drawer>
   );
 }

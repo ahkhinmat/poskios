@@ -60,6 +60,7 @@ export function LoginPage() {
               autoFocus
               prefix={<UserOutlined />}
               autoComplete="username"
+              size="large"
             />
           </Form.Item>
 
@@ -71,6 +72,7 @@ export function LoginPage() {
             <Input.Password
               prefix={<LockOutlined />}
               autoComplete="current-password"
+              size="large"
             />
           </Form.Item>
 
@@ -78,8 +80,10 @@ export function LoginPage() {
             type="primary"
             htmlType="submit"
             block
+            size="large"
             loading={loggingIn}
             className="login-submit"
+            style={{ height: 42, borderRadius: 8, fontWeight: 600 }}
           >
             {LANG.loginButton}
           </Button>
