@@ -322,6 +322,19 @@ export const LANG = {
   loginPasswordRequired: 'Nhập mật khẩu',
   loginButton: 'Đăng nhập',
 
+  // Change password
+  changePassword: 'Đổi mật khẩu',
+  changePasswordTitle: 'Đổi mật khẩu',
+  changePasswordOld: 'Mật khẩu cũ',
+  changePasswordNew: 'Mật khẩu mới',
+  changePasswordConfirm: 'Xác nhận mật khẩu',
+  changePasswordRequired: 'Vui lòng nhập mật khẩu',
+  changePasswordMismatch: 'Mật khẩu xác nhận không khớp',
+  changePasswordSuccess: 'Đã đổi mật khẩu',
+  changePasswordSame: 'Mật khẩu mới phải khác mật khẩu cũ',
+  errChangePasswordWrong: 'Mật khẩu cũ không đúng',
+  errChangePassword: 'Không đổi được mật khẩu',
+
   // Logout
   logoutTooltip: 'Đăng xuất',
   logoutSuccess: 'Đã đăng xuất',

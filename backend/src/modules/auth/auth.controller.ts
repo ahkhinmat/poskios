@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import type { AuthenticatedUser } from './types/authenticated-user.type';
 
@@ -27,6 +28,20 @@ export class AuthController {
       success: true,
       message: 'OK',
       data: user,
+    };
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: ChangePasswordDto,
+  ) {
+    await this.authService.changePassword(user.id, body);
+
+    return {
+      success: true,
+      message: 'Password changed successfully',
     };
   }
 }

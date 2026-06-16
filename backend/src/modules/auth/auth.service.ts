@@ -1,10 +1,11 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
 import { getJwtExpiresIn } from './auth.config';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from './entities/user.entity';
 import type {
@@ -62,6 +63,32 @@ export class AuthService {
       expiresIn: getJwtExpiresIn(this.configService),
       user: authUser,
     };
+  }
+
+  async changePassword(userId: number, payload: ChangePasswordDto) {
+    const user = await this.userRepository.findOneBy({ id: userId });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const oldPasswordOk = await bcrypt.compare(payload.oldPassword, user.passwordHash);
+
+    if (!oldPasswordOk) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const same = await bcrypt.compare(payload.newPassword, user.passwordHash);
+
+    if (same) {
+      throw new ConflictException('New password must be different from current password');
+    }
+
+    const salt = await bcrypt.genSalt(12);
+    user.passwordHash = await bcrypt.hash(payload.newPassword, salt);
+    await this.userRepository.save(user);
+
+    this.logger.log(`User ${user.username} changed password successfully`);
   }
 
   private toAuthUser(user: User): AuthenticatedUser {

@@ -60,3 +60,8 @@ Cải thiện giao diện người dùng toàn diện: animations, card-style, s
 - Backend: entity, DTO, service updated
 - Frontend: types, lang, SettingsPage UI updated
 - Migration: `sqlserver-alter-settings-debounce-payment.sql`
+
+### 11. Đổi mật khẩu người dùng
+- Backend: `ChangePasswordDto`, `AuthService.changePassword()`, `POST /auth/change-password`
+- Frontend: `ChangePasswordModal` component, nút KeyOutlined ở topbar kế logout
+- Validation: mật khẩu cũ đúng, mật khẩu mới không trùng cũ, confirm khớp

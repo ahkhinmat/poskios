@@ -14,6 +14,7 @@ import {
   ContainerOutlined,
   EyeOutlined,
   ImportOutlined,
+  KeyOutlined,
   LogoutOutlined,
   PlusOutlined,
   PrinterOutlined,
@@ -23,6 +24,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { LANG } from '../lang';
+import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import { CheckoutPanel } from '../components/CheckoutPanel';
 import { OverviewView } from '../components/OverviewView';
 import { PosModals } from '../components/PosModals';
@@ -52,6 +54,7 @@ export function PosPage() {
   const { message } = AntApp.useApp();
   const p = usePosPage();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const paymentOptions = useMemo(() => {
     const methods = p.appSettings?.paymentMethods ?? 'CASH,BANK_TRANSFER,CARD,EWALLET';
@@ -152,6 +155,13 @@ export function PosPage() {
               <Tag color={p.isManager ? 'blue' : 'default'}>
                 {p.authUser?.fullName} · {p.authUser?.roleCode}
               </Tag>
+              <Tooltip title={LANG.changePassword}>
+                <Button
+                  size="small"
+                  icon={<KeyOutlined />}
+                  onClick={() => setChangePasswordOpen(true)}
+                />
+              </Tooltip>
               <Tooltip title={LANG.logoutTooltip}>
                 <Button
                   size="small"
@@ -478,6 +488,11 @@ export function PosPage() {
           setSettingsOpen(false);
           void p.loadAppSettings();
         }}
+      />
+
+      <ChangePasswordModal
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
       />
     </div>
   );
