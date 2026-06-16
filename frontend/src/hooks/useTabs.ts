@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { LANG } from '../lang';
+import { PERMISSIONS } from '../permissions';
 import { createDefaultPurchaseMeta, getNextTabNumber } from '../utils/purchase';
 import type {
   ApiEnvelope,
@@ -17,7 +18,7 @@ import type {
 export function useTabs(
   message: ReturnType<typeof import('antd').App.useApp>['message'],
   appSettings: AppSettings | null,
-  isManager: boolean,
+  permissions: string[],
   setCurrentView: (view: 'POS' | 'OVERVIEW') => void,
 ) {
   const [loading, setLoading] = useState(true);
@@ -281,8 +282,8 @@ export function useTabs(
   async function ensureTabOfType(tabType: 'SALE' | 'RETURN' | 'PURCHASE') {
     setCurrentView('POS');
 
-    if (tabType === 'PURCHASE' && !isManager) {
-      message.warning(LANG.errManagerOnlyImport);
+    if (tabType === 'PURCHASE' && !permissions.includes(PERMISSIONS.PURCHASE_CREATE)) {
+      message.warning(LANG.permissionDenied);
       return;
     }
 

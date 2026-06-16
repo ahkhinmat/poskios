@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { LANG } from '../lang';
+import { PERMISSIONS } from '../permissions';
 import { createDefaultPurchaseMeta } from '../utils/purchase';
 import { extractApiErrorMessage } from '../utils/error';
 import { buildReceiptDocumentHtml } from '../utils/receipt';
@@ -30,7 +31,7 @@ interface Summary {
 export function useCheckout(
   message: ReturnType<typeof import('antd').App.useApp>['message'],
   appSettings: AppSettings | null,
-  isManager: boolean,
+  permissions: string[],
   activeTab: PosDraftTab | null,
   tabs: PosDraftTab[],
   setTabs: (tabs: PosDraftTab[] | ((prev: PosDraftTab[]) => PosDraftTab[])) => void,
@@ -147,8 +148,8 @@ export function useCheckout(
     setCheckingOut(true);
     try {
       if (isPurchaseTab) {
-        if (!isManager) {
-          message.warning(LANG.errManagerOnlyImport);
+        if (!permissions.includes(PERMISSIONS.PURCHASE_CREATE)) {
+          message.warning(LANG.permissionDenied);
           setCheckingOut(false);
           return;
         }
@@ -254,8 +255,8 @@ export function useCheckout(
   }
 
   function openProductManager() {
-    if (!isManager) {
-      message.warning(LANG.errManagerOnlyCategory);
+    if (!permissions.includes(PERMISSIONS.PRODUCTS_MANAGE) && !permissions.includes(PERMISSIONS.CATEGORIES_MANAGE)) {
+      message.warning(LANG.permissionDenied);
       return;
     }
 

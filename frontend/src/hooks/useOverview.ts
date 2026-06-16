@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { api } from '../api';
 import { LANG } from '../lang';
+import { PERMISSIONS } from '../permissions';
 import type {
   ApiEnvelope,
   OverviewDetail,
@@ -10,7 +11,7 @@ import type {
 
 export function useOverview(
   message: ReturnType<typeof import('antd').App.useApp>['message'],
-  isManager: boolean,
+  permissions: string[],
   overviewPassword: string,
   setCurrentView: (view: 'POS' | 'OVERVIEW') => void,
 ) {
@@ -62,7 +63,7 @@ export function useOverview(
   );
 
   async function loadOverview(selectRecord = true, fromDate?: string, toDate?: string) {
-    if (!isManager) return;
+    if (!permissions.includes(PERMISSIONS.OVERVIEW_VIEW)) return;
 
     setOverviewLoading(true);
     try {
@@ -96,8 +97,8 @@ export function useOverview(
   }
 
   function handleOpenOverview() {
-    if (!isManager) {
-      message.warning(LANG.errManagerOnlyOverview);
+    if (!permissions.includes(PERMISSIONS.OVERVIEW_VIEW)) {
+      message.warning(LANG.permissionDenied);
       return;
     }
 
