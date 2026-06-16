@@ -30,6 +30,8 @@ import { UpdatePosDraftTabDto } from './dto/update-pos-draft-tab.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { Permissions } from '../auth/decorators/permissions.decorator';
+import { PERMISSIONS } from '../auth/constants/permissions';
 
 type UploadedExcelFile = {
   originalname: string;
@@ -46,7 +48,7 @@ export class PosController {
 
   // ── Product Management CRUD (before param routes) ──
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.PRODUCTS_VIEW)
   @Get('products/manage')
   async manageProducts(
     @Query('keyword') keyword?: string,
@@ -62,7 +64,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.PRODUCTS_MANAGE)
   @Post('products')
   async createProduct(@Body() body: CreateProductDto) {
     const data = await this.posService.createProduct(body);
@@ -74,7 +76,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.PRODUCTS_MANAGE)
   @Put('products/:id')
   async updateProduct(
     @Param('id', ParseIntPipe) id: number,
@@ -89,7 +91,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.PRODUCTS_MANAGE)
   @Delete('products/:id')
   @HttpCode(HttpStatus.OK)
   async deleteProduct(@Param('id', ParseIntPipe) id: number) {
@@ -135,7 +137,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.PRODUCTS_IMPORT)
   @Post('products/import/excel')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
@@ -149,7 +151,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.PRODUCTS_IMPORT)
   @Post('products/import/upsert')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
@@ -244,7 +246,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.PURCHASE_COMPLETE)
   @Post('purchase-orders/checkout')
   async purchaseCheckout(
     @CurrentUser() user: AuthenticatedUser,
@@ -264,7 +266,7 @@ export class PosController {
 
   // ── Category CRUD ──
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.CATEGORIES_VIEW)
   @Get('categories')
   async searchCategories(@Query('keyword') keyword?: string) {
     const data = await this.posService.searchCategories(keyword);
@@ -276,7 +278,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.UNITS_VIEW)
   @Get('units')
   async listUnits() {
     const data = await this.posService.listUnits();
@@ -288,7 +290,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.SUPPLIERS_VIEW)
   @Get('suppliers')
   async listSuppliers(@Query('keyword') keyword?: string) {
     const data = await this.posService.listSuppliers(keyword);
@@ -361,7 +363,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.LOYALTY_CONFIGURE)
   @Put('loyalty/settings')
   async updateLoyaltySettings(@Body() body: UpdateLoyaltySettingsDto) {
     const data = await this.posService.updateLoyaltySettings(body);
@@ -384,7 +386,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.SETTINGS_MANAGE)
   @Put('settings')
   async updateSettings(@Body() body: UpdateSettingsDto) {
     const data = await this.posService.updateSettings(body);
@@ -396,7 +398,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.SUPPLIERS_MANAGE)
   @Post('suppliers')
   async createSupplier(
     @Body()
@@ -416,7 +418,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.SUPPLIERS_MANAGE)
   @Put('suppliers/:id')
   async updateSupplier(
     @Param('id', ParseIntPipe) id: number,
@@ -437,7 +439,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.OVERVIEW_VIEW)
   @Get('overview')
   async getOverview(
     @Query('fromDate') fromDate?: string,
@@ -452,7 +454,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.OVERVIEW_VIEW)
   @Get('overview/:recordType/:id')
   async getOverviewDetail(
     @Param('recordType') recordType: string,
@@ -467,7 +469,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.CATEGORIES_MANAGE)
   @Post('categories')
   async createCategory(@Body() body: { name: string; isActive?: boolean }) {
     const data = await this.posService.createCategory(body);
@@ -479,7 +481,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.CATEGORIES_MANAGE)
   @Put('categories/:id')
   async updateCategory(
     @Param('id', ParseIntPipe) id: number,
@@ -494,7 +496,7 @@ export class PosController {
     };
   }
 
-  @Roles('MANAGER')
+  @Permissions(PERMISSIONS.CATEGORIES_MANAGE)
   @Delete('categories/:id')
   @HttpCode(HttpStatus.OK)
   async deleteCategory(@Param('id', ParseIntPipe) id: number) {
