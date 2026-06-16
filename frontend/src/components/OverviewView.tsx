@@ -1,6 +1,8 @@
 import { Button, DatePicker, Empty, Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import { Can } from './Can';
 import { LANG } from '../lang';
+import { PERMISSIONS } from '../permissions';
 import type { OverviewDetail } from '../types';
 
 type OverviewViewProps = {
@@ -8,7 +10,6 @@ type OverviewViewProps = {
   overviewToDate: string;
   overviewDetail: OverviewDetail | null;
   overviewLoading: boolean;
-  isManager: boolean;
   setOverviewFromDate: (v: string) => void;
   setOverviewToDate: (v: string) => void;
   loadOverview: (reset?: boolean, fromDate?: string, toDate?: string) => Promise<void>;
@@ -22,7 +23,6 @@ export function OverviewView({
   overviewToDate,
   overviewDetail,
   overviewLoading,
-  isManager,
   setOverviewFromDate,
   setOverviewToDate,
   loadOverview,
@@ -100,25 +100,27 @@ export function OverviewView({
               {LANG.modeReturn}
             </button>
           </Tooltip>
-          {isManager && (
-            <>
-              <Tooltip title={LANG.modeImportTip}>
-                <button type="button" className="sale-mode" onClick={() => { void ensureTabOfType('PURCHASE'); }}>
-                  {LANG.modeImport}
-                </button>
-              </Tooltip>
-              <Tooltip title={LANG.modeCategoryTip}>
-                <button type="button" className="sale-mode" onClick={openProductManager}>
-                  {LANG.modeCategory}
-                </button>
-              </Tooltip>
-              <Tooltip title={LANG.modeOverviewTip}>
-                <button type="button" className="sale-mode is-active">
-                  {LANG.modeOverview}
-                </button>
-              </Tooltip>
-            </>
-          )}
+          <Can check={{ permission: PERMISSIONS.PURCHASE_CREATE, denyReason: LANG.errManagerOnlyImport }}>
+            <Tooltip title={LANG.modeImportTip}>
+              <button type="button" className="sale-mode" onClick={() => { void ensureTabOfType('PURCHASE'); }}>
+                {LANG.modeImport}
+              </button>
+            </Tooltip>
+          </Can>
+          <Can check={{ permission: PERMISSIONS.CATEGORIES_MANAGE, denyReason: LANG.errManagerOnlyCategory }}>
+            <Tooltip title={LANG.modeCategoryTip}>
+              <button type="button" className="sale-mode" onClick={openProductManager}>
+                {LANG.modeCategory}
+              </button>
+            </Tooltip>
+          </Can>
+          <Can check={{ permission: PERMISSIONS.OVERVIEW_VIEW, denyReason: LANG.errManagerOnlyOverview }}>
+            <Tooltip title={LANG.modeOverviewTip}>
+              <button type="button" className="sale-mode is-active">
+                {LANG.modeOverview}
+              </button>
+            </Tooltip>
+          </Can>
         </div>
       </div>
     </>

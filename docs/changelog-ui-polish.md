@@ -65,3 +65,11 @@ Cải thiện giao diện người dùng toàn diện: animations, card-style, s
 - Backend: `ChangePasswordDto`, `AuthService.changePassword()`, `POST /auth/change-password`
 - Frontend: `ChangePasswordModal` component, nút KeyOutlined ở topbar kế logout
 - Validation: mật khẩu cũ đúng, mật khẩu mới không trùng cũ, confirm khớp
+
+### 12. Hệ thống phân quyền (Permissions)
+- Backend: `permissions.ts` constants với 15 permissions, mapping `STAFF`/`MANAGER`
+- Backend: `@Permissions()` decorator + `PermissionsGuard` global
+- Backend: JWT payload & `/auth/me` trả `permissions[]`
+- Frontend: `permissions.ts` constants, `usePermission` hook, `Can` component
+- Frontend: xử lý 403 toàn cục, toast thông báo
+- Frontend: `OverviewView` & `PosPage` dùng `Can` thay `isManager && ...`

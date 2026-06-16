@@ -9,6 +9,7 @@ export type AuthUser = {
   username: string;
   fullName: string;
   roleCode: 'STAFF' | 'MANAGER';
+  permissions: string[];
 };
 
 export type LoginResponse = {

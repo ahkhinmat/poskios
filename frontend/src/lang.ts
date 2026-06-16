@@ -340,6 +340,7 @@ export const LANG = {
   logoutSuccess: 'Đã đăng xuất',
 
   // Permission warnings
+  permissionDenied: 'Bạn không có quyền thực hiện thao tác này',
   errManagerOnlyImport: 'Chỉ Manager được nhập hàng',
   errManagerOnlyCategory: 'Chỉ Manager được quản lý danh mục',
   errManagerOnlyLoyaltyConfig: 'Chỉ Manager được cấu hình tích điểm',

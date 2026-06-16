@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
 import { getJwtExpiresIn } from './auth.config';
+import { ROLE_PERMISSIONS } from './constants/permissions';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from './entities/user.entity';
@@ -55,6 +56,7 @@ export class AuthService {
       username: authUser.username,
       fullName: authUser.fullName,
       roleCode: authUser.roleCode,
+      permissions: authUser.permissions,
     };
 
     return {
@@ -92,11 +94,14 @@ export class AuthService {
   }
 
   private toAuthUser(user: User): AuthenticatedUser {
+    const roleCode = user.role.code as RoleCode;
+
     return {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      roleCode: user.role.code as RoleCode,
+      roleCode,
+      permissions: ROLE_PERMISSIONS[roleCode] ?? [],
     };
   }
 }

@@ -24,9 +24,11 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { LANG } from '../lang';
+import { Can } from '../components/Can';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import { CheckoutPanel } from '../components/CheckoutPanel';
 import { OverviewView } from '../components/OverviewView';
+import { PERMISSIONS } from '../permissions';
 import { PosModals } from '../components/PosModals';
 import { PurchaseTable } from '../components/PurchaseTable';
 import { ReturnSearchPanel } from '../components/ReturnSearchPanel';
@@ -178,7 +180,6 @@ export function PosPage() {
               overviewToDate={p.overviewToDate}
               overviewDetail={p.overviewDetail}
               overviewLoading={p.overviewLoading}
-              isManager={p.isManager}
               setOverviewFromDate={p.setOverviewFromDate}
               setOverviewToDate={p.setOverviewToDate}
               loadOverview={p.loadOverview}
@@ -353,46 +354,50 @@ export function PosPage() {
                     <SwapOutlined style={{ fontSize: 14 }} /> {LANG.modeReturn}
                   </button>
                 </Tooltip>
-              {p.isManager && (
-                <>
-                  <Tooltip title={LANG.modeImportTip}>
-                    <button
-                      type="button"
-                      className={`sale-mode ${p.isPurchaseTab ? 'is-active' : ''}`}
-                      onClick={() => { if (!p.isPurchaseTab) void p.ensureTabOfType('PURCHASE'); }}
-                    >
-                      <ImportOutlined style={{ fontSize: 14 }} /> {LANG.modeImport}
-                    </button>
-                  </Tooltip>
-                  <Tooltip title={LANG.modeCategoryTip}>
-                    <button
-                      type="button"
-                      className="sale-mode"
-                      onClick={p.openProductManager}
-                    >
-                      <AppstoreOutlined style={{ fontSize: 14 }} /> {LANG.modeCategory}
-                    </button>
-                  </Tooltip>
-                  <Tooltip title={LANG.modeOverviewTip}>
-                    <button
-                      type="button"
-                      className="sale-mode"
-                      onClick={p.handleOpenOverview}
-                    >
-                      <BarChartOutlined style={{ fontSize: 14 }} /> {LANG.modeOverview}
-                    </button>
-                  </Tooltip>
-                  <Tooltip title={LANG.settingsTitle}>
-                    <button
-                      type="button"
-                      className="sale-mode"
-                      onClick={() => setSettingsOpen(true)}
-                    >
-                      <ContainerOutlined style={{ fontSize: 14 }} /> {LANG.settingsTitle}
-                    </button>
-                  </Tooltip>
-                </>
-              )}
+              <Can check={{ permission: PERMISSIONS.PURCHASE_CREATE, denyReason: LANG.errManagerOnlyImport }}>
+                <Tooltip title={LANG.modeImportTip}>
+                  <button
+                    type="button"
+                    className={`sale-mode ${p.isPurchaseTab ? 'is-active' : ''}`}
+                    onClick={() => { if (!p.isPurchaseTab) void p.ensureTabOfType('PURCHASE'); }}
+                  >
+                    <ImportOutlined style={{ fontSize: 14 }} /> {LANG.modeImport}
+                  </button>
+                </Tooltip>
+              </Can>
+              <Can check={{ permission: PERMISSIONS.CATEGORIES_MANAGE, denyReason: LANG.errManagerOnlyCategory }}>
+                <Tooltip title={LANG.modeCategoryTip}>
+                  <button
+                    type="button"
+                    className="sale-mode"
+                    onClick={p.openProductManager}
+                  >
+                    <AppstoreOutlined style={{ fontSize: 14 }} /> {LANG.modeCategory}
+                  </button>
+                </Tooltip>
+              </Can>
+              <Can check={{ permission: PERMISSIONS.OVERVIEW_VIEW, denyReason: LANG.errManagerOnlyOverview }}>
+                <Tooltip title={LANG.modeOverviewTip}>
+                  <button
+                    type="button"
+                    className="sale-mode"
+                    onClick={p.handleOpenOverview}
+                  >
+                    <BarChartOutlined style={{ fontSize: 14 }} /> {LANG.modeOverview}
+                  </button>
+                </Tooltip>
+              </Can>
+              <Can check={{ permission: PERMISSIONS.SETTINGS_MANAGE }}>
+                <Tooltip title={LANG.settingsTitle}>
+                  <button
+                    type="button"
+                    className="sale-mode"
+                    onClick={() => setSettingsOpen(true)}
+                  >
+                    <ContainerOutlined style={{ fontSize: 14 }} /> {LANG.settingsTitle}
+                  </button>
+                </Tooltip>
+              </Can>
             </div>
           </div>
             </>

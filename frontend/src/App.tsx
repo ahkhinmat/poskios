@@ -1,7 +1,8 @@
-﻿import { lazy, Suspense } from 'react';
+﻿import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { App as AntApp, ConfigProvider, Spin, theme } from 'antd';
 import { AuthProvider, useAuth } from './auth-context';
+import { setOnForbidden } from './api';
 
 const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 const PosPage = lazy(() => import('./pages/PosPage').then((m) => ({ default: m.PosPage })));
@@ -44,6 +45,33 @@ function AppRoutes() {
   );
 }
 
+function ForbiddenHandler() {
+  const { message } = AntApp.useApp();
+
+  useEffect(() => {
+    setOnForbidden((msg) => {
+      message.error(msg);
+    });
+
+    return () => setOnForbidden(null);
+  }, [message]);
+
+  return null;
+}
+
+function AppInner() {
+  return (
+    <>
+      <ForbiddenHandler />
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </>
+  );
+}
+
 export function App() {
   return (
     <ConfigProvider
@@ -58,11 +86,7 @@ export function App() {
       }}
     >
       <AntApp>
-        <BrowserRouter>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
-        </BrowserRouter>
+        <AppInner />
       </AntApp>
     </ConfigProvider>
   );
