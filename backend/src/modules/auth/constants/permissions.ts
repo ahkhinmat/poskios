@@ -18,6 +18,45 @@ export const PERMISSIONS = {
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
+export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
+  {
+    label: 'Bán hàng',
+    permissions: [PERMISSIONS.SALES_CREATE, PERMISSIONS.SALES_RETURN],
+  },
+  {
+    label: 'Sản phẩm',
+    permissions: [PERMISSIONS.PRODUCTS_VIEW, PERMISSIONS.PRODUCTS_MANAGE, PERMISSIONS.PRODUCTS_IMPORT],
+  },
+  {
+    label: 'Danh mục',
+    permissions: [PERMISSIONS.CATEGORIES_VIEW, PERMISSIONS.CATEGORIES_MANAGE],
+  },
+  {
+    label: 'Đơn vị tính',
+    permissions: [PERMISSIONS.UNITS_VIEW],
+  },
+  {
+    label: 'Nhà cung cấp',
+    permissions: [PERMISSIONS.SUPPLIERS_VIEW, PERMISSIONS.SUPPLIERS_MANAGE],
+  },
+  {
+    label: 'Nhập hàng',
+    permissions: [PERMISSIONS.PURCHASE_CREATE, PERMISSIONS.PURCHASE_COMPLETE],
+  },
+  {
+    label: 'Tổng quan',
+    permissions: [PERMISSIONS.OVERVIEW_VIEW],
+  },
+  {
+    label: 'Tích điểm',
+    permissions: [PERMISSIONS.LOYALTY_CONFIGURE],
+  },
+  {
+    label: 'Cấu hình',
+    permissions: [PERMISSIONS.SETTINGS_MANAGE],
+  },
+];
+
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   STAFF: [
     PERMISSIONS.PRODUCTS_VIEW,

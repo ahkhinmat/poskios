@@ -1,9 +1,10 @@
-import { App as AntApp, Input, InputNumber, Modal } from 'antd';
+import { App as AntApp, Button, Input, InputNumber, Modal } from 'antd';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { LANG } from '../lang';
 import type { ApiEnvelope, AppSettings } from '../types';
 import { extractApiErrorMessage } from '../utils/error';
+import { RoleManager } from './RoleManager';
 
 type Props = {
   open: boolean;
@@ -55,6 +56,7 @@ export function SettingsPage({ open, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [editField, setEditField] = useState<EditField>(null);
   const [editValue, setEditValue] = useState<string | number | null>('');
+  const [roleManagerOpen, setRoleManagerOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -335,6 +337,19 @@ export function SettingsPage({ open, onClose }: Props) {
               </button>
             </div>
           </div>
+
+          {/* Phân quyền */}
+          <div className="settings-section">
+            <div className="settings-section-header">PHÂN QUYỀN</div>
+            <div className="settings-section-body">
+              <button type="button" className="settings-row" onClick={() => setRoleManagerOpen(true)}>
+                <span className="settings-row-label">Cấu hình quyền</span>
+                <span className="settings-row-value">
+                  <Button type="link" size="small">Quản lý</Button>
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
       </Modal>
 
@@ -351,6 +366,8 @@ export function SettingsPage({ open, onClose }: Props) {
       >
         {renderEditInput()}
       </Modal>
+
+      <RoleManager open={roleManagerOpen} onClose={() => setRoleManagerOpen(false)} />
     </>
   );
 }

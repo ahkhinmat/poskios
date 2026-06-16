@@ -17,6 +17,9 @@ export class Role {
   @Column({ name: 'IsActive', type: 'bit' })
   isActive!: boolean;
 
+  @Column({ name: 'Permissions', type: 'nvarchar', length: 1000, nullable: true })
+  permissions!: string | null;
+
   @Column({ name: 'CreatedAt', type: 'datetime2' })
   createdAt!: Date;
 
