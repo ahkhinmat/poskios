@@ -136,21 +136,21 @@ export class ProductService {
     let whereSql = '';
     const sqlParams: any[] = [];
     if (keyword?.trim()) {
-      whereSql = 'WHERE (p.ProductCode LIKE @0 OR p.Name LIKE @0 OR p.Barcode LIKE @0)';
+      whereSql = 'WHERE (p."ProductCode" LIKE $1 OR p."Name" LIKE $1 OR p."Barcode" LIKE $1)';
       sqlParams.push(`%${keyword.trim()}%`);
     }
 
     const offset = (page - 1) * pageSize;
 
     const countRows = await this.dataSource.query(
-      `SELECT COUNT(1) AS cnt FROM Products p ${whereSql}`,
+      `SELECT COUNT(1) AS cnt FROM "Products" p ${whereSql}`,
       sqlParams,
     );
     const total = Number(countRows[0]?.cnt ?? 0);
     if (!total) return { items: [], total: 0 };
 
     const idRows = await this.dataSource.query(
-      `SELECT p.Id FROM Products p ${whereSql} ORDER BY p.Name ASC OFFSET ${offset} ROWS FETCH NEXT ${pageSize} ROWS ONLY`,
+      `SELECT p."Id" FROM "Products" p ${whereSql} ORDER BY p."Name" ASC LIMIT ${pageSize} OFFSET ${offset}`,
       sqlParams,
     );
 
