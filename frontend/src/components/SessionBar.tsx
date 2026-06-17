@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Button, Modal, Tooltip } from 'antd';
-import { PlayCircleOutlined, StopOutlined, FieldTimeOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, StopOutlined, FieldTimeOutlined, FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons';
 import { LANG } from '../lang';
 import type { SessionState } from '../hooks/useSession';
 
@@ -11,6 +12,18 @@ type SessionBarProps = {
 };
 
 export function SessionBar({ session, isRunning, onStart, onEnd }: SessionBarProps) {
+  const [fullscreen, setFullscreen] = useState(() => !!document.fullscreenElement);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      setFullscreen(false);
+    } else {
+      void document.documentElement.requestFullscreen();
+      setFullscreen(true);
+    }
+  };
+
   const handleEnd = () => {
     Modal.confirm({
       title: LANG.sessionEndTitle,
@@ -62,6 +75,13 @@ export function SessionBar({ session, isRunning, onStart, onEnd }: SessionBarPro
     });
   };
 
+  // Listen for fullscreen changes via Esc key
+  useEffect(() => {
+    const handler = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
   return (
     <div className="session-bar">
       <FieldTimeOutlined />
@@ -87,6 +107,11 @@ export function SessionBar({ session, isRunning, onStart, onEnd }: SessionBarPro
           </Tooltip>
         </>
       )}
+      <div style={{ marginLeft: 'auto' }}>
+        <Tooltip title={fullscreen ? LANG.fullscreenExit : LANG.fullscreenEnter}>
+          <Button size="small" icon={fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} onClick={toggleFullscreen} />
+        </Tooltip>
+      </div>
     </div>
   );
 }

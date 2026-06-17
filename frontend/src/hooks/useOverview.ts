@@ -24,7 +24,6 @@ export function useOverview(
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const showProfit = overviewRecordTypeFilter === 'SALE';
-  const isOverviewPasswordRequired = import.meta.env.VITE_IS_OVERVIEW_PASSWORD !== 'false';
 
   const filteredOverviewRecords = useMemo(
     () =>
@@ -102,13 +101,8 @@ export function useOverview(
       return;
     }
 
-    if (isOverviewPasswordRequired) {
-      setPasswordInput('');
-      setPasswordDialogOpen(true);
-    } else {
-      setCurrentView('OVERVIEW');
-      void loadOverview();
-    }
+    setCurrentView('OVERVIEW');
+    void loadOverview();
   }
 
   function handlePasswordSubmit() {

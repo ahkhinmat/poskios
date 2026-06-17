@@ -429,6 +429,19 @@ export const LANG = {
   sessionRunning: 'Ca đang hoạt động',
   sessionInactive: 'Chưa bắt đầu ca',
   sessionSummary: 'Tổng kết ca',
+
+  // Cancel order
+  overviewCancelButton: 'Hủy hóa đơn',
+  overviewCancelTitle: 'Xác nhận hủy hóa đơn',
+  overviewCancelConfirm: 'Bạn có chắc muốn hủy hóa đơn này?',
+  overviewCancelNote: 'Hàng hóa sẽ được hoàn lại kho, điểm tích lũy sẽ được hoàn trả.',
+  overviewCancelSuccess: 'Đã hủy hóa đơn',
+  overviewCancelFailed: 'Không thể hủy hóa đơn',
+  overviewCancelOk: 'Hủy hóa đơn',
+
+  // Fullscreen
+  fullscreenEnter: 'Toàn màn hình',
+  fullscreenExit: 'Thoát toàn màn hình',
 } as const;
 
 export type LangKeys = keyof typeof LANG;

@@ -16,7 +16,9 @@ import {
 } from 'antd';
 import {
   EditOutlined,
+  LeftOutlined,
   PlusOutlined,
+  RightOutlined,
   ShoppingCartOutlined,
   SwapOutlined,
 } from '@ant-design/icons';
@@ -106,7 +108,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
     overviewDetail,
     checkingOut,
     saving,
-    buildVersion,
+    onToggleCollapse,
     onSetOverviewRecordTypeFilter,
     onLoadOverviewDetail,
     onUpdatePurchaseMeta,
@@ -128,9 +130,11 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
         <>
           <div className="checkout-header">
             <div className="checkout-user">{LANG.overviewTitle}</div>
-            <div className="checkout-meta">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div className="checkout-time">{filteredOverviewRecords.length}</div>
-              <div className="checkout-build">{buildVersion}</div>
+              <button type="button" className="checkout-collapse-btn" onClick={onToggleCollapse}>
+                {collapsed ? <LeftOutlined /> : <RightOutlined />}
+              </button>
             </div>
           </div>
           <div className="overview-grid-top">
@@ -204,9 +208,11 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
         <>
           <div className="checkout-header">
             <div className="checkout-user">{isPurchaseTab ? LANG.purchaseHeader : LANG.cashier}</div>
-            <div className="checkout-meta">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div className="checkout-time">{LANG.storeNameSale}</div>
-              <div className="checkout-build">{buildVersion}</div>
+              <button type="button" className="checkout-collapse-btn" onClick={onToggleCollapse}>
+                {collapsed ? <LeftOutlined /> : <RightOutlined />}
+              </button>
             </div>
           </div>
 

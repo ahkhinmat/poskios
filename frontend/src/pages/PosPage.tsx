@@ -69,6 +69,8 @@ export function PosPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [checkoutCollapsed, setCheckoutCollapsed] = useState(() => window.innerWidth <= 1024);
+  const [panelRatio, setPanelRatio] = useState<number | null>(null);
+  const posGridRef = useRef<HTMLDivElement>(null);
   const sessionHook = useSession();
   const { session, isRunning, startSession, endSession } = sessionHook;
 
@@ -124,6 +126,41 @@ export function PosPage() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Auto-focus search on tab change
+  useEffect(() => {
+    p.focusSearchInput();
+  }, [p.activeTabId]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const activeTabRef = p.activeTab;
+    const hc = p.handleCheckout;
+    const hct = p.handleCreateTab;
+    const fsi = p.focusSearchInput;
+    const csi = p.clearSearchInput;
+    const sir = p.searchInputRef;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F8' && activeTabRef?.items.length) {
+        e.preventDefault();
+        hc();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        fsi();
+      }
+      if (e.key === 'F1') {
+        e.preventDefault();
+        hct();
+      }
+      if (e.key === 'Escape') {
+        csi();
+        sir.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [p.activeTab, p.handleCheckout, p.handleCreateTab, p.focusSearchInput, p.clearSearchInput, p.searchInputRef]);
+
   if (p.loading) {
     return (
       <div className="screen-center">
@@ -132,9 +169,49 @@ export function PosPage() {
     );
   }
 
+  const isOverview = p.currentView === 'OVERVIEW';
+  const defaultRatio = isOverview ? 0.5 : 0.75;
+  const effectiveRatio = isOverview ? 0.5 : (panelRatio ?? defaultRatio);
+
   return (
     <div className="pos-shell">
-      <div className={`pos-grid${p.currentView !== 'OVERVIEW' ? ' pos-grid-sale-mode' : ''}`}>
+      <div
+        className={`pos-grid${!isOverview ? ' pos-grid-sale-mode' : ''}${checkoutCollapsed ? (!isOverview ? ' pos-grid-sale-checkout-collapsed' : ' pos-grid-checkout-collapsed') : ''}`}
+        ref={posGridRef}
+        style={!checkoutCollapsed ? { gridTemplateColumns: `${effectiveRatio * 100}% ${(1 - effectiveRatio) * 100}%` } as React.CSSProperties : undefined}
+      >
+        {!checkoutCollapsed && (
+          <div className="panel-resizer-wrapper" style={{ left: `${effectiveRatio * 100 - 0.5}%`, right: `${(1 - effectiveRatio) * 100 - 0.5}%` }}>
+            <div className="panel-resizer"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const grid = posGridRef.current;
+                if (!grid) return;
+                const startX = e.clientX;
+                const startWidth = grid.getBoundingClientRect().width;
+                const startRatio = effectiveRatio;
+
+                const onMove = (ev: MouseEvent) => {
+                  const dx = ev.clientX - startX;
+                  const newRatio = Math.max(0.2, Math.min(0.8, startRatio + dx / startWidth));
+                  setPanelRatio(newRatio);
+                };
+
+                const onUp = () => {
+                  document.removeEventListener('mousemove', onMove);
+                  document.removeEventListener('mouseup', onUp);
+                  document.body.style.cursor = '';
+                  document.body.style.userSelect = '';
+                };
+
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+              }}
+            />
+          </div>
+        )}
         <section className="sale-stage">
           <div className="sale-topbar">
             <div className="search-box">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { App as AntApp, Button, DatePicker, Empty, Modal, Tooltip } from 'antd';
+import { App as AntApp, Button, DatePicker, Empty, Modal, Skeleton, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { api } from '../api';
 import { Can } from './Can';
@@ -43,12 +43,12 @@ export function OverviewView({
 
     try {
       await api.post(`/pos/sales-orders/${confirmCancelId}/cancel`);
-      message.success('Đã hủy hóa đơn');
+      message.success(LANG.overviewCancelSuccess);
       setConfirmCancelId(null);
       void loadOverview();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
-      message.error(axiosErr.response?.data?.message ?? 'Không thể hủy hóa đơn');
+      message.error(axiosErr.response?.data?.message ?? LANG.overviewCancelFailed);
     } finally {
       setCancelling(false);
     }
@@ -85,7 +85,7 @@ export function OverviewView({
           <Can check={PERMISSIONS.SALES_CANCEL}>
             {overviewDetail?.header.recordType === 'SALE' && overviewDetail.header.status !== 'CANCELLED' && (
               <Button danger onClick={() => setConfirmCancelId(overviewDetail.header.id)}>
-                Hủy hóa đơn
+                {LANG.overviewCancelButton}
               </Button>
             )}
           </Can>
@@ -112,9 +112,13 @@ export function OverviewView({
               <div className="purchase-total">{item.lineTotal.toLocaleString('vi-VN')}</div>
             </div>
           ))
+        ) : overviewLoading ? (
+          <div style={{ padding: '12px 8px' }}>
+            <Skeleton active paragraph={{ rows: 4 }} />
+          </div>
         ) : (
           <div className="empty-stage empty-stage-purchase">
-            <Empty description={overviewLoading ? LANG.saving : LANG.overviewEmptyDetail} />
+            <Empty description={LANG.overviewEmptyDetail} />
           </div>
         )}
       </div>
@@ -156,18 +160,18 @@ export function OverviewView({
       </div>
 
       <Modal
-        title="Xác nhận hủy hóa đơn"
+        title={LANG.overviewCancelTitle}
         open={!!confirmCancelId}
         onOk={() => void handleCancel()}
         onCancel={() => setConfirmCancelId(null)}
         confirmLoading={cancelling}
-        okText="Hủy hóa đơn"
+        okText={LANG.overviewCancelOk}
         okButtonProps={{ danger: true }}
-        cancelText="Không"
+        cancelText={LANG.cancel}
       >
-        <p>Bạn có chắc muốn hủy hóa đơn này?</p>
-        <p style={{ fontSize: 13, color: '#888' }}>
-          Hàng hóa sẽ được hoàn lại kho, điểm tích lũy sẽ được hoàn trả.
+        <p>{LANG.overviewCancelConfirm}</p>
+        <p style={{ fontSize: 13, color: 'var(--pos-text-secondary)' }}>
+          {LANG.overviewCancelNote}
         </p>
       </Modal>
     </>
