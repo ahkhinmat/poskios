@@ -1,5 +1,7 @@
-import { Button, DatePicker, Empty, Tooltip } from 'antd';
+import { useState } from 'react';
+import { App as AntApp, Button, DatePicker, Empty, Modal, Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import { api } from '../api';
 import { Can } from './Can';
 import { LANG } from '../lang';
 import { PERMISSIONS } from '../permissions';
@@ -30,6 +32,28 @@ export function OverviewView({
   focusSearchInput,
   openProductManager,
 }: OverviewViewProps) {
+  const { message } = AntApp.useApp();
+  const [cancelling, setCancelling] = useState(false);
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
+
+  const handleCancel = async () => {
+    if (!confirmCancelId) return;
+
+    setCancelling(true);
+
+    try {
+      await api.post(`/pos/sales-orders/${confirmCancelId}/cancel`);
+      message.success('Đã hủy hóa đơn');
+      setConfirmCancelId(null);
+      void loadOverview();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      message.error(axiosErr.response?.data?.message ?? 'Không thể hủy hóa đơn');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   return (
     <>
       <div className="overview-toolbar">
@@ -58,6 +82,13 @@ export function OverviewView({
           <Button type="primary" onClick={() => void loadOverview()}>
             {LANG.overviewRefresh}
           </Button>
+          <Can check={PERMISSIONS.SALES_CANCEL}>
+            {overviewDetail?.header.recordType === 'SALE' && overviewDetail.header.status !== 'CANCELLED' && (
+              <Button danger onClick={() => setConfirmCancelId(overviewDetail.header.id)}>
+                Hủy hóa đơn
+              </Button>
+            )}
+          </Can>
         </div>
       </div>
 
@@ -123,6 +154,22 @@ export function OverviewView({
           </Can>
         </div>
       </div>
+
+      <Modal
+        title="Xác nhận hủy hóa đơn"
+        open={!!confirmCancelId}
+        onOk={() => void handleCancel()}
+        onCancel={() => setConfirmCancelId(null)}
+        confirmLoading={cancelling}
+        okText="Hủy hóa đơn"
+        okButtonProps={{ danger: true }}
+        cancelText="Không"
+      >
+        <p>Bạn có chắc muốn hủy hóa đơn này?</p>
+        <p style={{ fontSize: 13, color: '#888' }}>
+          Hàng hóa sẽ được hoàn lại kho, điểm tích lũy sẽ được hoàn trả.
+        </p>
+      </Modal>
     </>
   );
 }

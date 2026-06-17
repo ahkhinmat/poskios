@@ -17,6 +17,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PosService } from './pos.service';
 import { ProductImportService } from './product-import.service';
+import { SalesOrderService } from './services/sales-order.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
@@ -44,6 +45,7 @@ export class PosController {
   constructor(
     private readonly posService: PosService,
     private readonly productImportService: ProductImportService,
+    private readonly salesOrderService: SalesOrderService,
   ) {}
 
   // ── Product Management CRUD (before param routes) ──
@@ -506,6 +508,21 @@ export class PosController {
       success: true,
       message: 'Category deleted',
       data,
+    };
+  }
+
+  @Permissions(PERMISSIONS.SALES_CANCEL)
+  @Post('sales-orders/:id/cancel')
+  @HttpCode(HttpStatus.OK)
+  async cancelSalesOrder(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    await this.salesOrderService.cancelSalesOrder(user.id, id);
+
+    return {
+      success: true,
+      message: 'Sales order cancelled',
     };
   }
 

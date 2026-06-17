@@ -518,6 +518,70 @@ export class SalesOrderService {
     };
   }
 
+  async cancelSalesOrder(userId: number, salesOrderId: number) {
+    const order = await this.salesOrderRepository.findOne({ where: { id: salesOrderId } });
+
+    if (!order) throw new NotFoundException('Sales order not found');
+    if (!order.isActive) throw new BadRequestException('Sales order is already cancelled');
+    if (order.orderType !== 'SALE') throw new BadRequestException('Only sale orders can be cancelled');
+
+    const items = await this.salesOrderItemRepository.find({ where: { salesOrderId } });
+
+    await this.dataSource.transaction(async (manager) => {
+      order.status = 'CANCELLED';
+      order.isActive = false;
+      order.cancelledByUserId = userId;
+      order.cancelledAt = new Date();
+      await manager.save(SalesOrder, order);
+
+      for (const item of items) {
+        const product = await manager.findOne(Product, { where: { id: item.productId } });
+        if (!product) continue;
+
+        const stockBefore = Number(product.stockOnHand);
+        const stockAfter = Number((stockBefore + Number(item.quantity)).toFixed(3));
+        product.stockOnHand = stockAfter.toFixed(3);
+        await manager.save(Product, product);
+
+        await manager.save(InventoryTransaction, manager.create(InventoryTransaction, {
+          productId: item.productId,
+          salesOrderId,
+          createdByUserId: userId,
+          transactionType: 'SALE_CANCEL',
+          referenceCode: order.salesOrderCode,
+          quantityChange: String(Number(item.quantity)),
+          stockBefore: stockBefore.toFixed(3),
+          stockAfter: stockAfter.toFixed(3),
+          unitCost: item.costPrice,
+          notes: `Cancel ${order.salesOrderCode}`,
+          batchNumber: null,
+          expiryDate: null,
+          transactionAt: new Date(),
+        }));
+      }
+
+      const pointTransactions = await manager.find(LoyaltyPointTransaction, {
+        where: { salesOrderId, transactionType: In(['EARN', 'REDEEM']) },
+      });
+
+      for (const pt of pointTransactions) {
+        const customer = pt.customerId ? await manager.findOne(Customer, { where: { id: pt.customerId } }) : null;
+        if (!customer) continue;
+
+        const reverseChange = -Number(pt.pointsChange);
+        await this.appendPointTransaction(manager, {
+          customer,
+          salesOrderId,
+          transactionType: 'RETURN_REVERSE',
+          pointsChange: reverseChange,
+          amountBasis: Number(pt.amountBasis),
+          notes: `Reverse ${pt.transactionType} from cancelled ${order.salesOrderCode}`,
+          transactionAt: new Date(),
+        });
+      }
+    });
+  }
+
   private async generateSalesOrderCode(manager: DataSource['manager'], prefix: string) {
     const latest = await manager.findOne(SalesOrder, { where: {}, order: { id: 'DESC' } });
     const nextId = (latest?.id ?? 0) + 1;

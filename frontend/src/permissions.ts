@@ -14,6 +14,7 @@ export const PERMISSIONS = {
   LOYALTY_CONFIGURE: 'loyalty.configure',
   SETTINGS_MANAGE: 'settings.manage',
   PRODUCTS_IMPORT: 'products.import',
+  SALES_CANCEL: 'sales.cancel',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -21,7 +22,7 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 export const PERMISSION_GROUPS: { label: string; permissions: string[] }[] = [
   {
     label: 'Bán hàng',
-    permissions: [PERMISSIONS.SALES_CREATE, PERMISSIONS.SALES_RETURN],
+    permissions: [PERMISSIONS.SALES_CREATE, PERMISSIONS.SALES_RETURN, PERMISSIONS.SALES_CANCEL],
   },
   {
     label: 'Sản phẩm',
@@ -73,4 +74,5 @@ export const PERMISSION_LABELS: Record<string, string> = {
   [PERMISSIONS.LOYALTY_CONFIGURE]: 'Cấu hình tích điểm',
   [PERMISSIONS.SETTINGS_MANAGE]: 'Quản lý cấu hình',
   [PERMISSIONS.PRODUCTS_IMPORT]: 'Import sản phẩm',
+  [PERMISSIONS.SALES_CANCEL]: 'Hủy hóa đơn bán',
 };

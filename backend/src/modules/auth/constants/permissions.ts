@@ -14,6 +14,7 @@ export const PERMISSIONS = {
   LOYALTY_CONFIGURE: 'loyalty.configure',
   SETTINGS_MANAGE: 'settings.manage',
   PRODUCTS_IMPORT: 'products.import',
+  SALES_CANCEL: 'sales.cancel',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -21,7 +22,7 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
   {
     label: 'Bán hàng',
-    permissions: [PERMISSIONS.SALES_CREATE, PERMISSIONS.SALES_RETURN],
+    permissions: [PERMISSIONS.SALES_CREATE, PERMISSIONS.SALES_RETURN, PERMISSIONS.SALES_CANCEL],
   },
   {
     label: 'Sản phẩm',
@@ -82,5 +83,6 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     PERMISSIONS.LOYALTY_CONFIGURE,
     PERMISSIONS.SETTINGS_MANAGE,
     PERMISSIONS.PRODUCTS_IMPORT,
+    PERMISSIONS.SALES_CANCEL,
   ],
 };
