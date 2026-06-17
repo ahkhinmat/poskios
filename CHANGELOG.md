@@ -1,8 +1,22 @@
 # Changelog
 
-## [Unreleased] — feature/ui-permissions
+## [Unreleased] — proV1
 
 ### Added
+- **Render deployment guide**: `RENDER_DEPLOYMENT.md` — chi tiết deploy PostgreSQL, backend, frontend
+- **receiptPoweredBy**: in chữ cuối hóa đơn (VD: "Powered by KIOTVIET") từ cấu hình Settings
+- **Permissions column**: thêm cột Permissions vào Roles, seed data (MANAGER: 17 quyền, STAFF: 6 quyền)
+
+### Changed
+- **Database**: SQL Server → PostgreSQL (Docker + Render), init schema tại `docs/postgres-init.sql`
+- **Docker Compose**: thêm service postgres:16-alpine, init SQL tự động
+- **Receipt title**: "HÓA ĐƠN TẠM TÍNH" → "HÓA ĐƠN BÁN HÀNG" (đã thanh toán)
+- **Backend CORS**: linh hoạt qua env var CORS_ORIGIN (hỗ trợ nhiều origin)
+- **Frontend API base**: dùng VITE_API_BASE_URL cho Render, fallback `/api/v1`
+
+### Fixed
+- **Draft tab 404**: persistDraftTab tự động xóa tab cũ nếu backend trả 404 (tab đã bị xóa từ thiết bị khác)
+- **Role entity merge**: giữ `varchar` từ proV1 + cột `Permissions` từ main
 - **Keyboard shortcuts**: F8 thanh toán, Ctrl+F tìm kiếm, F1 tab mới, Escape xóa search
 - **Auto-focus search**: focus ô tìm kiếm khi chuyển tab
 - **Fullscreen**: nút toggle toàn màn hình trong SessionBar

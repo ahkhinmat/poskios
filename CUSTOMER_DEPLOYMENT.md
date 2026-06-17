@@ -1,4 +1,6 @@
-# KA MART Customer Deployment
+# KA MART Customer Deployment (On-Premise SQL Server)
+
+> ⚠️ Đã chuyển sang PostgreSQL + Docker + Render cloud. Xem [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) cho bản mới.
 
 ## Thu muc can copy sang may khach
 
