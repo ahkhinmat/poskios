@@ -208,6 +208,7 @@ export type ReturnCheckoutResponse = {
     totalAmount: number;
     customerRefundAmount: number;
     footerMessage: string | null;
+    receiptPoweredBy?: string | null;
     reversedPoints?: number;
   };
 };
@@ -249,6 +250,7 @@ export type PurchaseCheckoutResponse = {
     supplierPaidAmount: number;
     debtAmount: number;
     footerMessage: string | null;
+    receiptPoweredBy?: string | null;
   };
 };
 
@@ -308,6 +310,7 @@ export type CheckoutResponse = {
     customerPaidAmount: number;
     changeAmount: number;
     footerMessage: string | null;
+    receiptPoweredBy?: string | null;
     redeemedPoints?: number;
     earnedPoints?: number;
   };

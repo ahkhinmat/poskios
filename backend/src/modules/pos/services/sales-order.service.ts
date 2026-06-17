@@ -250,6 +250,7 @@ export class SalesOrderService {
         customerPaidAmount: Number(result.salesOrder.customerPaidAmount),
         changeAmount: result.changeAmount,
         footerMessage: setting?.receiptFooter ?? setting?.receiptHeader ?? null,
+        receiptPoweredBy: setting?.receiptPoweredBy ?? null,
         redeemedPoints: result.redeemedPoints,
         earnedPoints: result.earnedPoints,
       },
@@ -445,6 +446,7 @@ export class SalesOrderService {
         totalAmount: result.refundAmount,
         customerRefundAmount: Number(result.salesOrder.customerPaidAmount),
         footerMessage: setting?.receiptFooter ?? setting?.receiptHeader ?? null,
+        receiptPoweredBy: setting?.receiptPoweredBy ?? null,
         reversedPoints: result.reversedPoints,
       },
     };

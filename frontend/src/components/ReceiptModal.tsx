@@ -75,6 +75,9 @@ export function ReceiptModal({ receiptPreview, onClose, onPrint }: Props) {
           ))}
           <div className="receipt-dash" />
           <div className="receipt-center">{receiptPreview.footerMessage}</div>
+          {receiptPreview.receiptPoweredBy && (
+            <div className="receipt-center receipt-powered">{receiptPreview.receiptPoweredBy}</div>
+          )}
         </div>
       )}
     </Modal>

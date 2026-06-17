@@ -193,7 +193,7 @@ export const LANG = {
   warnNeedTab: 'Cần ít nhất một tab POS',
   warnSelectSupplierToEdit: 'Hãy chọn nhà cung cấp để sửa',
 
-  receiptTitle: 'HÓA ĐƠN TẠM TÍNH',
+  receiptTitle: 'HÓA ĐƠN BÁN HÀNG',
   receiptReturnTitle: 'PHIẾU TRẢ HÀNG',
   receiptPurchaseTitle: 'PHIẾU NHẬP HÀNG',
   receiptCode: 'Số HĐ',
