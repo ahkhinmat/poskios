@@ -26,6 +26,7 @@ CREATE TABLE "Roles" (
     "Code" VARCHAR(50) NOT NULL,
     "Name" VARCHAR(100) NOT NULL,
     "Description" VARCHAR(255),
+    "Permissions" VARCHAR(1000),
     "IsActive" BOOLEAN NOT NULL DEFAULT TRUE,
     "CreatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -469,10 +470,10 @@ CREATE INDEX "IX_LoyaltyPointTransactions_CustomerId_TransactionAt" ON "LoyaltyP
 
 -- ===== Seed Data =====
 
-INSERT INTO "Roles" ("Code", "Name", "Description")
+INSERT INTO "Roles" ("Code", "Name", "Description", "Permissions")
 VALUES
-    ('MANAGER', 'Manager', 'Quan ly cua hang'),
-    ('STAFF', 'Staff', 'Nhan vien ban hang');
+    ('MANAGER', 'Manager', 'Quan ly cua hang', 'products.view,products.manage,categories.view,categories.manage,units.view,suppliers.view,suppliers.manage,sales.create,sales.return,purchase.create,purchase.complete,overview.view,loyalty.configure,settings.manage,products.import,sales.cancel'),
+    ('STAFF', 'Staff', 'Nhan vien ban hang', 'products.view,categories.view,units.view,suppliers.view,sales.create,sales.return');
 
 INSERT INTO "Settings" ("StoreName", "StoreAddress", "StorePhoneNumber", "ReceiptHeader", "ReceiptFooter")
 VALUES ('POS Kiosk', NULL, NULL, 'Cam on quy khach', 'Hen gap lai');
