@@ -20,16 +20,17 @@ export function useOverview(
   const [overviewDetail, setOverviewDetail] = useState<OverviewDetail | null>(null);
   const [overviewFromDate, setOverviewFromDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [overviewToDate, setOverviewToDate] = useState(dayjs().format('YYYY-MM-DD'));
-  const [overviewRecordTypeFilter, setOverviewRecordTypeFilter] = useState<'ALL' | 'SALE' | 'RETURN' | 'PURCHASE'>('SALE');
+  const [overviewRecordTypeFilter, setOverviewRecordTypeFilter] = useState<'ALL' | 'SALE' | 'RETURN' | 'PURCHASE' | 'CANCELLED'>('SALE');
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
-  const showProfit = overviewRecordTypeFilter === 'SALE';
+  const showProfit = overviewRecordTypeFilter === 'SALE' || overviewRecordTypeFilter === 'CANCELLED';
 
   const filteredOverviewRecords = useMemo(
-    () =>
-      overviewRecordTypeFilter === 'ALL'
-        ? overviewRecords
-        : overviewRecords.filter((record) => record.recordType === overviewRecordTypeFilter),
+    () => {
+      if (overviewRecordTypeFilter === 'ALL') return overviewRecords;
+      if (overviewRecordTypeFilter === 'CANCELLED') return overviewRecords.filter((record) => record.status === 'CANCELLED');
+      return overviewRecords.filter((record) => record.recordType === overviewRecordTypeFilter);
+    },
     [overviewRecords, overviewRecordTypeFilter],
   );
   const overviewTotalAmount = useMemo(
