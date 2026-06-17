@@ -340,6 +340,7 @@ export const LANG = {
   logoutSuccess: 'Đã đăng xuất',
 
   // Permission warnings
+  permissionDenied: 'Bạn không có quyền thực hiện thao tác này',
   errManagerOnlyImport: 'Chỉ Manager được nhập hàng',
   errManagerOnlyCategory: 'Chỉ Manager được quản lý danh mục',
   errManagerOnlyLoyaltyConfig: 'Chỉ Manager được cấu hình tích điểm',
@@ -407,6 +408,40 @@ export const LANG = {
   settingsSearchDebounceMs: 'Delay tìm kiếm (ms)',
   settingsAutoSaveDebounceMs: 'Delay tự lưu (ms)',
   settingsPaymentMethods: 'PT Thanh toán (dấu phẩy)',
+
+  // Undo
+  undoRemoved: 'Đã xóa sản phẩm',
+  undoAction: 'Hoàn tác',
+
+  // Session (end-of-day)
+  sessionStart: 'Bắt đầu ca',
+  sessionEnd: 'Kết thúc ca',
+  sessionEndTitle: 'Kết thúc ca làm việc',
+  sessionStartConfirm: 'Xác nhận bắt đầu ca?',
+  sessionEndConfirm: 'Xác nhận kết thúc ca?',
+  sessionStartedAt: 'Bắt đầu lúc',
+  sessionEndedAt: 'Kết thúc lúc',
+  sessionTotalSales: 'Tổng bán',
+  sessionTotalReturns: 'Tổng trả',
+  sessionTotalInvoices: 'Số hóa đơn',
+  sessionTotalCash: 'Tiền mặt',
+  sessionTotalTransfer: 'Chuyển khoản',
+  sessionRunning: 'Ca đang hoạt động',
+  sessionInactive: 'Chưa bắt đầu ca',
+  sessionSummary: 'Tổng kết ca',
+
+  // Cancel order
+  overviewCancelButton: 'Hủy hóa đơn',
+  overviewCancelTitle: 'Xác nhận hủy hóa đơn',
+  overviewCancelConfirm: 'Bạn có chắc muốn hủy hóa đơn này?',
+  overviewCancelNote: 'Hàng hóa sẽ được hoàn lại kho, điểm tích lũy sẽ được hoàn trả.',
+  overviewCancelSuccess: 'Đã hủy hóa đơn',
+  overviewCancelFailed: 'Không thể hủy hóa đơn',
+  overviewCancelOk: 'Hủy hóa đơn',
+
+  // Fullscreen
+  fullscreenEnter: 'Toàn màn hình',
+  fullscreenExit: 'Thoát toàn màn hình',
 } as const;
 
 export type LangKeys = keyof typeof LANG;

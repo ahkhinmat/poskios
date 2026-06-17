@@ -6,6 +6,8 @@ import { getJwtExpiresIn, getJwtSecret } from './auth.config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { Role } from './entities/role.entity';
+import { RolesController } from './roles.controller';
+import { RolesService } from './services/roles.service';
 import { User } from './entities/user.entity';
 
 @Module({
@@ -22,8 +24,8 @@ import { User } from './entities/user.entity';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService],
+  controllers: [AuthController, RolesController],
+  providers: [AuthService, RolesService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

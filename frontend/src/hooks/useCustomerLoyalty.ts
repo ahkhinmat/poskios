@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { LANG } from '../lang';
+import { PERMISSIONS } from '../permissions';
 import type {
   ApiEnvelope,
   Customer,
@@ -14,7 +15,7 @@ import type {
 
 export function useCustomerLoyalty(
   message: ReturnType<typeof import('antd').App.useApp>['message'],
-  isManager: boolean,
+  permissions: string[],
   activeTab: PosDraftTab | null,
   isReturnTab: boolean,
   isPurchaseTab: boolean,
@@ -139,8 +140,8 @@ export function useCustomerLoyalty(
   }
 
   async function handleSaveLoyaltySettings() {
-    if (!isManager) {
-      message.warning(LANG.errManagerOnlyLoyaltyConfig);
+    if (!permissions.includes(PERMISSIONS.LOYALTY_CONFIGURE)) {
+      message.warning(LANG.permissionDenied);
       return;
     }
 
@@ -160,14 +161,14 @@ export function useCustomerLoyalty(
   }
 
   function openCreateSupplier() {
-    if (!isManager) return;
+    if (!permissions.includes(PERMISSIONS.SUPPLIERS_MANAGE)) return;
 
     setEditingSupplier(null);
     setSupplierManagerOpen(true);
   }
 
   function openEditSupplier() {
-    if (!isManager) return;
+    if (!permissions.includes(PERMISSIONS.SUPPLIERS_MANAGE)) return;
 
     if (!activeTab || activeTab.tabType !== 'PURCHASE') return;
 
@@ -185,7 +186,7 @@ export function useCustomerLoyalty(
   }
 
   useEffect(() => {
-    if (isManager) {
+    if (permissions.includes(PERMISSIONS.SUPPLIERS_MANAGE)) {
       void loadSuppliers();
     }
     void loadLoyaltySettings();

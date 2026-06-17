@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   App as AntApp,
   Button,
@@ -20,19 +20,25 @@ import {
   PrinterOutlined,
   SearchOutlined,
   ShoppingCartOutlined,
+  ShoppingOutlined,
   SwapOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { LANG } from '../lang';
+import { Can } from '../components/Can';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import { CheckoutPanel } from '../components/CheckoutPanel';
 import { OverviewView } from '../components/OverviewView';
+import { PERMISSIONS } from '../permissions';
 import { PosModals } from '../components/PosModals';
 import { PurchaseTable } from '../components/PurchaseTable';
 import { ReturnSearchPanel } from '../components/ReturnSearchPanel';
 import { SaleList } from '../components/SaleList';
+import { SessionBar } from '../components/SessionBar';
 import { SettingsPage } from '../components/SettingsPage';
 import { usePosPage } from '../hooks/usePosPage';
+import { useSession } from '../hooks/useSession';
+import { beep } from '../utils/sound';
 
 const PAYMENT_LABEL_MAP: Record<string, string> = {
   CASH: LANG.cash,
@@ -50,11 +56,23 @@ function formatPoints(value: number) {
   });
 }
 
+function stockBarProps(stock: number) {
+  if (stock <= 0) return { pct: 0, color: '#ef4444' };
+  if (stock <= 10) return { pct: Math.max(10, stock * 5), color: '#f59e0b' };
+  if (stock <= 50) return { pct: Math.min(50, stock), color: '#f59e0b' };
+  return { pct: 100, color: '#16a34a' };
+}
+
 export function PosPage() {
   const { message } = AntApp.useApp();
   const p = usePosPage();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [checkoutCollapsed, setCheckoutCollapsed] = useState(() => window.innerWidth <= 1024);
+  const [panelRatio, setPanelRatio] = useState<number | null>(null);
+  const posGridRef = useRef<HTMLDivElement>(null);
+  const sessionHook = useSession();
+  const { session, isRunning, startSession, endSession } = sessionHook;
 
   const paymentOptions = useMemo(() => {
     const methods = p.appSettings?.paymentMethods ?? 'CASH,BANK_TRANSFER,CARD,EWALLET';
@@ -64,6 +82,85 @@ export function PosPage() {
     }));
   }, [p.appSettings?.paymentMethods]);
 
+  // Undo toast
+  useEffect(() => {
+    if (!p.lastRemovedItem) return;
+    const key = 'undo-msg';
+    message.open({
+      key,
+      type: 'info',
+      content: (
+        <div className="undo-toast">
+          <span>{LANG.undoRemoved}</span>
+          <button
+            type="button"
+            onClick={() => {
+              p.undoRemove();
+              message.destroy(key);
+            }}
+          >
+            {LANG.undoAction}
+          </button>
+        </div>
+      ),
+      duration: 4,
+    });
+  }, [p.lastRemovedItem]);
+
+  // Sound feedback on lastScannedProductName
+  const prevScannedRef = useRef('');
+  useEffect(() => {
+    if (p.lastScannedProductName && p.lastScannedProductName !== prevScannedRef.current) {
+      prevScannedRef.current = p.lastScannedProductName;
+      beep('scan');
+      message.success(`${LANG.scannedLabel} ${p.lastScannedProductName}`, 1.5);
+    }
+  }, [p.lastScannedProductName]);
+
+  // Auto-collapse checkout on resize
+  useEffect(() => {
+    const onResize = () => {
+      setCheckoutCollapsed(window.innerWidth <= 1024);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Auto-focus search on tab change
+  useEffect(() => {
+    p.focusSearchInput();
+  }, [p.activeTabId]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const activeTabRef = p.activeTab;
+    const hc = p.handleCheckout;
+    const hct = p.handleCreateTab;
+    const fsi = p.focusSearchInput;
+    const csi = p.clearSearchInput;
+    const sir = p.searchInputRef;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F8' && activeTabRef?.items.length) {
+        e.preventDefault();
+        hc();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        fsi();
+      }
+      if (e.key === 'F1') {
+        e.preventDefault();
+        hct();
+      }
+      if (e.key === 'Escape') {
+        csi();
+        sir.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [p.activeTab, p.handleCheckout, p.handleCreateTab, p.focusSearchInput, p.clearSearchInput, p.searchInputRef]);
+
   if (p.loading) {
     return (
       <div className="screen-center">
@@ -72,9 +169,49 @@ export function PosPage() {
     );
   }
 
+  const isOverview = p.currentView === 'OVERVIEW';
+  const defaultRatio = isOverview ? 0.5 : 0.75;
+  const effectiveRatio = isOverview ? 0.5 : (panelRatio ?? defaultRatio);
+
   return (
     <div className="pos-shell">
-      <div className={`pos-grid${p.currentView !== 'OVERVIEW' ? ' pos-grid-sale-mode' : ''}`}>
+      <div
+        className={`pos-grid${!isOverview ? ' pos-grid-sale-mode' : ''}${checkoutCollapsed ? (!isOverview ? ' pos-grid-sale-checkout-collapsed' : ' pos-grid-checkout-collapsed') : ''}`}
+        ref={posGridRef}
+        style={!checkoutCollapsed ? { gridTemplateColumns: `${effectiveRatio * 100}% ${(1 - effectiveRatio) * 100}%` } as React.CSSProperties : undefined}
+      >
+        {!checkoutCollapsed && (
+          <div className="panel-resizer-wrapper" style={{ left: `${effectiveRatio * 100 - 0.5}%`, right: `${(1 - effectiveRatio) * 100 - 0.5}%` }}>
+            <div className="panel-resizer"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const grid = posGridRef.current;
+                if (!grid) return;
+                const startX = e.clientX;
+                const startWidth = grid.getBoundingClientRect().width;
+                const startRatio = effectiveRatio;
+
+                const onMove = (ev: MouseEvent) => {
+                  const dx = ev.clientX - startX;
+                  const newRatio = Math.max(0.2, Math.min(0.8, startRatio + dx / startWidth));
+                  setPanelRatio(newRatio);
+                };
+
+                const onUp = () => {
+                  document.removeEventListener('mousemove', onMove);
+                  document.removeEventListener('mouseup', onUp);
+                  document.body.style.cursor = '';
+                  document.body.style.userSelect = '';
+                };
+
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+              }}
+            />
+          </div>
+        )}
         <section className="sale-stage">
           <div className="sale-topbar">
             <div className="search-box">
@@ -148,6 +285,8 @@ export function PosPage() {
               </Tooltip>
             </div>
 
+            <SessionBar session={session} isRunning={isRunning} onStart={startSession} onEnd={endSession} />
+
             <div className="topbar-actions">
               {p.lastScannedProductName ? (
                 <Tag color="green">{LANG.scannedLabel} {p.lastScannedProductName}</Tag>
@@ -178,7 +317,6 @@ export function PosPage() {
               overviewToDate={p.overviewToDate}
               overviewDetail={p.overviewDetail}
               overviewLoading={p.overviewLoading}
-              isManager={p.isManager}
               setOverviewFromDate={p.setOverviewFromDate}
               setOverviewToDate={p.setOverviewToDate}
               loadOverview={p.loadOverview}
@@ -220,9 +358,15 @@ export function PosPage() {
                     <List.Item.Meta
                       title={<span style={{ fontWeight: 600 }}>{product.name} <span style={{ color: '#6b7280', fontWeight: 400, fontSize: 12 }}>({product.unitName})</span></span>}
                       description={
-                        <span style={{ fontSize: 12, color: '#6b7280' }}>
+                        <span style={{ fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ color: '#374151', fontWeight: 500 }}>{product.productCode}</span>
-                          {' · '}{LANG.stockLabel} <strong style={{ color: product.stockOnHand > 0 ? '#16a34a' : '#ef4444' }}>{product.stockOnHand.toLocaleString('vi-VN')}</strong>
+                          {' · '}{LANG.stockLabel}
+                          <div className="sale-stock-bar" style={{ width: 32, height: 5 }}>
+                            <div className="sale-stock-bar-fill" style={{ width: `${stockBarProps(product.stockOnHand).pct}%`, background: stockBarProps(product.stockOnHand).color }} />
+                          </div>
+                          <strong style={{ color: stockBarProps(product.stockOnHand).color, fontSize: 11 }}>
+                            {product.stockOnHand.toLocaleString('vi-VN')}
+                          </strong>
                           {' · '}<span style={{ color: '#059669', fontWeight: 600 }}>{product.salePrice.toLocaleString('vi-VN')}{LANG.currencySuffix}</span>
                         </span>
                       }
@@ -353,46 +497,50 @@ export function PosPage() {
                     <SwapOutlined style={{ fontSize: 14 }} /> {LANG.modeReturn}
                   </button>
                 </Tooltip>
-              {p.isManager && (
-                <>
-                  <Tooltip title={LANG.modeImportTip}>
-                    <button
-                      type="button"
-                      className={`sale-mode ${p.isPurchaseTab ? 'is-active' : ''}`}
-                      onClick={() => { if (!p.isPurchaseTab) void p.ensureTabOfType('PURCHASE'); }}
-                    >
-                      <ImportOutlined style={{ fontSize: 14 }} /> {LANG.modeImport}
-                    </button>
-                  </Tooltip>
-                  <Tooltip title={LANG.modeCategoryTip}>
-                    <button
-                      type="button"
-                      className="sale-mode"
-                      onClick={p.openProductManager}
-                    >
-                      <AppstoreOutlined style={{ fontSize: 14 }} /> {LANG.modeCategory}
-                    </button>
-                  </Tooltip>
-                  <Tooltip title={LANG.modeOverviewTip}>
-                    <button
-                      type="button"
-                      className="sale-mode"
-                      onClick={p.handleOpenOverview}
-                    >
-                      <BarChartOutlined style={{ fontSize: 14 }} /> {LANG.modeOverview}
-                    </button>
-                  </Tooltip>
-                  <Tooltip title={LANG.settingsTitle}>
-                    <button
-                      type="button"
-                      className="sale-mode"
-                      onClick={() => setSettingsOpen(true)}
-                    >
-                      <ContainerOutlined style={{ fontSize: 14 }} /> {LANG.settingsTitle}
-                    </button>
-                  </Tooltip>
-                </>
-              )}
+              <Can check={{ permission: PERMISSIONS.PURCHASE_CREATE, denyReason: LANG.errManagerOnlyImport }}>
+                <Tooltip title={LANG.modeImportTip}>
+                  <button
+                    type="button"
+                    className={`sale-mode ${p.isPurchaseTab ? 'is-active' : ''}`}
+                    onClick={() => { if (!p.isPurchaseTab) void p.ensureTabOfType('PURCHASE'); }}
+                  >
+                    <ImportOutlined style={{ fontSize: 14 }} /> {LANG.modeImport}
+                  </button>
+                </Tooltip>
+              </Can>
+              <Can check={{ permission: PERMISSIONS.CATEGORIES_MANAGE, denyReason: LANG.errManagerOnlyCategory }}>
+                <Tooltip title={LANG.modeCategoryTip}>
+                  <button
+                    type="button"
+                    className="sale-mode"
+                    onClick={p.openProductManager}
+                  >
+                    <AppstoreOutlined style={{ fontSize: 14 }} /> {LANG.modeCategory}
+                  </button>
+                </Tooltip>
+              </Can>
+              <Can check={{ permission: PERMISSIONS.OVERVIEW_VIEW, denyReason: LANG.errManagerOnlyOverview }}>
+                <Tooltip title={LANG.modeOverviewTip}>
+                  <button
+                    type="button"
+                    className="sale-mode"
+                    onClick={p.handleOpenOverview}
+                  >
+                    <BarChartOutlined style={{ fontSize: 14 }} /> {LANG.modeOverview}
+                  </button>
+                </Tooltip>
+              </Can>
+              <Can check={{ permission: PERMISSIONS.SETTINGS_MANAGE }}>
+                <Tooltip title={LANG.settingsTitle}>
+                  <button
+                    type="button"
+                    className="sale-mode"
+                    onClick={() => setSettingsOpen(true)}
+                  >
+                    <ContainerOutlined style={{ fontSize: 14 }} /> {LANG.settingsTitle}
+                  </button>
+                </Tooltip>
+              </Can>
             </div>
           </div>
             </>
@@ -400,6 +548,8 @@ export function PosPage() {
         </section>
 
         <CheckoutPanel
+          collapsed={checkoutCollapsed}
+          onToggleCollapse={() => setCheckoutCollapsed((v) => !v)}
           currentView={p.currentView}
           isPurchaseTab={p.isPurchaseTab}
           isReturnTab={p.isReturnTab}
@@ -440,6 +590,14 @@ export function PosPage() {
           formatPoints={formatPoints}
           paymentOptions={paymentOptions}
         />
+
+        <button
+          type="button"
+          className="checkout-toggle"
+          onClick={() => setCheckoutCollapsed((v) => !v)}
+        >
+          <ShoppingOutlined />
+        </button>
       </div>
 
       <PosModals

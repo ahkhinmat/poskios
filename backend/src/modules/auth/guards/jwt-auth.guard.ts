@@ -49,11 +49,14 @@ export class JwtAuthGuard implements CanActivate {
         secret: getJwtSecret(this.configService),
       });
 
+      const permissions: string[] = (payload as { permissions?: string[] }).permissions ?? [];
+
       request.user = {
         id: payload.sub,
         username: payload.username,
         fullName: payload.fullName,
         roleCode: payload.roleCode,
+        permissions: permissions as AuthenticatedUser['permissions'],
       };
 
       return true;

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { api } from '../api';
 import { LANG } from '../lang';
+import { PERMISSIONS } from '../permissions';
 import { createDefaultPurchaseMeta, getNextTabNumber } from '../utils/purchase';
 import type {
   ApiEnvelope,
@@ -18,7 +19,7 @@ import type {
 export function useTabs(
   message: ReturnType<typeof import('antd').App.useApp>['message'],
   appSettings: AppSettings | null,
-  isManager: boolean,
+  permissions: string[],
   setCurrentView: (view: 'POS' | 'OVERVIEW') => void,
 ) {
   const [loading, setLoading] = useState(true);
@@ -293,8 +294,8 @@ export function useTabs(
   async function ensureTabOfType(tabType: 'SALE' | 'RETURN' | 'PURCHASE') {
     setCurrentView('POS');
 
-    if (tabType === 'PURCHASE' && !isManager) {
-      message.warning(LANG.errManagerOnlyImport);
+    if (tabType === 'PURCHASE' && !permissions.includes(PERMISSIONS.PURCHASE_CREATE)) {
+      message.warning(LANG.permissionDenied);
       return;
     }
 
@@ -489,8 +490,15 @@ export function useTabs(
     );
   }
 
+  const [lastRemovedItem, setLastRemovedItem] = useState<{ item: PosDraftItem; tabId: number; sortOrder: number } | null>(null);
+
   function removeItem(productUnitId: number) {
     if (!activeTab) return;
+
+    const removed = activeTab.items.find((item) => item.productUnitId === productUnitId);
+    if (!removed) return;
+
+    setLastRemovedItem({ item: { ...removed }, tabId: activeTab.id, sortOrder: removed.sortOrder });
 
     setTabs((current) =>
       current.map((tab) =>
@@ -504,6 +512,25 @@ export function useTabs(
           : tab,
       ),
     );
+  }
+
+  function undoRemove() {
+    if (!lastRemovedItem) return;
+
+    const { item, tabId, sortOrder } = lastRemovedItem;
+    setTabs((current) =>
+      current.map((tab) =>
+        tab.id === tabId
+          ? {
+              ...tab,
+              items: [...tab.items, { ...item, sortOrder }]
+                .sort((a, b) => a.sortOrder - b.sortOrder)
+                .map((itm, idx) => ({ ...itm, sortOrder: idx + 1 })),
+            }
+          : tab,
+      ),
+    );
+    setLastRemovedItem(null);
   }
 
   useEffect(() => {
@@ -579,5 +606,6 @@ export function useTabs(
     setActiveTabItems,
     updateActiveTab, updateItem, handleChangeItemUnit, removeItem,
     getUnitOptionsForItem, loadProductUnitOptions, updatePurchaseMeta,
+    lastRemovedItem, undoRemove,
   };
 }

@@ -1,3 +1,5 @@
+import type { Permission } from '../constants/permissions';
+
 export type RoleCode = 'STAFF' | 'MANAGER';
 
 export type AuthenticatedUser = {
@@ -5,6 +7,7 @@ export type AuthenticatedUser = {
   username: string;
   fullName: string;
   roleCode: RoleCode;
+  permissions: Permission[];
 };
 
 export type AuthJwtPayload = {
@@ -12,4 +15,5 @@ export type AuthJwtPayload = {
   username: string;
   fullName: string;
   roleCode: RoleCode;
+  permissions: Permission[];
 };

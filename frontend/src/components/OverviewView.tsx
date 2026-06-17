@@ -1,6 +1,10 @@
-import { Button, DatePicker, Empty, Tooltip } from 'antd';
+import { useState } from 'react';
+import { App as AntApp, Button, DatePicker, Empty, Modal, Skeleton, Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import { api } from '../api';
+import { Can } from './Can';
 import { LANG } from '../lang';
+import { PERMISSIONS } from '../permissions';
 import type { OverviewDetail } from '../types';
 
 type OverviewViewProps = {
@@ -8,7 +12,6 @@ type OverviewViewProps = {
   overviewToDate: string;
   overviewDetail: OverviewDetail | null;
   overviewLoading: boolean;
-  isManager: boolean;
   setOverviewFromDate: (v: string) => void;
   setOverviewToDate: (v: string) => void;
   loadOverview: (reset?: boolean, fromDate?: string, toDate?: string) => Promise<void>;
@@ -22,7 +25,6 @@ export function OverviewView({
   overviewToDate,
   overviewDetail,
   overviewLoading,
-  isManager,
   setOverviewFromDate,
   setOverviewToDate,
   loadOverview,
@@ -30,6 +32,28 @@ export function OverviewView({
   focusSearchInput,
   openProductManager,
 }: OverviewViewProps) {
+  const { message } = AntApp.useApp();
+  const [cancelling, setCancelling] = useState(false);
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
+
+  const handleCancel = async () => {
+    if (!confirmCancelId) return;
+
+    setCancelling(true);
+
+    try {
+      await api.post(`/pos/sales-orders/${confirmCancelId}/cancel`);
+      message.success(LANG.overviewCancelSuccess);
+      setConfirmCancelId(null);
+      void loadOverview();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      message.error(axiosErr.response?.data?.message ?? LANG.overviewCancelFailed);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   return (
     <>
       <div className="overview-toolbar">
@@ -58,6 +82,13 @@ export function OverviewView({
           <Button type="primary" onClick={() => void loadOverview()}>
             {LANG.overviewRefresh}
           </Button>
+          <Can check={PERMISSIONS.SALES_CANCEL}>
+            {overviewDetail?.header.recordType === 'SALE' && overviewDetail.header.status !== 'CANCELLED' && (
+              <Button danger onClick={() => setConfirmCancelId(overviewDetail.header.id)}>
+                {LANG.overviewCancelButton}
+              </Button>
+            )}
+          </Can>
         </div>
       </div>
 
@@ -81,9 +112,13 @@ export function OverviewView({
               <div className="purchase-total">{item.lineTotal.toLocaleString('vi-VN')}</div>
             </div>
           ))
+        ) : overviewLoading ? (
+          <div style={{ padding: '12px 8px' }}>
+            <Skeleton active paragraph={{ rows: 4 }} />
+          </div>
         ) : (
           <div className="empty-stage empty-stage-purchase">
-            <Empty description={overviewLoading ? LANG.saving : LANG.overviewEmptyDetail} />
+            <Empty description={LANG.overviewEmptyDetail} />
           </div>
         )}
       </div>
@@ -100,27 +135,45 @@ export function OverviewView({
               {LANG.modeReturn}
             </button>
           </Tooltip>
-          {isManager && (
-            <>
-              <Tooltip title={LANG.modeImportTip}>
-                <button type="button" className="sale-mode" onClick={() => { void ensureTabOfType('PURCHASE'); }}>
-                  {LANG.modeImport}
-                </button>
-              </Tooltip>
-              <Tooltip title={LANG.modeCategoryTip}>
-                <button type="button" className="sale-mode" onClick={openProductManager}>
-                  {LANG.modeCategory}
-                </button>
-              </Tooltip>
-              <Tooltip title={LANG.modeOverviewTip}>
-                <button type="button" className="sale-mode is-active">
-                  {LANG.modeOverview}
-                </button>
-              </Tooltip>
-            </>
-          )}
+          <Can check={{ permission: PERMISSIONS.PURCHASE_CREATE, denyReason: LANG.errManagerOnlyImport }}>
+            <Tooltip title={LANG.modeImportTip}>
+              <button type="button" className="sale-mode" onClick={() => { void ensureTabOfType('PURCHASE'); }}>
+                {LANG.modeImport}
+              </button>
+            </Tooltip>
+          </Can>
+          <Can check={{ permission: PERMISSIONS.CATEGORIES_MANAGE, denyReason: LANG.errManagerOnlyCategory }}>
+            <Tooltip title={LANG.modeCategoryTip}>
+              <button type="button" className="sale-mode" onClick={openProductManager}>
+                {LANG.modeCategory}
+              </button>
+            </Tooltip>
+          </Can>
+          <Can check={{ permission: PERMISSIONS.OVERVIEW_VIEW, denyReason: LANG.errManagerOnlyOverview }}>
+            <Tooltip title={LANG.modeOverviewTip}>
+              <button type="button" className="sale-mode is-active">
+                {LANG.modeOverview}
+              </button>
+            </Tooltip>
+          </Can>
         </div>
       </div>
+
+      <Modal
+        title={LANG.overviewCancelTitle}
+        open={!!confirmCancelId}
+        onOk={() => void handleCancel()}
+        onCancel={() => setConfirmCancelId(null)}
+        confirmLoading={cancelling}
+        okText={LANG.overviewCancelOk}
+        okButtonProps={{ danger: true }}
+        cancelText={LANG.cancel}
+      >
+        <p>{LANG.overviewCancelConfirm}</p>
+        <p style={{ fontSize: 13, color: 'var(--pos-text-secondary)' }}>
+          {LANG.overviewCancelNote}
+        </p>
+      </Modal>
     </>
   );
 }

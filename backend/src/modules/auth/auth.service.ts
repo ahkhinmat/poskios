@@ -5,8 +5,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
 import { getJwtExpiresIn } from './auth.config';
+import { type Permission, ROLE_PERMISSIONS } from './constants/permissions';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { Role } from './entities/role.entity';
 import { User } from './entities/user.entity';
 import type {
   AuthJwtPayload,
@@ -21,6 +23,8 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -55,6 +59,7 @@ export class AuthService {
       username: authUser.username,
       fullName: authUser.fullName,
       roleCode: authUser.roleCode,
+      permissions: authUser.permissions,
     };
 
     return {
@@ -92,11 +97,26 @@ export class AuthService {
   }
 
   private toAuthUser(user: User): AuthenticatedUser {
+    const roleCode = user.role.code as RoleCode;
+    const dbPerms = this.parseRolePermissions(user.role);
+
     return {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      roleCode: user.role.code as RoleCode,
+      roleCode,
+      permissions: dbPerms,
     };
+  }
+
+  private parseRolePermissions(role: Role): Permission[] {
+    if (role.permissions) {
+      const perms = role.permissions.split(',').filter(Boolean) as Permission[];
+      if (perms.length > 0) {
+        return perms;
+      }
+    }
+
+    return ROLE_PERMISSIONS[role.code] ?? [];
   }
 }

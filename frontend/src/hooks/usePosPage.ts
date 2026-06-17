@@ -16,11 +16,12 @@ export function usePosPage() {
   const { user: authUser, logout } = useAuth();
   const navigate = useNavigate();
   const isManager = authUser?.roleCode === 'MANAGER';
+  const userPermissions = authUser?.permissions ?? [];
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [loyaltySettings, setLoyaltySettings] = useState<LoyaltySettings | null>(null);
   const [currentView, setCurrentView] = useState<'POS' | 'OVERVIEW'>('POS');
 
-  const tabsHook = useTabs(message, appSettings, isManager, setCurrentView);
+  const tabsHook = useTabs(message, appSettings, userPermissions, setCurrentView);
   const {
     loading, saving, tabs, setTabs, activeTabId, setActiveTabId,
     closeTabTarget, setCloseTabTarget, purchaseMetaMap, productUnitOptionsMap,
@@ -29,10 +30,11 @@ export function usePosPage() {
     ensureTabOfType, addProductToActiveTab, setActiveTabItems,
     updateActiveTab, updateItem, handleChangeItemUnit, removeItem,
     getUnitOptionsForItem, loadProductUnitOptions, updatePurchaseMeta,
+    lastRemovedItem, undoRemove,
   } = tabsHook;
 
   const customerHook = useCustomerLoyalty(
-    message, isManager, activeTab, isReturnTab, isPurchaseTab,
+    message, userPermissions, activeTab, isReturnTab, isPurchaseTab,
     updateActiveTab, purchaseMetaMap, loyaltySettings, setLoyaltySettings,
   );
   const {
@@ -104,7 +106,7 @@ export function usePosPage() {
   }, [activeTab, productUnitOptionsMap, loyaltySettings]);
 
   const checkoutHook = useCheckout(
-    message, appSettings, isManager, activeTab, tabs, setTabs,
+    message, appSettings, userPermissions, activeTab, tabs, setTabs,
     setActiveTabId, summary, isReturnTab, isPurchaseTab,
     purchaseMetaMap, suppliers, createDraftTab, focusSearchInput,
   );
@@ -115,7 +117,7 @@ export function usePosPage() {
   } = checkoutHook;
 
   const overviewHook = useOverview(
-    message, isManager,
+    message, userPermissions,
     import.meta.env.VITE_OVERVIEW_PASSWORD ?? appSettings?.overviewPassword ?? '11111',
     setCurrentView,
   );
@@ -216,6 +218,8 @@ export function usePosPage() {
     isReturnTab,
     isPurchaseTab,
     isManager,
+    lastRemovedItem,
+    undoRemove,
     showProfit,
     filteredOverviewRecords,
     overviewTotalAmount,

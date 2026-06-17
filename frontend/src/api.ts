@@ -48,12 +48,22 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+let onForbidden: ((message: string) => void) | null = null;
+
+export function setOnForbidden(handler: ((message: string) => void) | null) {
+  onForbidden = handler;
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && getAuthToken()) {
       clearAuthSession();
       window.location.reload();
+    }
+
+    if (error.response?.status === 403) {
+      onForbidden?.(error.response?.data?.message ?? 'Access denied');
     }
 
     return Promise.reject(error);

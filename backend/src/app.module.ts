@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from './modules/auth/guards/permissions.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { PosModule } from './modules/pos/pos.module';
 import { Product } from './modules/pos/entities/product.entity';
@@ -58,6 +59,10 @@ import { Unit } from './modules/pos/entities/unit.entity';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard,
     },
   ],
 })
