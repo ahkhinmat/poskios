@@ -30,6 +30,7 @@ export type ReceiptViewModel = {
   }>;
   summaryRows: ReceiptSummaryRow[];
   footerMessage: string | null;
+  receiptPoweredBy: string | null;
 };
 
 function isPurchaseReceipt(
@@ -166,6 +167,7 @@ export function buildReceiptViewModel(
     })),
     summaryRows,
     footerMessage: receipt.footerMessage,
+    receiptPoweredBy: receipt.receiptPoweredBy ?? null,
   };
 }
 
@@ -259,6 +261,7 @@ export function buildReceiptDocumentHtml(receipt: ReceiptPreviewData) {
           ${summaryRowsHtml}
           <div class="dash"></div>
           <div class="footer">${view.footerMessage ?? ''}</div>
+          ${view.receiptPoweredBy ? `<div class="subcenter">${view.receiptPoweredBy}</div>` : ''}
         </div>
         <script>
           window.onload = function () {

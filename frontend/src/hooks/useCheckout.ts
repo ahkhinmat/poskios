@@ -56,6 +56,7 @@ export function useCheckout(
     const storeAddress = s?.storeAddress || LANG.storeAddress;
     const storePhoneNumber = s?.storePhoneNumber || LANG.storePhoneNumber;
     const footerMessage = s?.receiptFooter || LANG.receiptFooter;
+    const receiptPoweredBy = s?.receiptPoweredBy || LANG.receiptPoweredBy;
 
     const items = activeTab.items.map((item) => ({
       productName: item.productName,
@@ -80,6 +81,7 @@ export function useCheckout(
         totalAmount: refundAmount,
         customerRefundAmount: refundAmount,
         footerMessage,
+        receiptPoweredBy,
       };
     }
 
@@ -101,6 +103,7 @@ export function useCheckout(
         supplierPaidAmount: purchasePaidAmount,
         debtAmount: Math.max(0, summary.total - purchasePaidAmount),
         footerMessage,
+        receiptPoweredBy,
       };
     }
 
@@ -119,6 +122,7 @@ export function useCheckout(
       customerPaidAmount,
       changeAmount: Math.max(0, customerPaidAmount - summary.total),
       footerMessage,
+      receiptPoweredBy,
     };
   }
 
@@ -182,6 +186,7 @@ export function useCheckout(
           storeAddress: LANG.storeAddress,
           storePhoneNumber: LANG.storePhoneNumber,
           footerMessage: LANG.receiptFooter,
+          receiptPoweredBy: LANG.receiptPoweredBy,
         });
       } else if (isReturnTab) {
         const response = await api.post<ApiEnvelope<ReturnCheckoutResponse>>('/returns/checkout', {
@@ -237,6 +242,7 @@ export function useCheckout(
           storeAddress: LANG.storeAddress,
           storePhoneNumber: LANG.storePhoneNumber,
           footerMessage: LANG.receiptFooter,
+          receiptPoweredBy: LANG.receiptPoweredBy,
         });
       }
 

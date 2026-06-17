@@ -180,6 +180,7 @@ export class PurchaseOrderService {
         supplierPaidAmount: result.supplierPaidAmount,
         debtAmount: result.debtAmount,
         footerMessage: setting?.receiptFooter ?? setting?.receiptHeader ?? null,
+        receiptPoweredBy: setting?.receiptPoweredBy ?? null,
       },
     };
   }
