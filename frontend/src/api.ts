@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { AuthUser } from './types';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 const AUTH_TOKEN_KEY = 'poskios.auth.token';
 const AUTH_USER_KEY = 'poskios.auth.user';
 
