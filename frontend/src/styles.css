@@ -554,6 +554,19 @@ button {
   background: #fee2e2;
 }
 
+.overview-grid-row.is-cancelled {
+  opacity: 0.7;
+}
+.overview-grid-row.is-cancelled .overview-grid-cell {
+  color: #991b1b;
+  text-decoration: line-through;
+}
+
+.overview-badge-cancelled {
+  background: #fecaca;
+  color: #991b1b;
+}
+
 .overview-grid-cell {
   font-size: 12px;
   color: #334155;

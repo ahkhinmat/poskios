@@ -28,6 +28,7 @@ export const LANG = {
   overviewTypeSale: 'Bán hàng',
   overviewTypeReturn: 'Trả hàng',
   overviewTypePurchase: 'Nhập hàng',
+  overviewTypeCancelled: 'Đã hủy',
   overviewHeaderCode: 'Mã phiếu',
   overviewHeaderStatus: 'Trạng thái',
   overviewHeaderParty: 'Đối tượng',

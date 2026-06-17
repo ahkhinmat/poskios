@@ -27,8 +27,8 @@ export class OverviewService {
       ? new Date(`${params.toDate.trim()}T23:59:59.999`)
       : new Date(`${new Date().toISOString().slice(0, 10)}T23:59:59.999`);
 
-    const purchaseOrders = await this.purchaseOrderRepository.find({ where: { isActive: true }, order: { orderedAt: 'DESC', id: 'DESC' } });
-    const salesOrders = await this.salesOrderRepository.find({ where: { isActive: true }, order: { soldAt: 'DESC', id: 'DESC' } });
+    const purchaseOrders = await this.purchaseOrderRepository.find({ order: { orderedAt: 'DESC', id: 'DESC' } });
+    const salesOrders = await this.salesOrderRepository.find({ order: { soldAt: 'DESC', id: 'DESC' } });
 
     const purchaseItems = await this.purchaseOrderItemRepository.find({
       where: { purchaseOrderId: In(purchaseOrders.map((order) => order.id)) },
@@ -81,7 +81,7 @@ export class OverviewService {
     const normalizedType = recordType.trim().toUpperCase();
 
     if (normalizedType === 'PURCHASE') {
-      const order = await this.purchaseOrderRepository.findOne({ where: { id, isActive: true } });
+      const order = await this.purchaseOrderRepository.findOne({ where: { id } });
       if (!order) throw new NotFoundException('Purchase order not found');
 
       const items = await this.purchaseOrderItemRepository.find({ where: { purchaseOrderId: id } });
@@ -97,7 +97,7 @@ export class OverviewService {
     }
 
     if (normalizedType === 'SALE' || normalizedType === 'RETURN') {
-      const order = await this.salesOrderRepository.findOne({ where: { id, isActive: true } });
+      const order = await this.salesOrderRepository.findOne({ where: { id } });
       if (!order) throw new NotFoundException('Sales order not found');
 
       const items = await this.salesOrderItemRepository.find({ where: { salesOrderId: id } });

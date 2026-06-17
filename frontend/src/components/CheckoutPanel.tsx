@@ -52,7 +52,7 @@ type CheckoutPanelProps = {
   customerLookupLoading: boolean;
   loyaltySettings: LoyaltySettings | null;
   overviewLoading: boolean;
-  overviewRecordTypeFilter: 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE';
+  overviewRecordTypeFilter: 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE' | 'CANCELLED';
   showProfit: boolean;
   overviewTotalAmount: number;
   overviewTotalDiscount: number;
@@ -66,7 +66,7 @@ type CheckoutPanelProps = {
   checkingOut: boolean;
   saving: boolean;
   buildVersion: string;
-  onSetOverviewRecordTypeFilter: (value: 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE') => void;
+  onSetOverviewRecordTypeFilter: (value: 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE' | 'CANCELLED') => void;
   onLoadOverviewDetail: (recordType: OverviewRecord['recordType'], id: number) => Promise<void>;
   onUpdatePurchaseMeta: (tabId: number, patch: Partial<PurchaseMeta>) => void;
   onUpdateActiveTab: (patch: Partial<PosDraftTab>) => void;
@@ -147,8 +147,9 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
                 { label: LANG.overviewTypeSale, value: 'SALE' },
                 { label: LANG.overviewTypeReturn, value: 'RETURN' },
                 { label: LANG.overviewTypePurchase, value: 'PURCHASE' },
+                { label: LANG.overviewTypeCancelled, value: 'CANCELLED' },
               ]}
-              onChange={(value) => onSetOverviewRecordTypeFilter(value as 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE')}
+              onChange={(value) => onSetOverviewRecordTypeFilter(value as 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE' | 'CANCELLED')}
             />
           </div>
           <div className={`overview-grid-head${showProfit ? '' : ' overview-grid-hide-profit'}`}>
@@ -166,12 +167,12 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
               <button
                 key={`${record.recordType}-${record.id}`}
                 type="button"
-                className={`overview-grid-row overview-grid-row-${record.recordType.toLowerCase()}${showProfit ? '' : ' overview-grid-hide-profit'} ${overviewDetail?.header.id === record.id && overviewDetail?.header.recordType === record.recordType ? ' is-active' : ''}`}
+                className={`overview-grid-row overview-grid-row-${record.recordType.toLowerCase()}${showProfit ? '' : ' overview-grid-hide-profit'} ${record.status === 'CANCELLED' ? ' is-cancelled' : ''} ${overviewDetail?.header.id === record.id && overviewDetail?.header.recordType === record.recordType ? ' is-active' : ''}`}
                 onClick={() => void onLoadOverviewDetail(record.recordType, record.id)}
               >
                 <div className="overview-grid-cell overview-grid-code">
-                  <span className={`overview-grid-badge overview-badge-${record.recordType.toLowerCase()}`}>
-                    {record.recordType === 'PURCHASE' ? LANG.overviewBadgePurchase : record.recordType === 'RETURN' ? LANG.overviewBadgeReturn : LANG.overviewBadgeSale}
+                  <span className={`overview-grid-badge ${record.status === 'CANCELLED' ? 'overview-badge-cancelled' : `overview-badge-${record.recordType.toLowerCase()}`}`}>
+                    {record.status === 'CANCELLED' ? LANG.overviewTypeCancelled : record.recordType === 'PURCHASE' ? LANG.overviewBadgePurchase : record.recordType === 'RETURN' ? LANG.overviewBadgeReturn : LANG.overviewBadgeSale}
                   </span>
                   {record.code}
                 </div>
