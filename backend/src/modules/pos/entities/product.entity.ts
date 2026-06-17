@@ -21,63 +21,63 @@ export class Product {
   @Column({ name: 'UnitId', type: 'int' })
   unitId!: number;
 
-  @Column({ name: 'ProductCode', type: 'nvarchar', length: 50 })
+  @Column({ name: 'ProductCode', type: 'varchar', length: 50 })
   productCode!: string;
 
-  @Column({ name: 'Barcode', type: 'nvarchar', length: 50, nullable: true })
+  @Column({ name: 'Barcode', type: 'varchar', length: 50, nullable: true })
   barcode!: string | null;
 
-  @Column({ name: 'Name', type: 'nvarchar', length: 255 })
+  @Column({ name: 'Name', type: 'varchar', length: 255 })
   name!: string;
 
   @Column({
     name: 'VariantGroupCode',
-    type: 'nvarchar',
+    type: 'varchar',
     length: 100,
     nullable: true,
   })
   variantGroupCode!: string | null;
 
-  @Column({ name: 'CostPrice', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'CostPrice', type: 'numeric', precision: 18, scale: 2 })
   costPrice!: string;
 
-  @Column({ name: 'SalePrice', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'SalePrice', type: 'numeric', precision: 18, scale: 2 })
   salePrice!: string;
 
-  @Column({ name: 'StockOnHand', type: 'decimal', precision: 18, scale: 3 })
+  @Column({ name: 'StockOnHand', type: 'numeric', precision: 18, scale: 3 })
   stockOnHand!: string;
 
-  @Column({ name: 'MinStock', type: 'decimal', precision: 18, scale: 3 })
+  @Column({ name: 'MinStock', type: 'numeric', precision: 18, scale: 3 })
   minStock!: string;
 
-  @Column({ name: 'MaxStock', type: 'decimal', precision: 18, scale: 3 })
+  @Column({ name: 'MaxStock', type: 'numeric', precision: 18, scale: 3 })
   maxStock!: string;
 
-  @Column({ name: 'Weight', type: 'decimal', precision: 18, scale: 3, nullable: true })
+  @Column({ name: 'Weight', type: 'numeric', precision: 18, scale: 3, nullable: true })
   weight!: string | null;
 
-  @Column({ name: 'Description', type: 'nvarchar', length: 1000, nullable: true })
+  @Column({ name: 'Description', type: 'varchar', length: 1000, nullable: true })
   description!: string | null;
 
-  @Column({ name: 'NoteTemplate', type: 'nvarchar', length: 500, nullable: true })
+  @Column({ name: 'NoteTemplate', type: 'varchar', length: 500, nullable: true })
   noteTemplate!: string | null;
 
-  @Column({ name: 'Location', type: 'nvarchar', length: 150, nullable: true })
+  @Column({ name: 'Location', type: 'varchar', length: 150, nullable: true })
   location!: string | null;
 
-  @Column({ name: 'TrackBatchExpiry', type: 'bit' })
+  @Column({ name: 'TrackBatchExpiry', type: 'boolean' })
   trackBatchExpiry!: boolean;
 
-  @Column({ name: 'AllowDirectSale', type: 'bit' })
+  @Column({ name: 'AllowDirectSale', type: 'boolean' })
   allowDirectSale!: boolean;
 
-  @Column({ name: 'IsActive', type: 'bit' })
+  @Column({ name: 'IsActive', type: 'boolean' })
   isActive!: boolean;
 
-  @Column({ name: 'ImportedCreatedAt', type: 'datetime2', nullable: true })
+  @Column({ name: 'ImportedCreatedAt', type: 'timestamp', nullable: true })
   importedCreatedAt!: Date | null;
 
-  @UpdateDateColumn({ name: 'UpdatedAt', type: 'datetime2' })
+  @UpdateDateColumn({ name: 'UpdatedAt', type: 'timestamp' })
   updatedAt!: Date;
 
   @OneToMany(() => ProductUnit, (productUnit) => productUnit.product)

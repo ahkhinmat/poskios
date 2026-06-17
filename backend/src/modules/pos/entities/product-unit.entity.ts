@@ -19,28 +19,28 @@ export class ProductUnit {
   @Column({ name: 'UnitId', type: 'int' })
   unitId!: number;
 
-  @Column({ name: 'Barcode', type: 'nvarchar', length: 50, nullable: true })
+  @Column({ name: 'Barcode', type: 'varchar', length: 50, nullable: true })
   barcode!: string | null;
 
-  @Column({ name: 'ConversionValue', type: 'decimal', precision: 18, scale: 3 })
+  @Column({ name: 'ConversionValue', type: 'numeric', precision: 18, scale: 3 })
   conversionValue!: string;
 
-  @Column({ name: 'CostPrice', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'CostPrice', type: 'numeric', precision: 18, scale: 2 })
   costPrice!: string;
 
-  @Column({ name: 'SalePrice', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'SalePrice', type: 'numeric', precision: 18, scale: 2 })
   salePrice!: string;
 
-  @Column({ name: 'AllowDirectSale', type: 'bit' })
+  @Column({ name: 'AllowDirectSale', type: 'boolean' })
   allowDirectSale!: boolean;
 
-  @Column({ name: 'IsDefaultForPos', type: 'bit' })
+  @Column({ name: 'IsDefaultForPos', type: 'boolean' })
   isDefaultForPos!: boolean;
 
-  @Column({ name: 'IsSmallestUnit', type: 'bit' })
+  @Column({ name: 'IsSmallestUnit', type: 'boolean' })
   isSmallestUnit!: boolean;
 
-  @Column({ name: 'IsActive', type: 'bit' })
+  @Column({ name: 'IsActive', type: 'boolean' })
   isActive!: boolean;
 
   @ManyToOne(() => Product, (product) => product.productUnits, { eager: false })

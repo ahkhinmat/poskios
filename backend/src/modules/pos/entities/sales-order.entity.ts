@@ -18,30 +18,30 @@ export class SalesOrder {
   @Column({ name: 'CustomerId', type: 'int', nullable: true })
   customerId!: number | null;
 
-  @Column({ name: 'SalesOrderCode', type: 'nvarchar', length: 50 })
+  @Column({ name: 'SalesOrderCode', type: 'varchar', length: 50 })
   salesOrderCode!: string;
 
-  @Column({ name: 'OrderType', type: 'nvarchar', length: 30 })
+  @Column({ name: 'OrderType', type: 'varchar', length: 30 })
   orderType!: string;
 
-  @Column({ name: 'Status', type: 'nvarchar', length: 30 })
+  @Column({ name: 'Status', type: 'varchar', length: 30 })
   status!: string;
 
-  @Column({ name: 'SaleMode', type: 'nvarchar', length: 30 })
+  @Column({ name: 'SaleMode', type: 'varchar', length: 30 })
   saleMode!: string;
 
-  @Column({ name: 'PaymentMethod', type: 'nvarchar', length: 30 })
+  @Column({ name: 'PaymentMethod', type: 'varchar', length: 30 })
   paymentMethod!: string;
 
-  @Column({ name: 'CustomerName', type: 'nvarchar', length: 150, nullable: true })
+  @Column({ name: 'CustomerName', type: 'varchar', length: 150, nullable: true })
   customerName!: string | null;
 
-  @Column({ name: 'CustomerPhone', type: 'nvarchar', length: 30, nullable: true })
+  @Column({ name: 'CustomerPhone', type: 'varchar', length: 30, nullable: true })
   customerPhone!: string | null;
 
   @Column({
     name: 'RedeemedPoints',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 4,
     nullable: true,
@@ -51,7 +51,7 @@ export class SalesOrder {
 
   @Column({
     name: 'EarnedPoints',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 4,
     nullable: true,
@@ -61,7 +61,7 @@ export class SalesOrder {
 
   @Column({
     name: 'LoyaltyDiscountAmount',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 2,
     nullable: true,
@@ -69,33 +69,33 @@ export class SalesOrder {
   })
   loyaltyDiscountAmount!: number | null;
 
-  @Column({ name: 'Notes', type: 'nvarchar', length: 500, nullable: true })
+  @Column({ name: 'Notes', type: 'varchar', length: 500, nullable: true })
   notes!: string | null;
 
-  @Column({ name: 'SubtotalAmount', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'SubtotalAmount', type: 'numeric', precision: 18, scale: 2 })
   subtotalAmount!: string;
 
-  @Column({ name: 'DiscountAmount', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'DiscountAmount', type: 'numeric', precision: 18, scale: 2 })
   discountAmount!: string;
 
-  @Column({ name: 'ReturnFeeAmount', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'ReturnFeeAmount', type: 'numeric', precision: 18, scale: 2 })
   returnFeeAmount!: string;
 
-  @Column({ name: 'TotalAmount', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'TotalAmount', type: 'numeric', precision: 18, scale: 2 })
   totalAmount!: string;
 
-  @Column({ name: 'CustomerPaidAmount', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'CustomerPaidAmount', type: 'numeric', precision: 18, scale: 2 })
   customerPaidAmount!: string;
 
-  @Column({ name: 'ChangeAmount', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'ChangeAmount', type: 'numeric', precision: 18, scale: 2 })
   changeAmount!: string;
 
-  @Column({ name: 'SoldAt', type: 'datetime2' })
+  @Column({ name: 'SoldAt', type: 'timestamp' })
   soldAt!: Date;
 
-  @Column({ name: 'CancelledAt', type: 'datetime2', nullable: true })
+  @Column({ name: 'CancelledAt', type: 'timestamp', nullable: true })
   cancelledAt!: Date | null;
 
-  @Column({ name: 'IsActive', type: 'bit' })
+  @Column({ name: 'IsActive', type: 'boolean' })
   isActive!: boolean;
 }

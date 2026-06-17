@@ -5,9 +5,9 @@ export class Category {
   @PrimaryGeneratedColumn({ name: 'Id' })
   id!: number;
 
-  @Column({ name: 'Name', type: 'nvarchar', length: 150 })
+  @Column({ name: 'Name', type: 'varchar', length: 150 })
   name!: string;
 
-  @Column({ name: 'IsActive', type: 'bit' })
+  @Column({ name: 'IsActive', type: 'boolean' })
   isActive!: boolean;
 }

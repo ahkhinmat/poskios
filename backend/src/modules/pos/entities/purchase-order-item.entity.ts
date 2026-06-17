@@ -14,27 +14,27 @@ export class PurchaseOrderItem {
   @Column({ name: 'ProductUnitId', type: 'int' })
   productUnitId!: number;
 
-  @Column({ name: 'ProductCodeSnapshot', type: 'nvarchar', length: 50 })
+  @Column({ name: 'ProductCodeSnapshot', type: 'varchar', length: 50 })
   productCodeSnapshot!: string;
 
-  @Column({ name: 'ProductNameSnapshot', type: 'nvarchar', length: 255 })
+  @Column({ name: 'ProductNameSnapshot', type: 'varchar', length: 255 })
   productNameSnapshot!: string;
 
-  @Column({ name: 'UnitNameSnapshot', type: 'nvarchar', length: 100, nullable: true })
+  @Column({ name: 'UnitNameSnapshot', type: 'varchar', length: 100, nullable: true })
   unitNameSnapshot!: string | null;
 
-  @Column({ name: 'ConversionValue', type: 'decimal', precision: 18, scale: 3 })
+  @Column({ name: 'ConversionValue', type: 'numeric', precision: 18, scale: 3 })
   conversionValue!: string;
 
-  @Column({ name: 'Quantity', type: 'decimal', precision: 18, scale: 3 })
+  @Column({ name: 'Quantity', type: 'numeric', precision: 18, scale: 3 })
   quantity!: string;
 
-  @Column({ name: 'CostPrice', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'CostPrice', type: 'numeric', precision: 18, scale: 2 })
   costPrice!: string;
 
-  @Column({ name: 'LineTotal', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'LineTotal', type: 'numeric', precision: 18, scale: 2 })
   lineTotal!: string;
 
-  @Column({ name: 'Notes', type: 'nvarchar', length: 255, nullable: true })
+  @Column({ name: 'Notes', type: 'varchar', length: 255, nullable: true })
   notes!: string | null;
 }

@@ -6,21 +6,21 @@ export class Customer {
   @PrimaryGeneratedColumn({ name: 'Id' })
   id!: number;
 
-  @Column({ name: 'PhoneNumber', type: 'nvarchar', length: 30 })
+  @Column({ name: 'PhoneNumber', type: 'varchar', length: 30 })
   phoneNumber!: string;
 
-  @Column({ name: 'FullName', type: 'nvarchar', length: 150, nullable: true })
+  @Column({ name: 'FullName', type: 'varchar', length: 150, nullable: true })
   fullName!: string | null;
 
   @Column({
     name: 'CurrentPoints',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 4,
     transformer: decimalNumberTransformer,
   })
   currentPoints!: number;
 
-  @Column({ name: 'IsActive', type: 'bit' })
+  @Column({ name: 'IsActive', type: 'boolean' })
   isActive!: boolean;
 }

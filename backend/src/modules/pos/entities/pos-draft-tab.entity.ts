@@ -10,22 +10,22 @@ export class PosDraftTab {
   @Column({ name: 'CreatedByUserId', type: 'int' })
   createdByUserId!: number;
 
-  @Column({ name: 'TabCode', type: 'nvarchar', length: 50 })
+  @Column({ name: 'TabCode', type: 'varchar', length: 50 })
   tabCode!: string;
 
-  @Column({ name: 'TabType', type: 'nvarchar', length: 30 })
+  @Column({ name: 'TabType', type: 'varchar', length: 30 })
   tabType!: string;
 
-  @Column({ name: 'Title', type: 'nvarchar', length: 100 })
+  @Column({ name: 'Title', type: 'varchar', length: 100 })
   title!: string;
 
-  @Column({ name: 'SaleMode', type: 'nvarchar', length: 30 })
+  @Column({ name: 'SaleMode', type: 'varchar', length: 30 })
   saleMode!: string;
 
-  @Column({ name: 'CustomerName', type: 'nvarchar', length: 150, nullable: true })
+  @Column({ name: 'CustomerName', type: 'varchar', length: 150, nullable: true })
   customerName!: string | null;
 
-  @Column({ name: 'CustomerPhone', type: 'nvarchar', length: 30, nullable: true })
+  @Column({ name: 'CustomerPhone', type: 'varchar', length: 30, nullable: true })
   customerPhone!: string | null;
 
   @Column({ name: 'CustomerId', type: 'int', nullable: true })
@@ -33,7 +33,7 @@ export class PosDraftTab {
 
   @Column({
     name: 'RedeemedPoints',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 4,
     nullable: true,
@@ -41,15 +41,15 @@ export class PosDraftTab {
   })
   redeemedPoints!: number | null;
 
-  @Column({ name: 'Note', type: 'nvarchar', length: 500, nullable: true })
+  @Column({ name: 'Note', type: 'varchar', length: 500, nullable: true })
   note!: string | null;
 
-  @Column({ name: 'PaymentMethod', type: 'nvarchar', length: 30 })
+  @Column({ name: 'PaymentMethod', type: 'varchar', length: 30 })
   paymentMethod!: string;
 
   @Column({
     name: 'CustomerPaidAmount',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 2,
   })
@@ -57,7 +57,7 @@ export class PosDraftTab {
 
   @Column({
     name: 'DiscountAmount',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 2,
   })
@@ -69,34 +69,34 @@ export class PosDraftTab {
   @Column({ name: 'ImportDate', type: 'date', nullable: true })
   importDate!: string | null;
 
-  @Column({ name: 'PurchaseOrderCode', type: 'nvarchar', length: 50, nullable: true })
+  @Column({ name: 'PurchaseOrderCode', type: 'varchar', length: 50, nullable: true })
   purchaseOrderCode!: string | null;
 
   @Column({ name: 'SupplierId', type: 'int', nullable: true })
   supplierId!: number | null;
 
-  @Column({ name: 'SupplierOrderCode', type: 'nvarchar', length: 50, nullable: true })
+  @Column({ name: 'SupplierOrderCode', type: 'varchar', length: 50, nullable: true })
   supplierOrderCode!: string | null;
 
-  @Column({ name: 'SupplierInvoiceCode', type: 'nvarchar', length: 50, nullable: true })
+  @Column({ name: 'SupplierInvoiceCode', type: 'varchar', length: 50, nullable: true })
   supplierInvoiceCode!: string | null;
 
-  @Column({ name: 'PurchaseStatus', type: 'nvarchar', length: 30, nullable: true })
+  @Column({ name: 'PurchaseStatus', type: 'varchar', length: 30, nullable: true })
   purchaseStatus!: string | null;
 
   @Column({
     name: 'SupplierPaidAmount',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 2,
     nullable: true,
   })
   supplierPaidAmount!: string | null;
 
-  @Column({ name: 'IsActive', type: 'bit' })
+  @Column({ name: 'IsActive', type: 'boolean' })
   isActive!: boolean;
 
-  @Column({ name: 'LastTouchedAt', type: 'datetime2' })
+  @Column({ name: 'LastTouchedAt', type: 'timestamp' })
   lastTouchedAt!: Date;
 
   @OneToMany(() => PosDraftTabItem, (item) => item.posDraftTab, {

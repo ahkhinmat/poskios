@@ -5,6 +5,6 @@ export class Unit {
   @PrimaryGeneratedColumn({ name: 'Id' })
   id!: number;
 
-  @Column({ name: 'Name', type: 'nvarchar', length: 100 })
+  @Column({ name: 'Name', type: 'varchar', length: 100 })
   name!: string;
 }

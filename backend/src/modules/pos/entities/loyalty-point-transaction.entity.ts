@@ -12,12 +12,12 @@ export class LoyaltyPointTransaction {
   @Column({ name: 'SalesOrderId', type: 'int', nullable: true })
   salesOrderId!: number | null;
 
-  @Column({ name: 'TransactionType', type: 'nvarchar', length: 30 })
+  @Column({ name: 'TransactionType', type: 'varchar', length: 30 })
   transactionType!: string;
 
   @Column({
     name: 'PointsChange',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 4,
     transformer: decimalNumberTransformer,
@@ -26,7 +26,7 @@ export class LoyaltyPointTransaction {
 
   @Column({
     name: 'BalanceAfter',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 4,
     transformer: decimalNumberTransformer,
@@ -35,19 +35,19 @@ export class LoyaltyPointTransaction {
 
   @Column({
     name: 'AmountBasis',
-    type: 'decimal',
+    type: 'numeric',
     precision: 18,
     scale: 2,
     nullable: true,
   })
   amountBasis!: string | null;
 
-  @Column({ name: 'ExpireAt', type: 'datetime2', nullable: true })
+  @Column({ name: 'ExpireAt', type: 'timestamp', nullable: true })
   expireAt!: Date | null;
 
-  @Column({ name: 'Notes', type: 'nvarchar', length: 255, nullable: true })
+  @Column({ name: 'Notes', type: 'varchar', length: 255, nullable: true })
   notes!: string | null;
 
-  @Column({ name: 'TransactionAt', type: 'datetime2' })
+  @Column({ name: 'TransactionAt', type: 'timestamp' })
   transactionAt!: Date;
 }

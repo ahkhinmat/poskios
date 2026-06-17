@@ -14,33 +14,33 @@ export class PurchaseOrder {
   @Column({ name: 'ApprovedByUserId', type: 'int', nullable: true })
   approvedByUserId!: number | null;
 
-  @Column({ name: 'PurchaseOrderCode', type: 'nvarchar', length: 50 })
+  @Column({ name: 'PurchaseOrderCode', type: 'varchar', length: 50 })
   purchaseOrderCode!: string;
 
-  @Column({ name: 'SupplierNameSnapshot', type: 'nvarchar', length: 150, nullable: true })
+  @Column({ name: 'SupplierNameSnapshot', type: 'varchar', length: 150, nullable: true })
   supplierNameSnapshot!: string | null;
 
-  @Column({ name: 'Status', type: 'nvarchar', length: 30 })
+  @Column({ name: 'Status', type: 'varchar', length: 30 })
   status!: string;
 
-  @Column({ name: 'Notes', type: 'nvarchar', length: 500, nullable: true })
+  @Column({ name: 'Notes', type: 'varchar', length: 500, nullable: true })
   notes!: string | null;
 
-  @Column({ name: 'SubtotalAmount', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'SubtotalAmount', type: 'numeric', precision: 18, scale: 2 })
   subtotalAmount!: string;
 
-  @Column({ name: 'DiscountAmount', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'DiscountAmount', type: 'numeric', precision: 18, scale: 2 })
   discountAmount!: string;
 
-  @Column({ name: 'TotalAmount', type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'TotalAmount', type: 'numeric', precision: 18, scale: 2 })
   totalAmount!: string;
 
-  @Column({ name: 'OrderedAt', type: 'datetime2' })
+  @Column({ name: 'OrderedAt', type: 'timestamp' })
   orderedAt!: Date;
 
-  @Column({ name: 'ConfirmedAt', type: 'datetime2', nullable: true })
+  @Column({ name: 'ConfirmedAt', type: 'timestamp', nullable: true })
   confirmedAt!: Date | null;
 
-  @Column({ name: 'IsActive', type: 'bit' })
+  @Column({ name: 'IsActive', type: 'boolean' })
   isActive!: boolean;
 }

@@ -17,33 +17,33 @@ export class InventoryTransaction {
   @Column({ name: 'CreatedByUserId', type: 'int', nullable: true })
   createdByUserId!: number | null;
 
-  @Column({ name: 'TransactionType', type: 'nvarchar', length: 30 })
+  @Column({ name: 'TransactionType', type: 'varchar', length: 30 })
   transactionType!: string;
 
-  @Column({ name: 'ReferenceCode', type: 'nvarchar', length: 50, nullable: true })
+  @Column({ name: 'ReferenceCode', type: 'varchar', length: 50, nullable: true })
   referenceCode!: string | null;
 
-  @Column({ name: 'QuantityChange', type: 'decimal', precision: 18, scale: 3 })
+  @Column({ name: 'QuantityChange', type: 'numeric', precision: 18, scale: 3 })
   quantityChange!: string;
 
-  @Column({ name: 'StockBefore', type: 'decimal', precision: 18, scale: 3 })
+  @Column({ name: 'StockBefore', type: 'numeric', precision: 18, scale: 3 })
   stockBefore!: string;
 
-  @Column({ name: 'StockAfter', type: 'decimal', precision: 18, scale: 3 })
+  @Column({ name: 'StockAfter', type: 'numeric', precision: 18, scale: 3 })
   stockAfter!: string;
 
-  @Column({ name: 'UnitCost', type: 'decimal', precision: 18, scale: 2, nullable: true })
+  @Column({ name: 'UnitCost', type: 'numeric', precision: 18, scale: 2, nullable: true })
   unitCost!: string | null;
 
-  @Column({ name: 'Notes', type: 'nvarchar', length: 500, nullable: true })
+  @Column({ name: 'Notes', type: 'varchar', length: 500, nullable: true })
   notes!: string | null;
 
-  @Column({ name: 'BatchNumber', type: 'nvarchar', length: 100, nullable: true })
+  @Column({ name: 'BatchNumber', type: 'varchar', length: 100, nullable: true })
   batchNumber!: string | null;
 
   @Column({ name: 'ExpiryDate', type: 'date', nullable: true })
   expiryDate!: string | null;
 
-  @Column({ name: 'TransactionAt', type: 'datetime2' })
+  @Column({ name: 'TransactionAt', type: 'timestamp' })
   transactionAt!: Date;
 }

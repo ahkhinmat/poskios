@@ -30,21 +30,16 @@ import { Unit } from './modules/pos/entities/unit.entity';
           return value;
         };
 
-        const dbPortValue = configService.get<string>('DB_PORT', '1433');
+        const dbPortValue = configService.get<string>('DB_PORT', '5432');
         const dbPort = Number(dbPortValue);
 
         return {
-          type: 'mssql' as const,
+          type: 'postgres',
           host: requireEnv('DB_HOST'),
-          port: Number.isNaN(dbPort) ? 1433 : dbPort,
+          port: Number.isNaN(dbPort) ? 5432 : dbPort,
           username: requireEnv('DB_USERNAME'),
           password: requireEnv('DB_PASSWORD'),
           database: requireEnv('DB_NAME'),
-          options: {
-            encrypt: configService.get<string>('DB_ENCRYPT', 'false') === 'true',
-            trustServerCertificate:
-              configService.get<string>('DB_TRUST_CERT', 'true') === 'true',
-          },
           synchronize: false,
           autoLoadEntities: true,
           entities: [Product, ProductUnit, Unit],
