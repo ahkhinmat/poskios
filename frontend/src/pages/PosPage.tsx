@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   App as AntApp,
   Button,
@@ -20,6 +20,7 @@ import {
   PrinterOutlined,
   SearchOutlined,
   ShoppingCartOutlined,
+  ShoppingOutlined,
   SwapOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -33,8 +34,11 @@ import { PosModals } from '../components/PosModals';
 import { PurchaseTable } from '../components/PurchaseTable';
 import { ReturnSearchPanel } from '../components/ReturnSearchPanel';
 import { SaleList } from '../components/SaleList';
+import { SessionBar } from '../components/SessionBar';
 import { SettingsPage } from '../components/SettingsPage';
 import { usePosPage } from '../hooks/usePosPage';
+import { useSession } from '../hooks/useSession';
+import { beep } from '../utils/sound';
 
 const PAYMENT_LABEL_MAP: Record<string, string> = {
   CASH: LANG.cash,
@@ -52,11 +56,21 @@ function formatPoints(value: number) {
   });
 }
 
+function stockBarProps(stock: number) {
+  if (stock <= 0) return { pct: 0, color: '#ef4444' };
+  if (stock <= 10) return { pct: Math.max(10, stock * 5), color: '#f59e0b' };
+  if (stock <= 50) return { pct: Math.min(50, stock), color: '#f59e0b' };
+  return { pct: 100, color: '#16a34a' };
+}
+
 export function PosPage() {
   const { message } = AntApp.useApp();
   const p = usePosPage();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [checkoutCollapsed, setCheckoutCollapsed] = useState(() => window.innerWidth <= 1024);
+  const sessionHook = useSession();
+  const { session, isRunning, startSession, endSession } = sessionHook;
 
   const paymentOptions = useMemo(() => {
     const methods = p.appSettings?.paymentMethods ?? 'CASH,BANK_TRANSFER,CARD,EWALLET';
@@ -65,6 +79,50 @@ export function PosPage() {
       label: PAYMENT_LABEL_MAP[code.trim()] ?? code.trim(),
     }));
   }, [p.appSettings?.paymentMethods]);
+
+  // Undo toast
+  useEffect(() => {
+    if (!p.lastRemovedItem) return;
+    const key = 'undo-msg';
+    message.open({
+      key,
+      type: 'info',
+      content: (
+        <div className="undo-toast">
+          <span>{LANG.undoRemoved}</span>
+          <button
+            type="button"
+            onClick={() => {
+              p.undoRemove();
+              message.destroy(key);
+            }}
+          >
+            {LANG.undoAction}
+          </button>
+        </div>
+      ),
+      duration: 4,
+    });
+  }, [p.lastRemovedItem]);
+
+  // Sound feedback on lastScannedProductName
+  const prevScannedRef = useRef('');
+  useEffect(() => {
+    if (p.lastScannedProductName && p.lastScannedProductName !== prevScannedRef.current) {
+      prevScannedRef.current = p.lastScannedProductName;
+      beep('scan');
+      message.success(`${LANG.scannedLabel} ${p.lastScannedProductName}`, 1.5);
+    }
+  }, [p.lastScannedProductName]);
+
+  // Auto-collapse checkout on resize
+  useEffect(() => {
+    const onResize = () => {
+      setCheckoutCollapsed(window.innerWidth <= 1024);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   if (p.loading) {
     return (
@@ -150,6 +208,8 @@ export function PosPage() {
               </Tooltip>
             </div>
 
+            <SessionBar session={session} isRunning={isRunning} onStart={startSession} onEnd={endSession} />
+
             <div className="topbar-actions">
               {p.lastScannedProductName ? (
                 <Tag color="green">{LANG.scannedLabel} {p.lastScannedProductName}</Tag>
@@ -221,9 +281,15 @@ export function PosPage() {
                     <List.Item.Meta
                       title={<span style={{ fontWeight: 600 }}>{product.name} <span style={{ color: '#6b7280', fontWeight: 400, fontSize: 12 }}>({product.unitName})</span></span>}
                       description={
-                        <span style={{ fontSize: 12, color: '#6b7280' }}>
+                        <span style={{ fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ color: '#374151', fontWeight: 500 }}>{product.productCode}</span>
-                          {' · '}{LANG.stockLabel} <strong style={{ color: product.stockOnHand > 0 ? '#16a34a' : '#ef4444' }}>{product.stockOnHand.toLocaleString('vi-VN')}</strong>
+                          {' · '}{LANG.stockLabel}
+                          <div className="sale-stock-bar" style={{ width: 32, height: 5 }}>
+                            <div className="sale-stock-bar-fill" style={{ width: `${stockBarProps(product.stockOnHand).pct}%`, background: stockBarProps(product.stockOnHand).color }} />
+                          </div>
+                          <strong style={{ color: stockBarProps(product.stockOnHand).color, fontSize: 11 }}>
+                            {product.stockOnHand.toLocaleString('vi-VN')}
+                          </strong>
                           {' · '}<span style={{ color: '#059669', fontWeight: 600 }}>{product.salePrice.toLocaleString('vi-VN')}{LANG.currencySuffix}</span>
                         </span>
                       }
@@ -405,6 +471,8 @@ export function PosPage() {
         </section>
 
         <CheckoutPanel
+          collapsed={checkoutCollapsed}
+          onToggleCollapse={() => setCheckoutCollapsed((v) => !v)}
           currentView={p.currentView}
           isPurchaseTab={p.isPurchaseTab}
           isReturnTab={p.isReturnTab}
@@ -445,6 +513,14 @@ export function PosPage() {
           formatPoints={formatPoints}
           paymentOptions={paymentOptions}
         />
+
+        <button
+          type="button"
+          className="checkout-toggle"
+          onClick={() => setCheckoutCollapsed((v) => !v)}
+        >
+          <ShoppingOutlined />
+        </button>
       </div>
 
       <PosModals

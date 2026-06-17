@@ -408,6 +408,27 @@ export const LANG = {
   settingsSearchDebounceMs: 'Delay tìm kiếm (ms)',
   settingsAutoSaveDebounceMs: 'Delay tự lưu (ms)',
   settingsPaymentMethods: 'PT Thanh toán (dấu phẩy)',
+
+  // Undo
+  undoRemoved: 'Đã xóa sản phẩm',
+  undoAction: 'Hoàn tác',
+
+  // Session (end-of-day)
+  sessionStart: 'Bắt đầu ca',
+  sessionEnd: 'Kết thúc ca',
+  sessionEndTitle: 'Kết thúc ca làm việc',
+  sessionStartConfirm: 'Xác nhận bắt đầu ca?',
+  sessionEndConfirm: 'Xác nhận kết thúc ca?',
+  sessionStartedAt: 'Bắt đầu lúc',
+  sessionEndedAt: 'Kết thúc lúc',
+  sessionTotalSales: 'Tổng bán',
+  sessionTotalReturns: 'Tổng trả',
+  sessionTotalInvoices: 'Số hóa đơn',
+  sessionTotalCash: 'Tiền mặt',
+  sessionTotalTransfer: 'Chuyển khoản',
+  sessionRunning: 'Ca đang hoạt động',
+  sessionInactive: 'Chưa bắt đầu ca',
+  sessionSummary: 'Tổng kết ca',
 } as const;
 
 export type LangKeys = keyof typeof LANG;

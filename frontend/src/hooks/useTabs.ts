@@ -478,8 +478,15 @@ export function useTabs(
     );
   }
 
+  const [lastRemovedItem, setLastRemovedItem] = useState<{ item: PosDraftItem; tabId: number; sortOrder: number } | null>(null);
+
   function removeItem(productUnitId: number) {
     if (!activeTab) return;
+
+    const removed = activeTab.items.find((item) => item.productUnitId === productUnitId);
+    if (!removed) return;
+
+    setLastRemovedItem({ item: { ...removed }, tabId: activeTab.id, sortOrder: removed.sortOrder });
 
     setTabs((current) =>
       current.map((tab) =>
@@ -493,6 +500,25 @@ export function useTabs(
           : tab,
       ),
     );
+  }
+
+  function undoRemove() {
+    if (!lastRemovedItem) return;
+
+    const { item, tabId, sortOrder } = lastRemovedItem;
+    setTabs((current) =>
+      current.map((tab) =>
+        tab.id === tabId
+          ? {
+              ...tab,
+              items: [...tab.items, { ...item, sortOrder }]
+                .sort((a, b) => a.sortOrder - b.sortOrder)
+                .map((itm, idx) => ({ ...itm, sortOrder: idx + 1 })),
+            }
+          : tab,
+      ),
+    );
+    setLastRemovedItem(null);
   }
 
   useEffect(() => {
@@ -568,5 +594,6 @@ export function useTabs(
     setActiveTabItems,
     updateActiveTab, updateItem, handleChangeItemUnit, removeItem,
     getUnitOptionsForItem, loadProductUnitOptions, updatePurchaseMeta,
+    lastRemovedItem, undoRemove,
   };
 }

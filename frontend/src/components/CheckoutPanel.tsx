@@ -28,6 +28,8 @@ const { Text } = Typography;
 
 type CheckoutPanelProps = {
   currentView: 'POS' | 'OVERVIEW';
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   isPurchaseTab: boolean;
   isReturnTab: boolean;
   activeTab: PosDraftTab | null;
@@ -79,6 +81,7 @@ type CheckoutPanelProps = {
 export function CheckoutPanel(props: CheckoutPanelProps) {
   const {
     currentView,
+    collapsed,
     isPurchaseTab,
     isReturnTab,
     activeTab,
@@ -120,7 +123,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
   } = props;
 
   return (
-    <aside className={`checkout-panel ${isPurchaseTab ? 'checkout-panel-purchase' : ''} ${currentView === 'OVERVIEW' ? 'checkout-panel-overview' : ''}`}>
+    <aside className={`checkout-panel ${isPurchaseTab ? 'checkout-panel-purchase' : ''} ${currentView === 'OVERVIEW' ? 'checkout-panel-overview' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
       {currentView === 'OVERVIEW' ? (
         <>
           <div className="checkout-header">

@@ -30,6 +30,7 @@ export function usePosPage() {
     ensureTabOfType, addProductToActiveTab, setActiveTabItems,
     updateActiveTab, updateItem, handleChangeItemUnit, removeItem,
     getUnitOptionsForItem, loadProductUnitOptions, updatePurchaseMeta,
+    lastRemovedItem, undoRemove,
   } = tabsHook;
 
   const customerHook = useCustomerLoyalty(
@@ -217,6 +218,8 @@ export function usePosPage() {
     isReturnTab,
     isPurchaseTab,
     isManager,
+    lastRemovedItem,
+    undoRemove,
     showProfit,
     filteredOverviewRecords,
     overviewTotalAmount,
