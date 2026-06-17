@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import axios from 'axios';
 import { api } from '../api';
 import { LANG } from '../lang';
 import { createDefaultPurchaseMeta, getNextTabNumber } from '../utils/purchase';
@@ -189,8 +190,19 @@ export function useTabs(
           note: item.note ?? null,
         })),
       });
-    } catch {
-      message.error(LANG.errSaveTab);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        setTabs((current) => current.filter((t) => t.id !== tab.id));
+        if (activeTabId === tab.id) {
+          const next = tabs.find((t) => t.id !== tab.id);
+          setActiveTabId(next?.id ?? null);
+          if (!next) {
+            void bootstrapDraftTabs();
+          }
+        }
+      } else {
+        message.error(LANG.errSaveTab);
+      }
     } finally {
       setSaving(false);
     }
