@@ -14,7 +14,6 @@ import {
   ContainerOutlined,
   EyeOutlined,
   ImportOutlined,
-  KeyOutlined,
   PlusOutlined,
   PrinterOutlined,
   SearchOutlined,
@@ -293,13 +292,6 @@ export function PosPage() {
               <Tag color={p.isManager ? 'blue' : 'default'}>
                 {p.authUser?.fullName} · {p.authUser?.roleCode}
               </Tag>
-              <Tooltip title={LANG.changePassword}>
-                <Button
-                  size="small"
-                  icon={<KeyOutlined />}
-                  onClick={() => setChangePasswordOpen(true)}
-                />
-              </Tooltip>
             </div>
           </div>
 
@@ -583,6 +575,7 @@ export function PosPage() {
           paymentOptions={paymentOptions}
           userName={p.authUser?.fullName ?? p.authUser?.username ?? ''}
           onLogout={p.handleLogout}
+          onOpenChangePassword={() => setChangePasswordOpen(true)}
         />
 
         <button

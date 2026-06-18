@@ -16,6 +16,7 @@ import {
 } from 'antd';
 import {
   EditOutlined,
+  KeyOutlined,
   LeftOutlined,
   LogoutOutlined,
   PlusOutlined,
@@ -81,6 +82,7 @@ type CheckoutPanelProps = {
   paymentOptions: { label: string; value: string }[];
   userName: string;
   onLogout: () => void;
+  onOpenChangePassword: () => void;
 };
 
 export function CheckoutPanel(props: CheckoutPanelProps) {
@@ -127,6 +129,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
     paymentOptions,
     userName,
     onLogout,
+    onOpenChangePassword,
   } = props;
 
   return (
@@ -138,6 +141,9 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <button type="button" className="checkout-icon-btn" onClick={onLogout}>
                 <LogoutOutlined />
+              </button>
+              <button type="button" className="checkout-icon-btn" onClick={onOpenChangePassword}>
+                <KeyOutlined />
               </button>
               <button type="button" className="checkout-collapse-btn" onClick={onToggleCollapse}>
                 {collapsed ? <LeftOutlined /> : <RightOutlined />}
@@ -225,6 +231,9 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <button type="button" className="checkout-icon-btn" onClick={onLogout}>
                 <LogoutOutlined />
+              </button>
+              <button type="button" className="checkout-icon-btn" onClick={onOpenChangePassword}>
+                <KeyOutlined />
               </button>
               <button type="button" className="checkout-collapse-btn" onClick={onToggleCollapse}>
                 {collapsed ? <LeftOutlined /> : <RightOutlined />}
