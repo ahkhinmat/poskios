@@ -38,6 +38,7 @@ export const LANG = {
   overviewHeaderCost: 'Giá vốn',
   overviewHeaderRevenue: 'Doanh thu',
   overviewHeaderTime: 'Thời gian',
+  overviewHeaderUser: 'Thu ngân',
   overviewFilterAll: 'Tất cả',
   overviewFilterType: 'Loại phiếu',
   overviewTotalValue: 'Tổng tiền hàng',

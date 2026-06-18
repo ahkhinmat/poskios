@@ -329,6 +329,7 @@ export type OverviewRecord = {
   costAmount: number;
   revenueAmount: number;
   eventAt: string;
+  createdByUserFullName?: string | null;
 };
 
 export type OverviewDetail = {

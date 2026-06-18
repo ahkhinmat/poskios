@@ -5,6 +5,7 @@ import { PurchaseOrderItem } from '../entities/purchase-order-item.entity';
 import { PurchaseOrder } from '../entities/purchase-order.entity';
 import { SalesOrderItem } from '../entities/sales-order-item.entity';
 import { SalesOrder } from '../entities/sales-order.entity';
+import { User } from '../../auth/entities/user.entity';
 
 @Injectable()
 export class OverviewService {
@@ -17,6 +18,8 @@ export class OverviewService {
     private readonly salesOrderRepository: Repository<SalesOrder>,
     @InjectRepository(SalesOrderItem)
     private readonly salesOrderItemRepository: Repository<SalesOrderItem>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   async getOverviewRecords(params: { fromDate?: string; toDate?: string }) {
@@ -29,6 +32,13 @@ export class OverviewService {
 
     const purchaseOrders = await this.purchaseOrderRepository.find({ order: { orderedAt: 'DESC', id: 'DESC' } });
     const salesOrders = await this.salesOrderRepository.find({ order: { soldAt: 'DESC', id: 'DESC' } });
+
+    // Resolve user names for sales orders
+    const userIds = [...new Set(salesOrders.map((o) => o.createdByUserId).filter(Boolean))];
+    const users = userIds.length
+      ? await this.userRepository.find({ where: { id: In(userIds) } })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u.fullName]));
 
     const purchaseItems = await this.purchaseOrderItemRepository.find({
       where: { purchaseOrderId: In(purchaseOrders.map((order) => order.id)) },
@@ -70,6 +80,7 @@ export class OverviewService {
             discountAmount: Number(order.discountAmount), loyaltyDiscountAmount: Number(order.loyaltyDiscountAmount ?? 0),
             totalAmount: Number(order.totalAmount), costAmount: isReturn ? -costAmount : costAmount,
             revenueAmount: isReturn ? -Number(order.totalAmount) : Number(order.totalAmount), eventAt: order.soldAt,
+            createdByUserFullName: userMap.get(order.createdByUserId) ?? null,
           };
         }),
     ].sort((left, right) => new Date(right.eventAt).getTime() - new Date(left.eventAt).getTime() || right.id - left.id);

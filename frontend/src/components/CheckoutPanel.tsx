@@ -141,6 +141,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
             <div className="overview-grid-count">{LANG.overviewTotalRecords}: <strong>{filteredOverviewRecords.length}</strong></div>
             <Select
               size="small"
+              style={{ minWidth: 130 }}
               value={overviewRecordTypeFilter}
               options={[
                 { label: LANG.overviewFilterAll, value: 'ALL' },
@@ -154,6 +155,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
           </div>
           <div className={`overview-grid-head${showProfit ? '' : ' overview-grid-hide-profit'}`}>
             <div className="overview-grid-cell">{LANG.overviewHeaderCode}</div>
+            <div className="overview-grid-cell">{LANG.overviewHeaderUser}</div>
             <div className="overview-grid-cell">{LANG.overviewHeaderTime}</div>
             <div className="overview-grid-cell">{LANG.overviewHeaderTotal}</div>
             <div className="overview-grid-cell">{LANG.overviewHeaderDiscount}</div>
@@ -176,6 +178,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
                   </span>
                   {record.code}
                 </div>
+                <div className="overview-grid-cell overview-grid-user">{record.createdByUserFullName ?? '-'}</div>
                 <div className="overview-grid-cell">{dayjs(record.eventAt).format('DD/MM/YYYY HH:mm')}</div>
                 <div className="overview-grid-cell">{record.subtotalAmount.toLocaleString('vi-VN')}</div>
                 <div className={`overview-grid-cell${record.discountAmount > 0 ? ' has-discount' : ''}`}>{record.discountAmount.toLocaleString('vi-VN')}</div>

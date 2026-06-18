@@ -27,6 +27,7 @@ import { PurchaseOrder } from './entities/purchase-order.entity';
 import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
 import { Customer } from './entities/customer.entity';
 import { LoyaltyPointTransaction } from './entities/loyalty-point-transaction.entity';
+import { User } from '../auth/entities/user.entity';
 
 const SERVICES = [
   PosService,
@@ -47,7 +48,7 @@ const SERVICES = [
       Category, Customer, InventoryTransaction, LoyaltyPointTransaction,
       Setting, Supplier, PurchaseOrder, PurchaseOrderItem,
       Product, ProductUnit, Unit, PosDraftTab, PosDraftTabItem,
-      SalesOrder, SalesOrderItem,
+      SalesOrder, SalesOrderItem, User,
     ]),
   ],
   controllers: [PosController, ReturnsController],

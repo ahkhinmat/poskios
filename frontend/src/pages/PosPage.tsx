@@ -171,7 +171,7 @@ export function PosPage() {
 
   const isOverview = p.currentView === 'OVERVIEW';
   const defaultRatio = isOverview ? 0.5 : 0.75;
-  const effectiveRatio = isOverview ? 0.5 : (panelRatio ?? defaultRatio);
+  const effectiveRatio = panelRatio ?? defaultRatio;
 
   return (
     <div className="pos-shell">
