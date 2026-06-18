@@ -210,9 +210,8 @@ export function PosPage() {
             />
           </div>
         )}
-        <section className="sale-stage">
-          <div className="sale-topbar">
-            <div className="search-box">
+        <div className="sale-topbar">
+          <div className="search-box">
               <Input
                 ref={p.searchInputRef}
                 size="middle"
@@ -291,8 +290,7 @@ export function PosPage() {
               ) : null}
             </div>
           </div>
-
-          {p.currentView === 'OVERVIEW' ? (
+        <section className="sale-stage">          {p.currentView === 'OVERVIEW' ? (
             <OverviewView
               overviewFromDate={p.overviewFromDate}
               overviewToDate={p.overviewToDate}
