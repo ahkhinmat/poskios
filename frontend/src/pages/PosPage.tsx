@@ -1,37 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   App as AntApp,
-  Button,
-  Input,
-  List,
   Spin,
-  Tooltip,
 } from 'antd';
 import {
-  AppstoreOutlined,
-  BarChartOutlined,
-  ContainerOutlined,
-  EyeOutlined,
-  ImportOutlined,
-  PlusOutlined,
-  PrinterOutlined,
-  ShoppingCartOutlined,
   ShoppingOutlined,
-  SwapOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import { LANG } from '../lang';
-import { Can } from '../components/Can';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import { CheckoutPanel } from '../components/CheckoutPanel';
-import { OverviewView } from '../components/OverviewView';
 import { TopHeader } from '../components/TopHeader';
+import { TransactionPanel } from '../components/TransactionPanel';
 import { WorkspaceTabs } from '../components/WorkspaceTabs';
-import { PERMISSIONS } from '../permissions';
 import { PosModals } from '../components/PosModals';
-import { PurchaseTable } from '../components/PurchaseTable';
-import { ReturnSearchPanel } from '../components/ReturnSearchPanel';
-import { SaleList } from '../components/SaleList';
 import { SettingsPage } from '../components/SettingsPage';
 import { usePosPage } from '../hooks/usePosPage';
 import { useSession } from '../hooks/useSession';
@@ -51,13 +32,6 @@ function formatPoints(value: number) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 4,
   });
-}
-
-function stockBarProps(stock: number) {
-  if (stock <= 0) return { pct: 0, color: '#ef4444' };
-  if (stock <= 10) return { pct: Math.max(10, stock * 5), color: '#f59e0b' };
-  if (stock <= 50) return { pct: Math.min(50, stock), color: '#f59e0b' };
-  return { pct: 100, color: '#16a34a' };
 }
 
 export function PosPage() {
@@ -235,241 +209,7 @@ export function PosPage() {
             />
           </div>
         )}
-        <section className="sale-stage">          {p.currentView === 'OVERVIEW' ? (
-            <OverviewView
-              overviewFromDate={p.overviewFromDate}
-              overviewToDate={p.overviewToDate}
-              overviewDetail={p.overviewDetail}
-              overviewLoading={p.overviewLoading}
-              setOverviewFromDate={p.setOverviewFromDate}
-              setOverviewToDate={p.setOverviewToDate}
-              loadOverview={p.loadOverview}
-              ensureTabOfType={p.ensureTabOfType}
-              focusSearchInput={p.focusSearchInput}
-              openProductManager={p.openProductManager}
-            />
-          ) : (
-            <>
-
-          {!!p.searchResults.length && (
-            <div className="search-results search-results-inline">
-              <List
-                dataSource={p.searchResults}
-                renderItem={(product, index) => (
-                  <List.Item
-                    className={
-                      index === p.highlightedSearchIndex
-                        ? 'search-result-item is-active'
-                        : 'search-result-item'
-                    }
-                    actions={[
-                      <Button
-                        key={product.productUnitId}
-                        type="primary"
-                        ghost
-                        size="small"
-                        style={{ borderRadius: 6, fontWeight: 600 }}
-                        onClick={() => {
-                          p.addProductToActiveTab(product);
-                          p.clearSearchInput();
-                          p.focusSearchInput();
-                        }}
-                      >
-                        {LANG.select}
-                      </Button>,
-                    ]}
-                  >
-                    <List.Item.Meta
-                      title={<span style={{ fontWeight: 600 }}>{product.name} <span style={{ color: '#6b7280', fontWeight: 400, fontSize: 12 }}>({product.unitName})</span></span>}
-                      description={
-                        <span style={{ fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ color: '#374151', fontWeight: 500 }}>{product.productCode}</span>
-                          {' · '}{LANG.stockLabel}
-                          <div className="sale-stock-bar" style={{ width: 32, height: 5 }}>
-                            <div className="sale-stock-bar-fill" style={{ width: `${stockBarProps(product.stockOnHand).pct}%`, background: stockBarProps(product.stockOnHand).color }} />
-                          </div>
-                          <strong style={{ color: stockBarProps(product.stockOnHand).color, fontSize: 11 }}>
-                            {product.stockOnHand.toLocaleString('vi-VN')}
-                          </strong>
-                          {' · '}<span style={{ color: '#059669', fontWeight: 600 }}>{product.salePrice.toLocaleString('vi-VN')}{LANG.currencySuffix}</span>
-                        </span>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-            </div>
-          )}
-
-          {p.isReturnTab && (
-            <ReturnSearchPanel
-              invoiceSearchType={p.invoiceSearchType}
-              invoiceSearchValue={p.invoiceSearchValue}
-              invoiceSearching={p.invoiceSearching}
-              foundInvoices={p.foundInvoices}
-              setInvoiceSearchType={p.setInvoiceSearchType}
-              setInvoiceSearchValue={p.setInvoiceSearchValue}
-              searchInvoice={p.searchInvoice}
-              setInvoiceFromDate={p.setInvoiceFromDate}
-              setInvoiceToDate={p.setInvoiceToDate}
-              handleSelectInvoice={p.handleSelectInvoice}
-            />
-          )}
-
-          {p.isPurchaseTab && (
-            <div className="purchase-toolbar">
-              <div className="purchase-toolbar-title">{LANG.purchaseHeader}</div>
-              <div className="purchase-toolbar-actions">
-                <Tooltip title={LANG.purchaseToolbarLayout}>
-                  <button
-                    type="button"
-                    className="purchase-toolbar-button"
-                    aria-label={LANG.purchaseToolbarLayout}
-                    onClick={() => message.info(LANG.errFeatureDev)}
-                  >
-                    <AppstoreOutlined />
-                  </button>
-                </Tooltip>
-                <Tooltip title={LANG.purchaseToolbarAdd}>
-                  <button
-                    type="button"
-                    className="purchase-toolbar-button"
-                    aria-label={LANG.purchaseToolbarAdd}
-                    onClick={() => p.focusSearchInput()}
-                  >
-                    <PlusOutlined />
-                  </button>
-                </Tooltip>
-                <Tooltip title={LANG.purchaseToolbarPrint}>
-                  <button
-                    type="button"
-                    className="purchase-toolbar-button"
-                    aria-label={LANG.purchaseToolbarPrint}
-                    onClick={() => p.activeTab && void p.persistDraftTab(p.activeTab)}
-                  >
-                    <PrinterOutlined />
-                  </button>
-                </Tooltip>
-                <Tooltip title={LANG.purchaseToolbarPreview}>
-                  <button
-                    type="button"
-                    className="purchase-toolbar-button"
-                    aria-label={LANG.purchaseToolbarPreview}
-                    onClick={() => message.info(LANG.errFeatureDev)}
-                  >
-                    <EyeOutlined />
-                  </button>
-                </Tooltip>
-                <Tooltip title={LANG.purchaseToolbarAlert}>
-                  <button
-                    type="button"
-                    className="purchase-toolbar-button"
-                    aria-label={LANG.purchaseToolbarAlert}
-                    onClick={() => message.info(LANG.errFeatureDev)}
-                  >
-                    <WarningOutlined />
-                  </button>
-                </Tooltip>
-              </div>
-            </div>
-          )}
-
-          <div className="sale-list" ref={p.saleListRef}>
-            {p.isPurchaseTab ? (
-              <PurchaseTable
-                items={p.activeTab?.items ?? []}
-                removeItem={p.removeItem}
-                updateItem={p.updateItem}
-                getUnitOptionsForItem={p.getUnitOptionsForItem}
-                loadProductUnitOptions={p.loadProductUnitOptions}
-                handleChangeItemUnit={p.handleChangeItemUnit}
-              />
-            ) : (
-              <SaleList
-                items={p.activeTab?.items ?? []}
-                removeItem={p.removeItem}
-                updateItem={p.updateItem}
-                getUnitOptionsForItem={p.getUnitOptionsForItem}
-                loadProductUnitOptions={p.loadProductUnitOptions}
-                handleChangeItemUnit={p.handleChangeItemUnit}
-              />
-            )}
-          </div>
-
-          <div className="sale-footer">
-            <Input
-              placeholder={LANG.orderNote}
-              value={p.activeTab?.note ?? ''}
-              onChange={(event) => p.updateActiveTab({ note: event.target.value || null })}
-            />
-            <div className="sale-modes">
-              <Tooltip title={LANG.modeSaleTip}>
-                <button
-                  type="button"
-                  className={`sale-mode ${!p.isReturnTab && !p.isPurchaseTab ? 'is-active' : ''}`}
-                  onClick={async () => { await p.ensureTabOfType('SALE'); p.focusSearchInput(); }}
-                >
-                  <ShoppingCartOutlined style={{ fontSize: 14 }} /> {LANG.modeSale}
-                </button>
-              </Tooltip>
-              <Tooltip title={LANG.modeReturnTip}>
-                  <button
-                    type="button"
-                    className={`sale-mode ${p.isReturnTab ? 'is-active' : ''}`}
-                    onClick={() => { if (!p.isReturnTab) void p.ensureTabOfType('RETURN'); }}
-                  >
-                    <SwapOutlined style={{ fontSize: 14 }} /> {LANG.modeReturn}
-                  </button>
-                </Tooltip>
-              <Can check={{ permission: PERMISSIONS.PURCHASE_CREATE, denyReason: LANG.errManagerOnlyImport }}>
-                <Tooltip title={LANG.modeImportTip}>
-                  <button
-                    type="button"
-                    className={`sale-mode ${p.isPurchaseTab ? 'is-active' : ''}`}
-                    onClick={() => { if (!p.isPurchaseTab) void p.ensureTabOfType('PURCHASE'); }}
-                  >
-                    <ImportOutlined style={{ fontSize: 14 }} /> {LANG.modeImport}
-                  </button>
-                </Tooltip>
-              </Can>
-              <Can check={{ permission: PERMISSIONS.CATEGORIES_MANAGE, denyReason: LANG.errManagerOnlyCategory }}>
-                <Tooltip title={LANG.modeCategoryTip}>
-                  <button
-                    type="button"
-                    className="sale-mode"
-                    onClick={p.openProductManager}
-                  >
-                    <AppstoreOutlined style={{ fontSize: 14 }} /> {LANG.modeCategory}
-                  </button>
-                </Tooltip>
-              </Can>
-              <Can check={{ permission: PERMISSIONS.OVERVIEW_VIEW, denyReason: LANG.errManagerOnlyOverview }}>
-                <Tooltip title={LANG.modeOverviewTip}>
-                  <button
-                    type="button"
-                    className="sale-mode"
-                    onClick={p.handleOpenOverview}
-                  >
-                    <BarChartOutlined style={{ fontSize: 14 }} /> {LANG.modeOverview}
-                  </button>
-                </Tooltip>
-              </Can>
-              <Can check={{ permission: PERMISSIONS.SETTINGS_MANAGE }}>
-                <Tooltip title={LANG.settingsTitle}>
-                  <button
-                    type="button"
-                    className="sale-mode"
-                    onClick={() => setSettingsOpen(true)}
-                  >
-                    <ContainerOutlined style={{ fontSize: 14 }} /> {LANG.settingsTitle}
-                  </button>
-                </Tooltip>
-              </Can>
-            </div>
-          </div>
-            </>
-          )}
-        </section>
+        <TransactionPanel p={p} onOpenSettings={() => setSettingsOpen(true)} /> 
 
         <CheckoutPanel
           currentView={p.currentView}

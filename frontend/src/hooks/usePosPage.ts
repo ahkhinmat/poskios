@@ -270,3 +270,5 @@ export function usePosPage(recordPayment?: (amount: number, method: string) => v
     persistDraftTab,
   };
 }
+
+export type UsePosPageReturn = ReturnType<typeof usePosPage>;
