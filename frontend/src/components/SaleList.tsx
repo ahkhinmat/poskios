@@ -43,7 +43,7 @@ export function SaleList({
     <>
       {items.map((item, index) => (
         <div key={item.productUnitId} className="sale-row">
-          <div className="sale-cell sale-cell-index">{index + 1}</div>
+          <div className="sale-cell sale-cell-index">{items.length - index}</div>
           <button
             type="button"
             className="sale-icon-button sale-icon-delete"
