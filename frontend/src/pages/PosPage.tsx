@@ -289,9 +289,6 @@ export function PosPage() {
               {p.lastScannedProductName ? (
                 <Tag color="green">{LANG.scannedLabel} {p.lastScannedProductName}</Tag>
               ) : null}
-              <Tag color={p.isManager ? 'blue' : 'default'}>
-                {p.authUser?.fullName} · {p.authUser?.roleCode}
-              </Tag>
             </div>
           </div>
 
