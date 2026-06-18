@@ -519,13 +519,6 @@ button {
   font-size: 12px;
 }
 
-.checkout-panel-overview {
-  padding-inline: 8px;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
 .overview-grid-top {
   display: flex;
   align-items: center;

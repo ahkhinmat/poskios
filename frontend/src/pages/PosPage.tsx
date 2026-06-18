@@ -9,6 +9,7 @@ import {
 import { LANG } from '../lang';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import { CheckoutPanel } from '../components/CheckoutPanel';
+import { OverviewGrid } from '../components/OverviewGrid';
 import { TopHeader } from '../components/TopHeader';
 import { TransactionPanel } from '../components/TransactionPanel';
 import { WorkspaceTabs } from '../components/WorkspaceTabs';
@@ -24,8 +25,6 @@ const PAYMENT_LABEL_MAP: Record<string, string> = {
   CARD: LANG.card,
   EWALLET: LANG.ewallet,
 };
-
-const BUILD_VERSION = __APP_BUILD_VERSION__;
 
 function formatPoints(value: number) {
   return value.toLocaleString('vi-VN', {
@@ -211,47 +210,50 @@ export function PosPage() {
         )}
         <TransactionPanel p={p} onOpenSettings={() => setSettingsOpen(true)} /> 
 
-        <CheckoutPanel
-          currentView={p.currentView}
-          isPurchaseTab={p.isPurchaseTab}
-          isReturnTab={p.isReturnTab}
-          activeTab={p.activeTab}
-          summary={p.summary}
-          purchaseMetaMap={p.purchaseMetaMap}
-          suppliers={p.suppliers}
-          suppliersLoading={p.suppliersLoading}
-          customerLookup={p.customerLookup}
-          customerSearchResults={p.customerSearchResults}
-          customerLookupLoading={p.customerLookupLoading}
-          loyaltySettings={p.loyaltySettings}
-          overviewLoading={p.overviewLoading}
-          overviewRecordTypeFilter={p.overviewRecordTypeFilter}
-          showProfit={p.showProfit}
-          overviewTotalAmount={p.overviewTotalAmount}
-          overviewTotalDiscount={p.overviewTotalDiscount}
-          overviewTotalLoyaltyDiscount={p.overviewTotalLoyaltyDiscount}
-          overviewTotalCost={p.overviewTotalCost}
-          overviewTotalRevenue={p.overviewTotalRevenue}
-          overviewGrossProfit={p.overviewGrossProfit}
-          filteredOverviewRecords={p.filteredOverviewRecords}
-          overviewDetail={p.overviewDetail}
-          appSettings={p.appSettings}
-          checkingOut={p.checkingOut}
-          saving={p.saving}
-          buildVersion={BUILD_VERSION}
-          onSetOverviewRecordTypeFilter={p.setOverviewRecordTypeFilter}
-          onLoadOverviewDetail={p.loadOverviewDetail}
-          onUpdatePurchaseMeta={p.updatePurchaseMeta}
-          onUpdateActiveTab={p.updateActiveTab}
-          onOpenCreateSupplier={p.openCreateSupplier}
-          onOpenEditSupplier={p.openEditSupplier}
-          onOpenCustomerNameModal={p.openCustomerNameModal}
-          onOpenLoyaltyHistory={p.openLoyaltyHistory}
-          onPrintReceipt={() => p.handlePrintReceipt(p.buildDraftReceipt())}
-          onCheckout={p.handleCheckout}
-          formatPoints={formatPoints}
-          paymentOptions={paymentOptions}
-        />
+        {isOverview ? (
+          <OverviewGrid
+            records={p.filteredOverviewRecords}
+            loading={p.overviewLoading}
+            recordTypeFilter={p.overviewRecordTypeFilter}
+            showProfit={p.showProfit}
+            totalAmount={p.overviewTotalAmount}
+            totalDiscount={p.overviewTotalDiscount}
+            totalLoyaltyDiscount={p.overviewTotalLoyaltyDiscount}
+            totalCost={p.overviewTotalCost}
+            totalRevenue={p.overviewTotalRevenue}
+            grossProfit={p.overviewGrossProfit}
+            overviewDetail={p.overviewDetail}
+            onSetRecordTypeFilter={p.setOverviewRecordTypeFilter}
+            onLoadDetail={p.loadOverviewDetail}
+          />
+        ) : (
+          <CheckoutPanel
+            isPurchaseTab={p.isPurchaseTab}
+            isReturnTab={p.isReturnTab}
+            activeTab={p.activeTab}
+            summary={p.summary}
+            purchaseMetaMap={p.purchaseMetaMap}
+            suppliers={p.suppliers}
+            suppliersLoading={p.suppliersLoading}
+            customerLookup={p.customerLookup}
+            customerSearchResults={p.customerSearchResults}
+            customerLookupLoading={p.customerLookupLoading}
+            loyaltySettings={p.loyaltySettings}
+            appSettings={p.appSettings}
+            checkingOut={p.checkingOut}
+            saving={p.saving}
+            onUpdatePurchaseMeta={p.updatePurchaseMeta}
+            onUpdateActiveTab={p.updateActiveTab}
+            onOpenCreateSupplier={p.openCreateSupplier}
+            onOpenEditSupplier={p.openEditSupplier}
+            onOpenCustomerNameModal={p.openCustomerNameModal}
+            onOpenLoyaltyHistory={p.openLoyaltyHistory}
+            onPrintReceipt={() => p.handlePrintReceipt(p.buildDraftReceipt())}
+            onCheckout={p.handleCheckout}
+            formatPoints={formatPoints}
+            paymentOptions={paymentOptions}
+          />
+        )}
 
         <button
           type="button"

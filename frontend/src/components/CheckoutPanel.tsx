@@ -2,13 +2,11 @@ import {
   AutoComplete,
   Button,
   DatePicker,
-  Empty,
   Form,
   Input,
   InputNumber,
   Radio,
   Select,
-  Skeleton,
   Spin,
   Tag,
   Tooltip,
@@ -21,13 +19,12 @@ import {
   SwapOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { AppSettings, Customer, LoyaltySettings, OverviewDetail, OverviewRecord, PosDraftTab, PurchaseMeta, Supplier } from '../types';
+import type { AppSettings, Customer, LoyaltySettings, PosDraftTab, PurchaseMeta, Supplier } from '../types';
 import { LANG } from '../lang';
 
 const { Text } = Typography;
 
 type CheckoutPanelProps = {
-  currentView: 'POS' | 'OVERVIEW';
   collapsed?: boolean;
   isPurchaseTab: boolean;
   isReturnTab: boolean;
@@ -48,23 +45,9 @@ type CheckoutPanelProps = {
   customerSearchResults: Customer[];
   customerLookupLoading: boolean;
   loyaltySettings: LoyaltySettings | null;
-  overviewLoading: boolean;
-  overviewRecordTypeFilter: 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE' | 'CANCELLED';
-  showProfit: boolean;
-  overviewTotalAmount: number;
-  overviewTotalDiscount: number;
-  overviewTotalLoyaltyDiscount: number;
-  overviewTotalCost: number;
-  overviewTotalRevenue: number;
-  overviewGrossProfit: number;
   appSettings: AppSettings | null;
-  filteredOverviewRecords: OverviewRecord[];
-  overviewDetail: OverviewDetail | null;
   checkingOut: boolean;
   saving: boolean;
-  buildVersion: string;
-  onSetOverviewRecordTypeFilter: (value: 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE' | 'CANCELLED') => void;
-  onLoadOverviewDetail: (recordType: OverviewRecord['recordType'], id: number) => Promise<void>;
   onUpdatePurchaseMeta: (tabId: number, patch: Partial<PurchaseMeta>) => void;
   onUpdateActiveTab: (patch: Partial<PosDraftTab>) => void;
   onOpenCreateSupplier: () => void;
@@ -79,7 +62,6 @@ type CheckoutPanelProps = {
 
 export function CheckoutPanel(props: CheckoutPanelProps) {
   const {
-    currentView,
     collapsed,
     isPurchaseTab,
     isReturnTab,
@@ -92,21 +74,8 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
     customerSearchResults,
     customerLookupLoading,
     loyaltySettings,
-    overviewLoading,
-    overviewRecordTypeFilter,
-    showProfit,
-    overviewTotalAmount,
-    overviewTotalDiscount,
-    overviewTotalLoyaltyDiscount,
-    overviewTotalCost,
-    overviewTotalRevenue,
-    overviewGrossProfit,
-    filteredOverviewRecords,
-    overviewDetail,
     checkingOut,
     saving,
-    onSetOverviewRecordTypeFilter,
-    onLoadOverviewDetail,
     onUpdatePurchaseMeta,
     onUpdateActiveTab,
     onOpenCreateSupplier,
@@ -121,85 +90,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
   } = props;
 
   return (
-    <aside className={`checkout-panel ${isPurchaseTab ? 'checkout-panel-purchase' : ''} ${currentView === 'OVERVIEW' ? 'checkout-panel-overview' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
-      {currentView === 'OVERVIEW' ? (
-        <>
-          <div className="overview-grid-top">
-            <div className="overview-grid-count">{LANG.overviewTotalRecords}: <strong>{filteredOverviewRecords.length}</strong></div>
-            <Select
-              size="small"
-              style={{ minWidth: 130 }}
-              value={overviewRecordTypeFilter}
-              options={[
-                { label: LANG.overviewFilterAll, value: 'ALL' },
-                { label: LANG.overviewTypeSale, value: 'SALE' },
-                { label: LANG.overviewTypeReturn, value: 'RETURN' },
-                { label: LANG.overviewTypePurchase, value: 'PURCHASE' },
-                { label: LANG.overviewTypeCancelled, value: 'CANCELLED' },
-              ]}
-              onChange={(value) => onSetOverviewRecordTypeFilter(value as 'ALL' | 'SALE' | 'RETURN' | 'PURCHASE' | 'CANCELLED')}
-            />
-          </div>
-          <div className={`overview-grid-head${showProfit ? '' : ' overview-grid-hide-profit'}`}>
-            <div className="overview-grid-cell">{LANG.overviewHeaderCode}</div>
-            <div className="overview-grid-cell">{LANG.overviewHeaderUser}</div>
-            <div className="overview-grid-cell">{LANG.overviewHeaderTime}</div>
-            <div className="overview-grid-cell">{LANG.overviewHeaderTotal}</div>
-            <div className="overview-grid-cell">{LANG.overviewHeaderDiscount}</div>
-            <div className="overview-grid-cell">{LANG.overviewHeaderLoyaltyDiscount}</div>
-            <div className="overview-grid-cell">{LANG.overviewHeaderCost}</div>
-            <div className="overview-grid-cell">{LANG.overviewHeaderRevenue}</div>
-            {showProfit && <div className="overview-grid-cell">{LANG.overviewGrossProfit}</div>}
-          </div>
-          <div className="overview-grid-body">
-            {filteredOverviewRecords.length ? filteredOverviewRecords.map((record) => (
-              <button
-                key={`${record.recordType}-${record.id}`}
-                type="button"
-                className={`overview-grid-row overview-grid-row-${record.recordType.toLowerCase()}${showProfit ? '' : ' overview-grid-hide-profit'} ${record.status === 'CANCELLED' ? ' is-cancelled' : ''} ${overviewDetail?.header.id === record.id && overviewDetail?.header.recordType === record.recordType ? ' is-active' : ''}`}
-                onClick={() => void onLoadOverviewDetail(record.recordType, record.id)}
-              >
-                <div className="overview-grid-cell overview-grid-code">
-                  <span className={`overview-grid-badge ${record.status === 'CANCELLED' ? 'overview-badge-cancelled' : `overview-badge-${record.recordType.toLowerCase()}`}`}>
-                    {record.status === 'CANCELLED' ? LANG.overviewTypeCancelled : record.recordType === 'PURCHASE' ? LANG.overviewBadgePurchase : record.recordType === 'RETURN' ? LANG.overviewBadgeReturn : LANG.overviewBadgeSale}
-                  </span>
-                  {record.code}
-                </div>
-                <div className="overview-grid-cell overview-grid-user">{record.createdByUserFullName ?? '-'}</div>
-                <div className="overview-grid-cell">{dayjs(record.eventAt).format('DD/MM/YYYY HH:mm')}</div>
-                <div className="overview-grid-cell">{record.subtotalAmount.toLocaleString('vi-VN')}</div>
-                <div className={`overview-grid-cell${record.discountAmount > 0 ? ' has-discount' : ''}`}>{record.discountAmount.toLocaleString('vi-VN')}</div>
-                <div className={`overview-grid-cell${record.loyaltyDiscountAmount > 0 ? ' has-discount' : ''}`}>{record.loyaltyDiscountAmount.toLocaleString('vi-VN')}</div>
-                <div className="overview-grid-cell">{Math.round(record.costAmount).toLocaleString('vi-VN')}</div>
-                <div className="overview-grid-cell">{Math.round(record.revenueAmount).toLocaleString('vi-VN')}</div>
-                {showProfit && <div className="overview-grid-cell overview-grid-profit">{Math.round(record.revenueAmount - record.costAmount).toLocaleString('vi-VN')}</div>}
-              </button>
-            )) : (
-              <div className="empty-stage">
-                {overviewLoading ? (
-                  <Skeleton active paragraph={{ rows: 4 }} />
-                ) : (
-                  <Empty description={LANG.overviewEmpty} />
-                )}
-              </div>
-            )}
-          </div>
-          <div className={`overview-grid-foot${showProfit ? '' : ' overview-grid-hide-profit'}`}>
-            <div className="overview-grid-cell overview-grid-foot-label">{LANG.overviewTotalValue}</div>
-            <div className="overview-grid-cell overview-grid-foot-val overview-grid-cell-empty"></div>
-            <div className="overview-grid-cell overview-grid-foot-val overview-grid-cell-empty">
-              <span style={{ fontWeight: 400, fontSize: 11, color: '#6b7280' }}>({filteredOverviewRecords.length} {LANG.receiptQty})</span>
-            </div>
-            <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalAmount.toLocaleString('vi-VN')}</div>
-            <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalDiscount.toLocaleString('vi-VN')}</div>
-            <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalLoyaltyDiscount.toLocaleString('vi-VN')}</div>
-            <div className="overview-grid-cell overview-grid-foot-val">{Math.round(overviewTotalCost).toLocaleString('vi-VN')}</div>
-            <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalRevenue.toLocaleString('vi-VN')}</div>
-            {showProfit && <div className="overview-grid-cell overview-grid-foot-val">{Math.round(overviewGrossProfit).toLocaleString('vi-VN')}</div>}
-          </div>
-        </>
-      ) : (
-        <>
+    <aside className={`checkout-panel ${isPurchaseTab ? 'checkout-panel-purchase' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
           {isPurchaseTab ? (
             <div className="checkout-form checkout-form-purchase">
               <div className="purchase-status-top">
@@ -611,56 +502,20 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
           <div className="checkout-actions">
             {isPurchaseTab ? (
               <>
-                <Button
-                  className="print-button"
-                  onClick={onPrintReceipt}
-                >
-                  {LANG.print}
-                </Button>
-                <Button
-                  type="primary"
-                  className="pay-button"
-                  loading={checkingOut}
-                  onClick={() => void onCheckout()}
-                >
-                  {LANG.purchaseComplete}
-                </Button>
+                <Button className="print-button" onClick={onPrintReceipt}>{LANG.print}</Button>
+                <Button type="primary" className="pay-button" loading={checkingOut} onClick={() => void onCheckout()}>{LANG.purchaseComplete}</Button>
               </>
             ) : (
               <>
-                <Button
-                  className="print-button"
-                  onClick={onPrintReceipt}
-                >
-                  {LANG.print}
-                </Button>
+                <Button className="print-button" onClick={onPrintReceipt}>{LANG.print}</Button>
                 {isReturnTab ? (
-                  <Button
-                    type="primary"
-                    danger
-                    className="pay-button"
-                    icon={<SwapOutlined />}
-                    loading={checkingOut}
-                    onClick={() => void onCheckout()}
-                  >
-                    {LANG.completeReturn} (F8)
-                  </Button>
+                  <Button type="primary" danger className="pay-button" icon={<SwapOutlined />} loading={checkingOut} onClick={() => void onCheckout()}>{LANG.completeReturn} (F8)</Button>
                 ) : (
-                  <Button
-                    type="primary"
-                    className="pay-button"
-                    icon={<ShoppingCartOutlined />}
-                    loading={checkingOut}
-                    onClick={() => void onCheckout()}
-                  >
-                    {LANG.completePayment} (F8)
-                  </Button>
+                  <Button type="primary" className="pay-button" icon={<ShoppingCartOutlined />} loading={checkingOut} onClick={() => void onCheckout()}>{LANG.completePayment} (F8)</Button>
                 )}
               </>
             )}
           </div>
-        </>
-      )}
     </aside>
   );
 }
