@@ -11,7 +11,7 @@ import { useSearch } from './useSearch';
 import { useCheckout } from './useCheckout';
 import { useOverview } from './useOverview';
 
-export function usePosPage() {
+export function usePosPage(recordPayment?: (amount: number, method: string) => void) {
   const { message } = AntApp.useApp();
   const { user: authUser, logout } = useAuth();
   const navigate = useNavigate();
@@ -108,7 +108,7 @@ export function usePosPage() {
   const checkoutHook = useCheckout(
     message, appSettings, userPermissions, activeTab, tabs, setTabs,
     setActiveTabId, summary, isReturnTab, isPurchaseTab,
-    purchaseMetaMap, suppliers, createDraftTab, focusSearchInput,
+    purchaseMetaMap, suppliers, createDraftTab, focusSearchInput, recordPayment,
   );
   const {
     checkingOut, receiptPreview, setReceiptPreview,

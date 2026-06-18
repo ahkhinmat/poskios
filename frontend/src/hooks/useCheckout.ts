@@ -43,6 +43,7 @@ export function useCheckout(
   suppliers: Supplier[],
   createDraftTab: (title?: string, tabType?: 'SALE' | 'RETURN' | 'PURCHASE') => Promise<PosDraftTab>,
   focusSearchInput: () => void,
+  onPaymentRecorded?: (amount: number, method: string) => void,
 ) {
   const [checkingOut, setCheckingOut] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<ReceiptPreviewData | null>(null);
@@ -180,6 +181,7 @@ export function useCheckout(
         });
 
         message.success(LANG.purchaseCompleted);
+        onPaymentRecorded?.(Number(response.data.data.summary.totalAmount), 'PURCHASE');
         setReceiptPreview({
           ...response.data.data.receiptData,
           storeName: LANG.storeNameReceipt,
@@ -210,6 +212,7 @@ export function useCheckout(
         });
 
         message.success(LANG.returnCreated(response.data.data.salesOrderCode));
+        onPaymentRecorded?.(response.data.data.summary.totalAmount ?? 0, 'RETURN');
         setReceiptPreview(response.data.data.receiptData);
       } else {
         const response = await api.post<ApiEnvelope<CheckoutResponse>>('/pos/checkout', {
@@ -236,6 +239,8 @@ export function useCheckout(
         });
 
         message.success(LANG.saleCreated(response.data.data.salesOrderCode));
+        const payMethod = activeTab.paymentMethod || appSettings?.defaultPaymentMethod || 'CASH';
+        onPaymentRecorded?.(Number(response.data.data.summary.totalAmount), payMethod);
         setReceiptPreview({
           ...response.data.data.receiptData,
           storeName: LANG.storeNameReceipt,

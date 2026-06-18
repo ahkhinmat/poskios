@@ -65,14 +65,14 @@ function stockBarProps(stock: number) {
 
 export function PosPage() {
   const { message } = AntApp.useApp();
-  const p = usePosPage();
+  const sessionHook = useSession();
+  const { session, isRunning, startSession, endSession, recordPayment } = sessionHook;
+  const p = usePosPage(recordPayment);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [checkoutCollapsed, setCheckoutCollapsed] = useState(() => window.innerWidth <= 1024);
   const [panelRatio, setPanelRatio] = useState<number | null>(null);
   const posGridRef = useRef<HTMLDivElement>(null);
-  const sessionHook = useSession();
-  const { session, isRunning, startSession, endSession } = sessionHook;
 
   const paymentOptions = useMemo(() => {
     const methods = p.appSettings?.paymentMethods ?? 'CASH,BANK_TRANSFER,CARD,EWALLET';
