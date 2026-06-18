@@ -16,11 +16,7 @@ import {
 } from 'antd';
 import {
   EditOutlined,
-  KeyOutlined,
-  LeftOutlined,
-  LogoutOutlined,
   PlusOutlined,
-  RightOutlined,
   ShoppingCartOutlined,
   SwapOutlined,
 } from '@ant-design/icons';
@@ -33,7 +29,6 @@ const { Text } = Typography;
 type CheckoutPanelProps = {
   currentView: 'POS' | 'OVERVIEW';
   collapsed?: boolean;
-  onToggleCollapse?: () => void;
   isPurchaseTab: boolean;
   isReturnTab: boolean;
   activeTab: PosDraftTab | null;
@@ -80,9 +75,6 @@ type CheckoutPanelProps = {
   onCheckout: () => Promise<void>;
   formatPoints: (value: number) => string;
   paymentOptions: { label: string; value: string }[];
-  userName: string;
-  onLogout: () => void;
-  onOpenChangePassword: () => void;
 };
 
 export function CheckoutPanel(props: CheckoutPanelProps) {
@@ -113,7 +105,6 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
     overviewDetail,
     checkingOut,
     saving,
-    onToggleCollapse,
     onSetOverviewRecordTypeFilter,
     onLoadOverviewDetail,
     onUpdatePurchaseMeta,
@@ -127,29 +118,12 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
     appSettings,
     formatPoints,
     paymentOptions,
-    userName,
-    onLogout,
-    onOpenChangePassword,
   } = props;
 
   return (
     <aside className={`checkout-panel ${isPurchaseTab ? 'checkout-panel-purchase' : ''} ${currentView === 'OVERVIEW' ? 'checkout-panel-overview' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
       {currentView === 'OVERVIEW' ? (
         <>
-          <div className="checkout-header">
-            <div className="checkout-user">{userName}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button type="button" className="checkout-icon-btn" onClick={onLogout}>
-                <LogoutOutlined />
-              </button>
-              <button type="button" className="checkout-icon-btn" onClick={onOpenChangePassword}>
-                <KeyOutlined />
-              </button>
-              <button type="button" className="checkout-collapse-btn" onClick={onToggleCollapse}>
-                {collapsed ? <LeftOutlined /> : <RightOutlined />}
-              </button>
-            </div>
-          </div>
           <div className="overview-grid-top">
             <div className="overview-grid-count">{LANG.overviewTotalRecords}: <strong>{filteredOverviewRecords.length}</strong></div>
             <Select
@@ -226,21 +200,6 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
         </>
       ) : (
         <>
-          <div className="checkout-header">
-            <div className="checkout-user">{userName}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button type="button" className="checkout-icon-btn" onClick={onLogout}>
-                <LogoutOutlined />
-              </button>
-              <button type="button" className="checkout-icon-btn" onClick={onOpenChangePassword}>
-                <KeyOutlined />
-              </button>
-              <button type="button" className="checkout-collapse-btn" onClick={onToggleCollapse}>
-                {collapsed ? <LeftOutlined /> : <RightOutlined />}
-              </button>
-            </div>
-          </div>
-
           {isPurchaseTab ? (
             <div className="checkout-form checkout-form-purchase">
               <div className="purchase-status-top">

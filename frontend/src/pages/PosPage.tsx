@@ -5,7 +5,6 @@ import {
   Input,
   List,
   Spin,
-  Tag,
   Tooltip,
 } from 'antd';
 import {
@@ -16,7 +15,6 @@ import {
   ImportOutlined,
   PlusOutlined,
   PrinterOutlined,
-  SearchOutlined,
   ShoppingCartOutlined,
   ShoppingOutlined,
   SwapOutlined,
@@ -27,12 +25,12 @@ import { Can } from '../components/Can';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import { CheckoutPanel } from '../components/CheckoutPanel';
 import { OverviewView } from '../components/OverviewView';
+import { TopHeader } from '../components/TopHeader';
 import { PERMISSIONS } from '../permissions';
 import { PosModals } from '../components/PosModals';
 import { PurchaseTable } from '../components/PurchaseTable';
 import { ReturnSearchPanel } from '../components/ReturnSearchPanel';
 import { SaleList } from '../components/SaleList';
-import { SessionBar } from '../components/SessionBar';
 import { SettingsPage } from '../components/SettingsPage';
 import { usePosPage } from '../hooks/usePosPage';
 import { useSession } from '../hooks/useSession';
@@ -210,86 +208,30 @@ export function PosPage() {
             />
           </div>
         )}
-        <div className="sale-topbar">
-          <div className="search-box">
-              <Input
-                ref={p.searchInputRef}
-                size="middle"
-                prefix={<SearchOutlined />}
-                suffix={p.searching ? <Spin size="small" /> : <span style={{ fontSize: 11, color: '#9ca3af', opacity: 0.6 }}>Esc</span>}
-                placeholder={`${LANG.placeholderSearch} (Ctrl+F)`}
-                value={p.searchValue}
-                onChange={(event) => p.setSearchValue(event.target.value)}
-                onKeyDown={(event) => {
-                  if (!p.searchResults.length) {
-                    return;
-                  }
-
-                  if (event.key === 'ArrowDown') {
-                    event.preventDefault();
-                    p.setHighlightedSearchIndex((current) =>
-                      Math.min(
-                        current < 0 ? 0 : current + 1,
-                        p.searchResults.length - 1,
-                      ),
-                    );
-                  }
-
-                  if (event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    p.setHighlightedSearchIndex((current) =>
-                      Math.max(current <= 0 ? 0 : current - 1, 0),
-                    );
-                  }
-                }}
-                onPressEnter={() => void p.handleResolveProduct()}
-              />
-            </div>
-
-            <div className="draft-strip">
-              {p.tabs.map((tab) => (
-                <Tooltip key={tab.id} title={`${LANG.openTab}: ${tab.title}`}>
-                  <button
-                    type="button"
-                    className={`draft-chip ${tab.id === p.activeTabId ? 'is-active' : ''}`}
-                    onClick={() => p.setActiveTabId(tab.id)}
-                  >
-                    <span>{tab.title}</span>
-                    {p.tabs.length > 1 && (
-                      <Tooltip title={`${LANG.closeTab}: ${tab.title}`}>
-                        <span
-                          className="draft-chip-close"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void p.handleCloseTab(tab.id);
-                          }}
-                        >
-                          {LANG.closeTabSymbol}
-                        </span>
-                      </Tooltip>
-                    )}
-                  </button>
-                </Tooltip>
-              ))}
-              <Tooltip title={`${LANG.addTab} (F1)`}>
-                <button
-                  type="button"
-                  className="draft-chip draft-chip-add"
-                  onClick={() => void p.handleCreateTab()}
-                >
-                  <PlusOutlined />
-                </button>
-              </Tooltip>
-            </div>
-
-            <SessionBar session={session} isRunning={isRunning} onStart={startSession} onEnd={endSession} />
-
-            <div className="topbar-actions">
-              {p.lastScannedProductName ? (
-                <Tag color="green">{LANG.scannedLabel} {p.lastScannedProductName}</Tag>
-              ) : null}
-            </div>
-          </div>
+        <TopHeader
+          searchInputRef={p.searchInputRef}
+          searchValue={p.searchValue}
+          setSearchValue={p.setSearchValue}
+          searching={p.searching}
+          searchResults={p.searchResults}
+          setHighlightedSearchIndex={p.setHighlightedSearchIndex}
+          handleResolveProduct={p.handleResolveProduct}
+          tabs={p.tabs}
+          activeTabId={p.activeTabId}
+          setActiveTabId={p.setActiveTabId}
+          handleCreateTab={p.handleCreateTab}
+          handleCloseTab={p.handleCloseTab}
+          session={session}
+          isRunning={isRunning}
+          startSession={startSession}
+          endSession={endSession}
+          lastScannedProductName={p.lastScannedProductName}
+          userName={p.authUser?.fullName ?? p.authUser?.username ?? ''}
+          onLogout={p.handleLogout}
+          onOpenChangePassword={() => setChangePasswordOpen(true)}
+          collapsed={checkoutCollapsed}
+          onToggleCollapse={() => setCheckoutCollapsed((v) => !v)}
+        />
         <section className="sale-stage">          {p.currentView === 'OVERVIEW' ? (
             <OverviewView
               overviewFromDate={p.overviewFromDate}
@@ -527,8 +469,6 @@ export function PosPage() {
         </section>
 
         <CheckoutPanel
-          collapsed={checkoutCollapsed}
-          onToggleCollapse={() => setCheckoutCollapsed((v) => !v)}
           currentView={p.currentView}
           isPurchaseTab={p.isPurchaseTab}
           isReturnTab={p.isReturnTab}
@@ -568,9 +508,6 @@ export function PosPage() {
           onCheckout={p.handleCheckout}
           formatPoints={formatPoints}
           paymentOptions={paymentOptions}
-          userName={p.authUser?.fullName ?? p.authUser?.username ?? ''}
-          onLogout={p.handleLogout}
-          onOpenChangePassword={() => setChangePasswordOpen(true)}
         />
 
         <button
