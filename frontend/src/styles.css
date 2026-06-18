@@ -646,6 +646,11 @@ button {
   grid-template-columns: minmax(105px, 1fr) minmax(72px, 0.8fr) minmax(72px, 0.8fr) repeat(5, minmax(50px, 1fr));
 }
 
+.overview-grid-cell-empty {
+  display: flex;
+  align-items: center;
+}
+
 .customer-label-text {
   font-size: 12px;
   overflow: hidden;
@@ -697,6 +702,12 @@ button {
 .purchase-table-head-overview,
 .purchase-row-overview {
   grid-template-columns: 30px minmax(100px, 1fr) 50px 56px 68px 80px;
+}
+
+.purchase-summary-foot {
+  border-top: 2px solid #d7dfeb;
+  background: #f8fafc;
+  font-size: 13px;
 }
 
 .purchase-table-head {
