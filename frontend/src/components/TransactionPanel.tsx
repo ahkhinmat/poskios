@@ -11,6 +11,7 @@ import { OverviewView } from './OverviewView';
 import { PurchaseTable } from './PurchaseTable';
 import { ReturnSearchPanel } from './ReturnSearchPanel';
 import { SaleList } from './SaleList';
+import { TopProductsChart } from './TopProductsChart';
 import type { UsePosPageReturn } from '../hooks/usePosPage';
 
 function stockBarProps(stock: number) {
@@ -28,18 +29,21 @@ export function TransactionPanel({ p }: TransactionPanelProps) {
   return (
     <section className="sale-stage">
       {p.currentView === 'OVERVIEW' ? (
-        <OverviewView
-          overviewFromDate={p.overviewFromDate}
-          overviewToDate={p.overviewToDate}
-          overviewDetail={p.overviewDetail}
-          overviewLoading={p.overviewLoading}
-          setOverviewFromDate={p.setOverviewFromDate}
-          setOverviewToDate={p.setOverviewToDate}
-          loadOverview={p.loadOverview}
-          ensureTabOfType={p.ensureTabOfType}
-          focusSearchInput={p.focusSearchInput}
-          openProductManager={p.openProductManager}
-        />
+        <>
+          <OverviewView
+            overviewFromDate={p.overviewFromDate}
+            overviewToDate={p.overviewToDate}
+            overviewDetail={p.overviewDetail}
+            overviewLoading={p.overviewLoading}
+            setOverviewFromDate={p.setOverviewFromDate}
+            setOverviewToDate={p.setOverviewToDate}
+            loadOverview={p.loadOverview}
+          />
+          <TopProductsChart
+            products={p.topProducts}
+            loading={p.topProductsLoading}
+          />
+        </>
       ) : (
         <>
 

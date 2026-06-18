@@ -457,6 +457,21 @@ export class PosController {
   }
 
   @Permissions(PERMISSIONS.OVERVIEW_VIEW)
+  @Get('overview/top-products')
+  async getTopProducts(
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    const data = await this.posService.getTopProducts({ fromDate, toDate });
+
+    return {
+      success: true,
+      message: 'OK',
+      data,
+    };
+  }
+
+  @Permissions(PERMISSIONS.OVERVIEW_VIEW)
   @Get('overview/:recordType/:id')
   async getOverviewDetail(
     @Param('recordType') recordType: string,

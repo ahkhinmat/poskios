@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { App as AntApp, Button, DatePicker, Empty, Modal, Skeleton, Tooltip } from 'antd';
+import { App as AntApp, Button, DatePicker, Empty, Modal, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import { api } from '../api';
 import { Can } from './Can';
@@ -15,9 +15,6 @@ type OverviewViewProps = {
   setOverviewFromDate: (v: string) => void;
   setOverviewToDate: (v: string) => void;
   loadOverview: (reset?: boolean, fromDate?: string, toDate?: string) => Promise<void>;
-  ensureTabOfType: (type: 'SALE' | 'RETURN' | 'PURCHASE') => Promise<void>;
-  focusSearchInput: () => void;
-  openProductManager: () => void;
 };
 
 export function OverviewView({
@@ -28,9 +25,6 @@ export function OverviewView({
   setOverviewFromDate,
   setOverviewToDate,
   loadOverview,
-  ensureTabOfType,
-  focusSearchInput,
-  openProductManager,
 }: OverviewViewProps) {
   const { message } = AntApp.useApp();
   const [cancelling, setCancelling] = useState(false);
@@ -131,42 +125,6 @@ export function OverviewView({
             <div className="purchase-total" style={{ fontWeight: 700, color: 'var(--pos-primary)' }}>{overviewDetail.items.reduce((s, i) => s + i.lineTotal, 0).toLocaleString('vi-VN')}{LANG.currencySuffix}</div>
           </div>
         ) : null}
-      </div>
-
-      <div className="sale-footer">
-        <div className="sale-modes">
-          <Tooltip title={LANG.modeSaleTip}>
-            <button type="button" className="sale-mode" onClick={async () => { await ensureTabOfType('SALE'); focusSearchInput(); }}>
-              {LANG.modeSale}
-            </button>
-          </Tooltip>
-          <Tooltip title={LANG.modeReturnTip}>
-            <button type="button" className="sale-mode" onClick={() => { void ensureTabOfType('RETURN'); }}>
-              {LANG.modeReturn}
-            </button>
-          </Tooltip>
-          <Can check={{ permission: PERMISSIONS.PURCHASE_CREATE, denyReason: LANG.errManagerOnlyImport }}>
-            <Tooltip title={LANG.modeImportTip}>
-              <button type="button" className="sale-mode" onClick={() => { void ensureTabOfType('PURCHASE'); }}>
-                {LANG.modeImport}
-              </button>
-            </Tooltip>
-          </Can>
-          <Can check={{ permission: PERMISSIONS.CATEGORIES_MANAGE, denyReason: LANG.errManagerOnlyCategory }}>
-            <Tooltip title={LANG.modeCategoryTip}>
-              <button type="button" className="sale-mode" onClick={openProductManager}>
-                {LANG.modeCategory}
-              </button>
-            </Tooltip>
-          </Can>
-          <Can check={{ permission: PERMISSIONS.OVERVIEW_VIEW, denyReason: LANG.errManagerOnlyOverview }}>
-            <Tooltip title={LANG.modeOverviewTip}>
-              <button type="button" className="sale-mode is-active">
-                {LANG.modeOverview}
-              </button>
-            </Tooltip>
-          </Can>
-        </div>
       </div>
 
       <Modal

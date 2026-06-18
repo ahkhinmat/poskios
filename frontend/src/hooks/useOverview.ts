@@ -7,6 +7,7 @@ import type {
   ApiEnvelope,
   OverviewDetail,
   OverviewRecord,
+  TopProduct,
 } from '../types';
 
 export function useOverview(
@@ -23,6 +24,8 @@ export function useOverview(
   const [overviewRecordTypeFilter, setOverviewRecordTypeFilter] = useState<'ALL' | 'SALE' | 'RETURN' | 'PURCHASE' | 'CANCELLED'>('SALE');
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [topProductsLoading, setTopProductsLoading] = useState(false);
   const showProfit = overviewRecordTypeFilter === 'SALE' || overviewRecordTypeFilter === 'CANCELLED';
 
   const filteredOverviewRecords = useMemo(
@@ -81,10 +84,28 @@ export function useOverview(
       } else if (!items.length) {
         setOverviewDetail(null);
       }
+      void loadTopProducts(fromDate ?? overviewFromDate, toDate ?? overviewToDate);
     } catch {
       message.error(LANG.errLoadOverview);
     } finally {
       setOverviewLoading(false);
+    }
+  }
+
+  async function loadTopProducts(fromDate?: string, toDate?: string) {
+    setTopProductsLoading(true);
+    try {
+      const response = await api.get<ApiEnvelope<{ items: TopProduct[] }>>('/pos/overview/top-products', {
+        params: {
+          fromDate: fromDate ?? overviewFromDate,
+          toDate: toDate ?? overviewToDate,
+        },
+      });
+      setTopProducts(response.data.data.items);
+    } catch {
+      setTopProducts([]);
+    } finally {
+      setTopProductsLoading(false);
     }
   }
 
@@ -129,6 +150,7 @@ export function useOverview(
     showProfit, filteredOverviewRecords,
     overviewTotalAmount, overviewTotalDiscount, overviewTotalLoyaltyDiscount,
     overviewTotalCost, overviewTotalRevenue, overviewGrossProfit,
-    loadOverview, loadOverviewDetail, handleOpenOverview, handlePasswordSubmit,
+    topProducts, topProductsLoading,
+    loadOverview, loadOverviewDetail, loadTopProducts, handleOpenOverview, handlePasswordSubmit,
   };
 }

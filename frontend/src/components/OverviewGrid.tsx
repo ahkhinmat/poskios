@@ -35,7 +35,7 @@ export function OverviewGrid({
   onLoadDetail,
 }: OverviewGridProps) {
   return (
-    <>
+    <div className="overview-grid-wrapper">
       <div className="overview-grid-top">
         <div className="overview-grid-count">{LANG.overviewTotalRecords}: <strong>{records.length}</strong></div>
         <Select
@@ -54,7 +54,6 @@ export function OverviewGrid({
       </div>
       <div className={`overview-grid-head${showProfit ? '' : ' overview-grid-hide-profit'}`}>
         <div className="overview-grid-cell">{LANG.overviewHeaderCode}</div>
-        <div className="overview-grid-cell">{LANG.overviewHeaderUser}</div>
         <div className="overview-grid-cell">{LANG.overviewHeaderTime}</div>
         <div className="overview-grid-cell">{LANG.overviewHeaderTotal}</div>
         <div className="overview-grid-cell">{LANG.overviewHeaderDiscount}</div>
@@ -77,8 +76,7 @@ export function OverviewGrid({
               </span>
               {record.code}
             </div>
-            <div className="overview-grid-cell overview-grid-user">{record.createdByUserFullName ?? '-'}</div>
-            <div className="overview-grid-cell">{dayjs(record.eventAt).format('DD/MM/YYYY HH:mm')}</div>
+            <div className="overview-grid-cell">{dayjs(record.eventAt).format('DD/MM HH:mm')}</div>
             <div className="overview-grid-cell">{record.subtotalAmount.toLocaleString('vi-VN')}</div>
             <div className={`overview-grid-cell${record.discountAmount > 0 ? ' has-discount' : ''}`}>{record.discountAmount.toLocaleString('vi-VN')}</div>
             <div className={`overview-grid-cell${record.loyaltyDiscountAmount > 0 ? ' has-discount' : ''}`}>{record.loyaltyDiscountAmount.toLocaleString('vi-VN')}</div>
@@ -98,7 +96,6 @@ export function OverviewGrid({
       </div>
       <div className={`overview-grid-foot${showProfit ? '' : ' overview-grid-hide-profit'}`}>
         <div className="overview-grid-cell overview-grid-foot-label">{LANG.overviewTotalValue}</div>
-        <div className="overview-grid-cell overview-grid-foot-val overview-grid-cell-empty"></div>
         <div className="overview-grid-cell overview-grid-foot-val overview-grid-cell-empty">
           <span style={{ fontWeight: 400, fontSize: 11, color: '#6b7280' }}>({records.length} {LANG.receiptQty})</span>
         </div>
@@ -109,6 +106,6 @@ export function OverviewGrid({
         <div className="overview-grid-cell overview-grid-foot-val">{totalRevenue.toLocaleString('vi-VN')}</div>
         {showProfit && <div className="overview-grid-cell overview-grid-foot-val">{Math.round(grossProfit).toLocaleString('vi-VN')}</div>}
       </div>
-    </>
+    </div>
   );
 }

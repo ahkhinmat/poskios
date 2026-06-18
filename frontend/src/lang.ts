@@ -48,6 +48,11 @@ export const LANG = {
   overviewTotalLoyaltyDiscount: 'Tổng giảm điểm',
   overviewTotalCost: 'Tổng giá vốn',
   overviewTotalRevenue: 'Tổng doanh thu',
+  overviewTopProducts: 'Top 10 mặt hàng bán chạy',
+  overviewTopRank: '#',
+  overviewTopProduct: 'Mặt hàng',
+  overviewTopQuantity: 'SL',
+  overviewTopRevenue: 'Doanh thu',
   errLoadOverview: 'Không tải được tổng quan',
   errPasswordIncorrect: 'Mật khẩu không đúng',
 

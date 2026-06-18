@@ -446,3 +446,12 @@ export type LoyaltyHistoryResponse = {
 export type CustomerSearchResponse = {
   items: Customer[];
 };
+
+export type TopProduct = {
+  productId: number;
+  productCode: string;
+  productName: string;
+  unitName: string;
+  totalQuantity: number;
+  totalRevenue: number;
+};

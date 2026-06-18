@@ -1,33 +1,42 @@
-# Changelog
-
-## [Unreleased] — feature/ui-permissions
-
-### Added
-- **Keyboard shortcuts**: F8 thanh toán, Ctrl+F tìm kiếm, F1 tab mới, Escape xóa search
-- **Auto-focus search**: focus ô tìm kiếm khi chuyển tab
-- **Fullscreen**: nút toggle toàn màn hình trong SessionBar
-- **Panel resize**: drag-to-resize handle giữa 2 panel (20%-80%)
-- **Collapse/expand**: nút thu gọn checkout panel trên header (mọi màn hình)
-- **CSS variables**: 14 token màu (`--pos-danger`, `--pos-warning`, `--pos-info`, `--pos-text-*`, `--pos-bg-*`, `--pos-border-*`)
-- **Custom scrollbar**: 5px bo tròn cho sale-list, overview-grid, product-grid, checkout-form, settings-list
-- **Button press feedback**: `:active` scale(0.97) trên print/pay, quick-money, sale-mode, checkout-collapse-btn
-- **Loading skeleton**: `<Skeleton>` cho overview detail khi đang tải
-- **LANG keys**: 10 keys mới (cancel + fullscreen)
-- **Overview 50/50**: tổng quan luôn chia đôi 2 panel
+## 2026-06-18 — UI Overview: cleanup & top products chart
 
 ### Changed
-- **Print button**: từ xám → nền subtle + viền, hover/active xanh
-- **Process bar**: dot 6→10px, label 10→12px, gap 8px, pulse mượt hơn
-- **Overview grid**: font 10→12px, padding 3→5px
-- **Checkout total**: font 24→28px, weight 800, letter-spacing
-- **Settings chevron**: từ ký tự `>` → mũi tên CSS
-- **Checkout panel shadow**: từ custom → `--pos-shadow-md`
-- **Row hover elevation**: sale/purchase/overview hover lên `--pos-shadow-md`
-- **Summary section**: inset shadow + padding lớn hơn
-- **Compact items**: sale-row (padding 6→2px, min-height 36→28px), purchase-table (42→28px), return-search (padding 10→6px), found-invoice-row (padding 8→4px)
-- **Bỏ MoreOutlined**: xóa nút placeholder "đang phát triển" + update grid 8→7 cột
+- **OverviewGrid** (`frontend/src/components/OverviewGrid.tsx`):
+  - Fragment `<>` → `<div className="overview-grid-wrapper">` to fix grid layout issue
+  - Removed "Thu ngân" user column from header, row cells, and footer
+  - Changed time format: `DD/MM/YYYY HH:mm` → `DD/MM HH:mm`
+- **OverviewView** (`frontend/src/components/OverviewView.tsx`):
+  - Removed 5 mode-switching buttons (Bán hàng, Trả hàng, Nhập hàng, Danh mục, Tổng quan)
+  - Removed unused props: `ensureTabOfType`, `focusSearchInput`, `openProductManager`
+  - Removed unused import: `Tooltip`
+- **TransactionPanel** (`frontend/src/components/TransactionPanel.tsx`):
+  - Removed `ensureTabOfType`, `focusSearchInput`, `openProductManager` from `<OverviewView>` call
+  - Added `TopProductsChart` below `<OverviewView>` inside overview mode section
+  - Imported `TopProductsChart`
+- **PosPage** (`frontend/src/pages/PosPage.tsx`):
+  - Removed unused `TopProductsChart` import (now rendered inside TransactionPanel)
+- **usePosPage** (`frontend/src/hooks/usePosPage.ts`):
+  - Exposed `topProducts`, `topProductsLoading`, `loadTopProducts` from overviewHook
 
-### Fixed
-- **Bỏ password tổng quan**: handleOpenOverview vào thẳng overview
-- **Nested `<button>`**: SettingsPage dòng 345-350
-- **Hardcoded strings**: OverviewView dùng LANG keys thay text thuần
+### Added
+- **TopProductsChart** (`frontend/src/components/TopProductsChart.tsx`):
+  - Horizontal bar chart showing Top 10 best-selling products (rank, product name with revenue bar, quantity, total revenue)
+  - Loading and empty states
+- **Backend API** (`backend/src/modules/pos/`):
+  - `GET /pos/overview/top-products?fromDate=&toDate=` endpoint
+  - `overview.service.ts`: `getTopProducts()` — query SalesOrders (SALE only, not CANCELLED) grouped by product, ordered by total revenue DESC, top 10
+  - `pos.service.ts`: passthrough `getTopProducts()`
+  - `pos.controller.ts`: route + handler
+- **Type** (`frontend/src/types.ts`): `TopProduct` type
+- **Lang keys** (`frontend/src/lang.ts`): `overviewTopProducts`, `overviewTopRank`, `overviewTopProduct`, `overviewTopQuantity`, `overviewTopRevenue`
+- **CSS** (`frontend/src/styles.css`):
+  - `.overview-grid-wrapper` — flex column layout for the grid container
+  - `.overview-grid-head` / `.overview-grid-foot` — added `overflow-x: auto` + scrollbar styles
+  - `.overview-grid-body > .overview-grid-row` — specificity fix for `overview-grid-hide-profit`
+  - `.overview-grid-row` — `width: 100%` → `min-width: max-content`
+  - `.purchase-row-overview` — `min-width: max-content` to prevent column collapse
+  - All `grid-template-columns` rules updated: removed user column (reduced from 3 explicit cols + repeat(N) to 2 explicit cols + repeat(N))
+  - Full `.top-products-chart-*` styles
+
+### Trigger
+- `loadOverview()` now also calls `loadTopProducts()` with the same date range

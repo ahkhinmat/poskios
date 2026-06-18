@@ -88,6 +88,49 @@ export class OverviewService {
     return { items };
   }
 
+  async getTopProducts(params: { fromDate?: string; toDate?: string }) {
+    const fromDate = params.fromDate?.trim()
+      ? new Date(`${params.fromDate.trim()}T00:00:00`)
+      : new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00`);
+    const toDate = params.toDate?.trim()
+      ? new Date(`${params.toDate.trim()}T23:59:59.999`)
+      : new Date(`${new Date().toISOString().slice(0, 10)}T23:59:59.999`);
+
+    const result = await this.salesOrderItemRepository
+      .createQueryBuilder('item')
+      .innerJoin(SalesOrder, 'order', 'order.Id = item.SalesOrderId')
+      .where('order.OrderType = :orderType', { orderType: 'SALE' })
+      .andWhere('order.Status != :cancelled', { cancelled: 'CANCELLED' })
+      .andWhere('order.SoldAt >= :fromDate', { fromDate })
+      .andWhere('order.SoldAt <= :toDate', { toDate })
+      .select([
+        'item.ProductId AS productId',
+        'item.ProductCodeSnapshot AS productCode',
+        'item.ProductNameSnapshot AS productName',
+        'item.UnitNameSnapshot AS unitName',
+        'SUM(item.Quantity) AS totalQuantity',
+        'SUM(item.LineTotal) AS totalRevenue',
+      ])
+      .groupBy('item.ProductId')
+      .addGroupBy('item.ProductCodeSnapshot')
+      .addGroupBy('item.ProductNameSnapshot')
+      .addGroupBy('item.UnitNameSnapshot')
+      .orderBy('SUM(item.LineTotal)', 'DESC')
+      .take(10)
+      .getRawMany();
+
+    return {
+      items: result.map((r: any) => ({
+        productId: Number(r.productId),
+        productCode: r.productCode,
+        productName: r.productName,
+        unitName: r.unitName,
+        totalQuantity: Number(r.totalQuantity),
+        totalRevenue: Number(r.totalRevenue),
+      })),
+    };
+  }
+
   async getOverviewDetail(recordType: string, id: number) {
     const normalizedType = recordType.trim().toUpperCase();
 

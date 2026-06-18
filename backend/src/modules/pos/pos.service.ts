@@ -206,6 +206,10 @@ export class PosService {
     return this.overviewService.getOverviewDetail(recordType, id);
   }
 
+  async getTopProducts(params: { fromDate?: string; toDate?: string }) {
+    return this.overviewService.getTopProducts(params);
+  }
+
   // ── Excel Import ──
 
   async importProductsExcel(file?: UploadedExcelFile) {

@@ -129,7 +129,8 @@ export function usePosPage(recordPayment?: (amount: number, method: string) => v
     showProfit, filteredOverviewRecords,
     overviewTotalAmount, overviewTotalDiscount, overviewTotalLoyaltyDiscount,
     overviewTotalCost, overviewTotalRevenue, overviewGrossProfit,
-    loadOverview, loadOverviewDetail, handleOpenOverview, handlePasswordSubmit,
+    topProducts, topProductsLoading,
+    loadOverview, loadOverviewDetail, loadTopProducts, handleOpenOverview, handlePasswordSubmit,
   } = overviewHook;
 
   async function loadAppSettings() {
@@ -228,6 +229,8 @@ export function usePosPage(recordPayment?: (amount: number, method: string) => v
     overviewTotalCost,
     overviewTotalRevenue,
     overviewGrossProfit,
+    topProducts,
+    topProductsLoading,
 
     setSupplierManagerOpen,
     setEditingSupplier,
@@ -262,6 +265,7 @@ export function usePosPage(recordPayment?: (amount: number, method: string) => v
     ensureTabOfType,
     loadOverview,
     loadOverviewDetail,
+    loadTopProducts,
     loadSuppliers,
     loadAppSettings,
     updatePurchaseMeta,
