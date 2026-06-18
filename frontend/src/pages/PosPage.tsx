@@ -7,6 +7,7 @@ import {
   ShoppingOutlined,
 } from '@ant-design/icons';
 import { LANG } from '../lang';
+import { BottomNav } from '../components/BottomNav';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import { CheckoutPanel } from '../components/CheckoutPanel';
 import { OverviewGrid } from '../components/OverviewGrid';
@@ -316,6 +317,13 @@ export function PosPage() {
         open={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}
       />
+
+      {!isOverview && (
+        <BottomNav
+          activeView={checkoutCollapsed ? 'transaction' : 'checkout'}
+          onViewChange={(view) => setCheckoutCollapsed(view === 'transaction')}
+        />
+      )}
     </div>
   );
 }
