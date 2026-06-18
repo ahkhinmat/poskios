@@ -196,6 +196,115 @@ button {
   overflow: hidden;
 }
 
+.pos-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.pos-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ═══════════════════════════════════════════
+   Module Navigation Sidebar
+   ═══════════════════════════════════════════ */
+.module-nav {
+  display: flex;
+  flex-direction: column;
+  width: 48px;
+  background: #1f2937;
+  color: rgba(255,255,255,0.7);
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.2s;
+  position: relative;
+  z-index: 30;
+}
+
+.module-nav.is-expanded {
+  width: 180px;
+}
+
+.module-nav-items {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.module-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s;
+  text-align: left;
+}
+
+.module-nav-item:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.module-nav-item.is-active {
+  background: var(--pos-primary);
+  color: #fff;
+}
+
+.module-nav-item-icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.module-nav-item-label {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.module-nav.is-expanded .module-nav-item-label {
+  opacity: 1;
+}
+
+.module-nav-pin {
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  text-align: center;
+  font-size: 14px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.module-nav-pin:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.1);
+}
+
+.module-nav-pin .anticon {
+  transition: transform 0.2s;
+}
+
+.module-nav.is-pinned .module-nav-pin .anticon {
+  transform: rotate(-45deg);
+}
+
 .pos-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
@@ -1045,42 +1154,6 @@ button {
 .sale-footer .ant-input:focus {
   border-color: var(--pos-primary);
   box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.1);
-}
-
-.sale-modes {
-  display: flex;
-  gap: 2px;
-  padding-top: 4px;
-}
-
-.sale-mode {
-  display: inline-flex;
-  align-items: center;
-  height: 30px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 6px 6px 0 0;
-  background: transparent;
-  color: #6b7280;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all var(--pos-transition);
-}
-
-.sale-mode:hover {
-  color: var(--pos-primary);
-  background: rgba(22, 163, 74, 0.06);
-}
-
-.sale-mode:active {
-  transform: scale(0.97);
-}
-
-.sale-mode.is-active {
-  color: var(--pos-primary);
-  background: rgba(22, 163, 74, 0.08);
-  font-weight: 600;
 }
 
 .checkout-panel {
@@ -2209,6 +2282,7 @@ button {
 
   .bottom-nav { display: flex; }
   .pos-shell { padding-bottom: 56px; }
+  .module-nav { display: none; }
   .checkout-toggle { bottom: 72px; }
 }
 

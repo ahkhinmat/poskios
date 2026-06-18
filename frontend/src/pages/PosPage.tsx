@@ -10,6 +10,7 @@ import { LANG } from '../lang';
 import { BottomNav } from '../components/BottomNav';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import { CheckoutPanel } from '../components/CheckoutPanel';
+import { ModuleNavigation } from '../components/ModuleNavigation';
 import { OverviewGrid } from '../components/OverviewGrid';
 import { TopHeader } from '../components/TopHeader';
 import { TransactionPanel } from '../components/TransactionPanel';
@@ -144,125 +145,145 @@ export function PosPage() {
   const defaultRatio = isOverview ? 0.5 : 0.75;
   const effectiveRatio = panelRatio ?? defaultRatio;
 
+  const activeModule: 'SALE' | 'RETURN' | 'PURCHASE' | 'CATEGORY' | 'OVERVIEW' | 'SETTINGS' | null
+    = isOverview ? 'OVERVIEW'
+    : p.isPurchaseTab ? 'PURCHASE'
+    : p.isReturnTab ? 'RETURN'
+    : p.activeTab ? 'SALE'
+    : null;
+
   return (
     <div className="pos-shell">
-      <TopHeader
-        searchInputRef={p.searchInputRef}
-        searchValue={p.searchValue}
-        setSearchValue={p.setSearchValue}
-        searching={p.searching}
-        searchResults={p.searchResults}
-        setHighlightedSearchIndex={p.setHighlightedSearchIndex}
-        handleResolveProduct={p.handleResolveProduct}
-        session={session}
-        isRunning={isRunning}
-        startSession={startSession}
-        endSession={endSession}
-        lastScannedProductName={p.lastScannedProductName}
-        userName={p.authUser?.fullName ?? p.authUser?.username ?? ''}
-        onLogout={p.handleLogout}
-        onOpenChangePassword={() => setChangePasswordOpen(true)}
-        collapsed={checkoutCollapsed}
-        onToggleCollapse={() => setCheckoutCollapsed((v) => !v)}
-      />
-      <WorkspaceTabs
-        tabs={p.tabs}
-        activeTabId={p.activeTabId}
-        setActiveTabId={p.setActiveTabId}
-        handleCreateTab={p.handleCreateTab}
-        handleCloseTab={p.handleCloseTab}
-      />
-      <div
-        className={`pos-grid${!isOverview ? ' pos-grid-sale-mode' : ''}${checkoutCollapsed ? (!isOverview ? ' pos-grid-sale-checkout-collapsed' : ' pos-grid-checkout-collapsed') : ''}`}
-        ref={posGridRef}
-        style={!checkoutCollapsed ? { gridTemplateColumns: `${effectiveRatio * 100}% ${(1 - effectiveRatio) * 100}%` } as React.CSSProperties : undefined}
-      >
-        {!checkoutCollapsed && (
-          <div className="panel-resizer-wrapper" style={{ left: `${effectiveRatio * 100 - 0.5}%`, right: `${(1 - effectiveRatio) * 100 - 0.5}%` }}>
-            <div className="panel-resizer"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                const grid = posGridRef.current;
-                if (!grid) return;
-                const startX = e.clientX;
-                const startWidth = grid.getBoundingClientRect().width;
-                const startRatio = effectiveRatio;
+      <div className="pos-body">
+        <ModuleNavigation
+          activeModule={activeModule}
+          onSelectSale={() => { void p.ensureTabOfType('SALE'); p.focusSearchInput(); }}
+          onSelectReturn={() => { if (!p.isReturnTab) void p.ensureTabOfType('RETURN'); }}
+          onSelectPurchase={() => { if (!p.isPurchaseTab) void p.ensureTabOfType('PURCHASE'); }}
+          onOpenCategory={p.openProductManager}
+          onOpenOverview={p.handleOpenOverview}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+        <div className="pos-content">
+          <TopHeader
+            searchInputRef={p.searchInputRef}
+            searchValue={p.searchValue}
+            setSearchValue={p.setSearchValue}
+            searching={p.searching}
+            searchResults={p.searchResults}
+            setHighlightedSearchIndex={p.setHighlightedSearchIndex}
+            handleResolveProduct={p.handleResolveProduct}
+            session={session}
+            isRunning={isRunning}
+            startSession={startSession}
+            endSession={endSession}
+            lastScannedProductName={p.lastScannedProductName}
+            userName={p.authUser?.fullName ?? p.authUser?.username ?? ''}
+            onLogout={p.handleLogout}
+            onOpenChangePassword={() => setChangePasswordOpen(true)}
+            collapsed={checkoutCollapsed}
+            onToggleCollapse={() => setCheckoutCollapsed((v) => !v)}
+          />
+          <WorkspaceTabs
+            tabs={p.tabs}
+            activeTabId={p.activeTabId}
+            setActiveTabId={p.setActiveTabId}
+            handleCreateTab={p.handleCreateTab}
+            handleCloseTab={p.handleCloseTab}
+          />
+          <div
+            className={`pos-grid${!isOverview ? ' pos-grid-sale-mode' : ''}${checkoutCollapsed ? (!isOverview ? ' pos-grid-sale-checkout-collapsed' : ' pos-grid-checkout-collapsed') : ''}`}
+            ref={posGridRef}
+            style={!checkoutCollapsed ? { gridTemplateColumns: `${effectiveRatio * 100}% ${(1 - effectiveRatio) * 100}%` } as React.CSSProperties : undefined}
+          >
+            {!checkoutCollapsed && (
+              <div className="panel-resizer-wrapper" style={{ left: `${effectiveRatio * 100 - 0.5}%`, right: `${(1 - effectiveRatio) * 100 - 0.5}%` }}>
+                <div className="panel-resizer"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const grid = posGridRef.current;
+                    if (!grid) return;
+                    const startX = e.clientX;
+                    const startWidth = grid.getBoundingClientRect().width;
+                    const startRatio = effectiveRatio;
 
-                const onMove = (ev: MouseEvent) => {
-                  const dx = ev.clientX - startX;
-                  const newRatio = Math.max(0.2, Math.min(0.8, startRatio + dx / startWidth));
-                  setPanelRatio(newRatio);
-                };
+                    const onMove = (ev: MouseEvent) => {
+                      const dx = ev.clientX - startX;
+                      const newRatio = Math.max(0.2, Math.min(0.8, startRatio + dx / startWidth));
+                      setPanelRatio(newRatio);
+                    };
 
-                const onUp = () => {
-                  document.removeEventListener('mousemove', onMove);
-                  document.removeEventListener('mouseup', onUp);
-                  document.body.style.cursor = '';
-                  document.body.style.userSelect = '';
-                };
+                    const onUp = () => {
+                      document.removeEventListener('mousemove', onMove);
+                      document.removeEventListener('mouseup', onUp);
+                      document.body.style.cursor = '';
+                      document.body.style.userSelect = '';
+                    };
 
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onUp);
-                document.body.style.cursor = 'col-resize';
-                document.body.style.userSelect = 'none';
-              }}
-            />
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                    document.body.style.cursor = 'col-resize';
+                    document.body.style.userSelect = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <TransactionPanel p={p} /> 
+
+            {isOverview ? (
+              <OverviewGrid
+                records={p.filteredOverviewRecords}
+                loading={p.overviewLoading}
+                recordTypeFilter={p.overviewRecordTypeFilter}
+                showProfit={p.showProfit}
+                totalAmount={p.overviewTotalAmount}
+                totalDiscount={p.overviewTotalDiscount}
+                totalLoyaltyDiscount={p.overviewTotalLoyaltyDiscount}
+                totalCost={p.overviewTotalCost}
+                totalRevenue={p.overviewTotalRevenue}
+                grossProfit={p.overviewGrossProfit}
+                overviewDetail={p.overviewDetail}
+                onSetRecordTypeFilter={p.setOverviewRecordTypeFilter}
+                onLoadDetail={p.loadOverviewDetail}
+              />
+            ) : (
+              <CheckoutPanel
+                isPurchaseTab={p.isPurchaseTab}
+                isReturnTab={p.isReturnTab}
+                activeTab={p.activeTab}
+                summary={p.summary}
+                purchaseMetaMap={p.purchaseMetaMap}
+                suppliers={p.suppliers}
+                suppliersLoading={p.suppliersLoading}
+                customerLookup={p.customerLookup}
+                customerSearchResults={p.customerSearchResults}
+                customerLookupLoading={p.customerLookupLoading}
+                loyaltySettings={p.loyaltySettings}
+                appSettings={p.appSettings}
+                checkingOut={p.checkingOut}
+                saving={p.saving}
+                onUpdatePurchaseMeta={p.updatePurchaseMeta}
+                onUpdateActiveTab={p.updateActiveTab}
+                onOpenCreateSupplier={p.openCreateSupplier}
+                onOpenEditSupplier={p.openEditSupplier}
+                onOpenCustomerNameModal={p.openCustomerNameModal}
+                onOpenLoyaltyHistory={p.openLoyaltyHistory}
+                onPrintReceipt={() => p.handlePrintReceipt(p.buildDraftReceipt())}
+                onCheckout={p.handleCheckout}
+                formatPoints={formatPoints}
+                paymentOptions={paymentOptions}
+              />
+            )}
+
+            <button
+              type="button"
+              className="checkout-toggle"
+              onClick={() => setCheckoutCollapsed((v) => !v)}
+            >
+              <ShoppingOutlined />
+            </button>
           </div>
-        )}
-        <TransactionPanel p={p} onOpenSettings={() => setSettingsOpen(true)} /> 
-
-        {isOverview ? (
-          <OverviewGrid
-            records={p.filteredOverviewRecords}
-            loading={p.overviewLoading}
-            recordTypeFilter={p.overviewRecordTypeFilter}
-            showProfit={p.showProfit}
-            totalAmount={p.overviewTotalAmount}
-            totalDiscount={p.overviewTotalDiscount}
-            totalLoyaltyDiscount={p.overviewTotalLoyaltyDiscount}
-            totalCost={p.overviewTotalCost}
-            totalRevenue={p.overviewTotalRevenue}
-            grossProfit={p.overviewGrossProfit}
-            overviewDetail={p.overviewDetail}
-            onSetRecordTypeFilter={p.setOverviewRecordTypeFilter}
-            onLoadDetail={p.loadOverviewDetail}
-          />
-        ) : (
-          <CheckoutPanel
-            isPurchaseTab={p.isPurchaseTab}
-            isReturnTab={p.isReturnTab}
-            activeTab={p.activeTab}
-            summary={p.summary}
-            purchaseMetaMap={p.purchaseMetaMap}
-            suppliers={p.suppliers}
-            suppliersLoading={p.suppliersLoading}
-            customerLookup={p.customerLookup}
-            customerSearchResults={p.customerSearchResults}
-            customerLookupLoading={p.customerLookupLoading}
-            loyaltySettings={p.loyaltySettings}
-            appSettings={p.appSettings}
-            checkingOut={p.checkingOut}
-            saving={p.saving}
-            onUpdatePurchaseMeta={p.updatePurchaseMeta}
-            onUpdateActiveTab={p.updateActiveTab}
-            onOpenCreateSupplier={p.openCreateSupplier}
-            onOpenEditSupplier={p.openEditSupplier}
-            onOpenCustomerNameModal={p.openCustomerNameModal}
-            onOpenLoyaltyHistory={p.openLoyaltyHistory}
-            onPrintReceipt={() => p.handlePrintReceipt(p.buildDraftReceipt())}
-            onCheckout={p.handleCheckout}
-            formatPoints={formatPoints}
-            paymentOptions={paymentOptions}
-          />
-        )}
-
-        <button
-          type="button"
-          className="checkout-toggle"
-          onClick={() => setCheckoutCollapsed((v) => !v)}
-        >
-          <ShoppingOutlined />
-        </button>
+        </div>
       </div>
 
       <PosModals
@@ -292,8 +313,8 @@ export function PosPage() {
         handleSaveCustomerName={p.handleSaveCustomerName}
         setCustomerNameInput={p.setCustomerNameInput}
         setLoyaltySettingsOpen={p.setLoyaltySettingsOpen}
-        handleSaveLoyaltySettings={p.handleSaveLoyaltySettings}
         setLoyaltySettings={p.setLoyaltySettings}
+        handleSaveLoyaltySettings={p.handleSaveLoyaltySettings}
         setSupplierManagerOpen={p.setSupplierManagerOpen}
         setEditingSupplier={p.setEditingSupplier}
         setSuppliers={p.setSuppliers}

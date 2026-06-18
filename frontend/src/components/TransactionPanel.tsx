@@ -1,23 +1,16 @@
 import { Button, Input, List, Tooltip } from 'antd';
 import {
   AppstoreOutlined,
-  BarChartOutlined,
-  ContainerOutlined,
   EyeOutlined,
-  ImportOutlined,
   PlusOutlined,
   PrinterOutlined,
-  ShoppingCartOutlined,
-  SwapOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { Can } from './Can';
 import { LANG } from '../lang';
 import { OverviewView } from './OverviewView';
 import { PurchaseTable } from './PurchaseTable';
 import { ReturnSearchPanel } from './ReturnSearchPanel';
 import { SaleList } from './SaleList';
-import { PERMISSIONS } from '../permissions';
 import type { UsePosPageReturn } from '../hooks/usePosPage';
 
 function stockBarProps(stock: number) {
@@ -29,10 +22,9 @@ function stockBarProps(stock: number) {
 
 type TransactionPanelProps = {
   p: UsePosPageReturn;
-  onOpenSettings: () => void;
 };
 
-export function TransactionPanel({ p, onOpenSettings }: TransactionPanelProps) {
+export function TransactionPanel({ p }: TransactionPanelProps) {
   return (
     <section className="sale-stage">
       {p.currentView === 'OVERVIEW' ? (
@@ -173,58 +165,6 @@ export function TransactionPanel({ p, onOpenSettings }: TransactionPanelProps) {
               value={p.activeTab?.note ?? ''}
               onChange={(event) => p.updateActiveTab({ note: event.target.value || null })}
             />
-            <div className="sale-modes">
-              <Tooltip title={LANG.modeSaleTip}>
-                <button
-                  type="button"
-                  className={`sale-mode ${!p.isReturnTab && !p.isPurchaseTab ? 'is-active' : ''}`}
-                  onClick={async () => { await p.ensureTabOfType('SALE'); p.focusSearchInput(); }}
-                >
-                  <ShoppingCartOutlined style={{ fontSize: 14 }} /> {LANG.modeSale}
-                </button>
-              </Tooltip>
-              <Tooltip title={LANG.modeReturnTip}>
-                <button
-                  type="button"
-                  className={`sale-mode ${p.isReturnTab ? 'is-active' : ''}`}
-                  onClick={() => { if (!p.isReturnTab) void p.ensureTabOfType('RETURN'); }}
-                >
-                  <SwapOutlined style={{ fontSize: 14 }} /> {LANG.modeReturn}
-                </button>
-              </Tooltip>
-              <Can check={{ permission: PERMISSIONS.PURCHASE_CREATE, denyReason: LANG.errManagerOnlyImport }}>
-                <Tooltip title={LANG.modeImportTip}>
-                  <button
-                    type="button"
-                    className={`sale-mode ${p.isPurchaseTab ? 'is-active' : ''}`}
-                    onClick={() => { if (!p.isPurchaseTab) void p.ensureTabOfType('PURCHASE'); }}
-                  >
-                    <ImportOutlined style={{ fontSize: 14 }} /> {LANG.modeImport}
-                  </button>
-                </Tooltip>
-              </Can>
-              <Can check={{ permission: PERMISSIONS.CATEGORIES_MANAGE, denyReason: LANG.errManagerOnlyCategory }}>
-                <Tooltip title={LANG.modeCategoryTip}>
-                  <button type="button" className="sale-mode" onClick={p.openProductManager}>
-                    <AppstoreOutlined style={{ fontSize: 14 }} /> {LANG.modeCategory}
-                  </button>
-                </Tooltip>
-              </Can>
-              <Can check={{ permission: PERMISSIONS.OVERVIEW_VIEW, denyReason: LANG.errManagerOnlyOverview }}>
-                <Tooltip title={LANG.modeOverviewTip}>
-                  <button type="button" className="sale-mode" onClick={p.handleOpenOverview}>
-                    <BarChartOutlined style={{ fontSize: 14 }} /> {LANG.modeOverview}
-                  </button>
-                </Tooltip>
-              </Can>
-              <Can check={{ permission: PERMISSIONS.SETTINGS_MANAGE }}>
-                <Tooltip title={LANG.settingsTitle}>
-                  <button type="button" className="sale-mode" onClick={onOpenSettings}>
-                    <ContainerOutlined style={{ fontSize: 14 }} /> {LANG.settingsTitle}
-                  </button>
-                </Tooltip>
-              </Can>
-            </div>
           </div>
         </>
       )}
