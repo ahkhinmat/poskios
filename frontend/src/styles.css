@@ -188,6 +188,8 @@ button {
 }
 
 .pos-shell {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   height: 100vh;
   padding: 0;
@@ -197,7 +199,8 @@ button {
 .pos-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   gap: 2px;
   position: relative;
 }

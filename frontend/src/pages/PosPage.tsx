@@ -171,6 +171,30 @@ export function PosPage() {
 
   return (
     <div className="pos-shell">
+      <TopHeader
+        searchInputRef={p.searchInputRef}
+        searchValue={p.searchValue}
+        setSearchValue={p.setSearchValue}
+        searching={p.searching}
+        searchResults={p.searchResults}
+        setHighlightedSearchIndex={p.setHighlightedSearchIndex}
+        handleResolveProduct={p.handleResolveProduct}
+        tabs={p.tabs}
+        activeTabId={p.activeTabId}
+        setActiveTabId={p.setActiveTabId}
+        handleCreateTab={p.handleCreateTab}
+        handleCloseTab={p.handleCloseTab}
+        session={session}
+        isRunning={isRunning}
+        startSession={startSession}
+        endSession={endSession}
+        lastScannedProductName={p.lastScannedProductName}
+        userName={p.authUser?.fullName ?? p.authUser?.username ?? ''}
+        onLogout={p.handleLogout}
+        onOpenChangePassword={() => setChangePasswordOpen(true)}
+        collapsed={checkoutCollapsed}
+        onToggleCollapse={() => setCheckoutCollapsed((v) => !v)}
+      />
       <div
         className={`pos-grid${!isOverview ? ' pos-grid-sale-mode' : ''}${checkoutCollapsed ? (!isOverview ? ' pos-grid-sale-checkout-collapsed' : ' pos-grid-checkout-collapsed') : ''}`}
         ref={posGridRef}
@@ -208,30 +232,6 @@ export function PosPage() {
             />
           </div>
         )}
-        <TopHeader
-          searchInputRef={p.searchInputRef}
-          searchValue={p.searchValue}
-          setSearchValue={p.setSearchValue}
-          searching={p.searching}
-          searchResults={p.searchResults}
-          setHighlightedSearchIndex={p.setHighlightedSearchIndex}
-          handleResolveProduct={p.handleResolveProduct}
-          tabs={p.tabs}
-          activeTabId={p.activeTabId}
-          setActiveTabId={p.setActiveTabId}
-          handleCreateTab={p.handleCreateTab}
-          handleCloseTab={p.handleCloseTab}
-          session={session}
-          isRunning={isRunning}
-          startSession={startSession}
-          endSession={endSession}
-          lastScannedProductName={p.lastScannedProductName}
-          userName={p.authUser?.fullName ?? p.authUser?.username ?? ''}
-          onLogout={p.handleLogout}
-          onOpenChangePassword={() => setChangePasswordOpen(true)}
-          collapsed={checkoutCollapsed}
-          onToggleCollapse={() => setCheckoutCollapsed((v) => !v)}
-        />
         <section className="sale-stage">          {p.currentView === 'OVERVIEW' ? (
             <OverviewView
               overviewFromDate={p.overviewFromDate}
