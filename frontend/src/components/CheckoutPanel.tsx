@@ -17,6 +17,7 @@ import {
 import {
   EditOutlined,
   LeftOutlined,
+  LogoutOutlined,
   PlusOutlined,
   RightOutlined,
   ShoppingCartOutlined,
@@ -78,6 +79,8 @@ type CheckoutPanelProps = {
   onCheckout: () => Promise<void>;
   formatPoints: (value: number) => string;
   paymentOptions: { label: string; value: string }[];
+  userName: string;
+  onLogout: () => void;
 };
 
 export function CheckoutPanel(props: CheckoutPanelProps) {
@@ -122,6 +125,8 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
     appSettings,
     formatPoints,
     paymentOptions,
+    userName,
+    onLogout,
   } = props;
 
   return (
@@ -129,9 +134,11 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
       {currentView === 'OVERVIEW' ? (
         <>
           <div className="checkout-header">
-            <div className="checkout-user">{LANG.overviewTitle}</div>
+            <div className="checkout-user">{userName}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div className="checkout-time">{filteredOverviewRecords.length}</div>
+              <button type="button" className="checkout-icon-btn" onClick={onLogout}>
+                <LogoutOutlined />
+              </button>
               <button type="button" className="checkout-collapse-btn" onClick={onToggleCollapse}>
                 {collapsed ? <LeftOutlined /> : <RightOutlined />}
               </button>
@@ -214,9 +221,11 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
       ) : (
         <>
           <div className="checkout-header">
-            <div className="checkout-user">{isPurchaseTab ? LANG.purchaseHeader : LANG.cashier}</div>
+            <div className="checkout-user">{userName}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div className="checkout-time">{LANG.storeNameSale}</div>
+              <button type="button" className="checkout-icon-btn" onClick={onLogout}>
+                <LogoutOutlined />
+              </button>
               <button type="button" className="checkout-collapse-btn" onClick={onToggleCollapse}>
                 {collapsed ? <LeftOutlined /> : <RightOutlined />}
               </button>

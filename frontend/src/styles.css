@@ -1030,6 +1030,22 @@ button {
   transform: scale(0.92);
 }
 
+.checkout-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 14px;
+  color: #6b7280;
+  transition: all var(--pos-transition);
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+.checkout-icon-btn:hover {
+  background: #f0f2f5;
+  color: #ef4444;
+}
+
 .checkout-header {
   display: flex;
   justify-content: space-between;

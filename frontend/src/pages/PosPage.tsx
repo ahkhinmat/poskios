@@ -15,7 +15,6 @@ import {
   EyeOutlined,
   ImportOutlined,
   KeyOutlined,
-  LogoutOutlined,
   PlusOutlined,
   PrinterOutlined,
   SearchOutlined,
@@ -301,13 +300,6 @@ export function PosPage() {
                   onClick={() => setChangePasswordOpen(true)}
                 />
               </Tooltip>
-              <Tooltip title={LANG.logoutTooltip}>
-                <Button
-                  size="small"
-                  icon={<LogoutOutlined />}
-                  onClick={p.handleLogout}
-                />
-              </Tooltip>
             </div>
           </div>
 
@@ -589,6 +581,8 @@ export function PosPage() {
           onCheckout={p.handleCheckout}
           formatPoints={formatPoints}
           paymentOptions={paymentOptions}
+          userName={p.authUser?.fullName ?? p.authUser?.username ?? ''}
+          onLogout={p.handleLogout}
         />
 
         <button
