@@ -4,14 +4,12 @@ import {
   KeyOutlined,
   LeftOutlined,
   LogoutOutlined,
-  PlusOutlined,
   RightOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
 import { SessionBar } from './SessionBar';
 import { LANG } from '../lang';
 import type { SessionState } from '../hooks/useSession';
-import type { PosDraftTab } from '../types';
 
 type TopHeaderProps = {
   searchInputRef: React.RefObject<InputRef | null>;
@@ -21,12 +19,6 @@ type TopHeaderProps = {
   searchResults: unknown[];
   setHighlightedSearchIndex: (fn: (current: number) => number) => void;
   handleResolveProduct: () => Promise<void>;
-
-  tabs: PosDraftTab[];
-  activeTabId: number | null;
-  setActiveTabId: (id: number) => void;
-  handleCreateTab: () => Promise<void>;
-  handleCloseTab: (id: number) => Promise<void>;
 
   session: SessionState;
   isRunning: boolean;
@@ -49,12 +41,6 @@ export function TopHeader({
   searchResults,
   setHighlightedSearchIndex,
   handleResolveProduct,
-  handleCreateTab,
-  handleCloseTab,
-
-  tabs,
-  activeTabId,
-  setActiveTabId,
 
   session,
   isRunning,
@@ -123,44 +109,6 @@ export function TopHeader({
           <button type="button" className="top-header-collapse" onClick={onToggleCollapse}>
             {collapsed ? <LeftOutlined /> : <RightOutlined />}
           </button>
-        </div>
-      </div>
-
-      <div className="top-header-row2">
-        <div className="draft-strip">
-          {tabs.map((tab) => (
-            <Tooltip key={tab.id} title={`${LANG.openTab}: ${tab.title}`}>
-              <button
-                type="button"
-                className={`draft-chip ${tab.id === activeTabId ? 'is-active' : ''}`}
-                onClick={() => setActiveTabId(tab.id)}
-              >
-                <span>{tab.title}</span>
-                {tabs.length > 1 && (
-                  <Tooltip title={`${LANG.closeTab}: ${tab.title}`}>
-                    <span
-                      className="draft-chip-close"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void handleCloseTab(tab.id);
-                      }}
-                    >
-                      {LANG.closeTabSymbol}
-                    </span>
-                  </Tooltip>
-                )}
-              </button>
-            </Tooltip>
-          ))}
-          <Tooltip title={`${LANG.addTab} (F1)`}>
-            <button
-              type="button"
-              className="draft-chip draft-chip-add"
-              onClick={() => void handleCreateTab()}
-            >
-              <PlusOutlined />
-            </button>
-          </Tooltip>
         </div>
       </div>
     </header>

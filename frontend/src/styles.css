@@ -276,9 +276,11 @@ button {
   padding: 3px 4px;
 }
 
-.top-header-row2 {
-  background: rgba(255, 255, 255, 0.08);
+.workspace-tabs {
+  background: linear-gradient(135deg, var(--pos-primary-dark) 0%, var(--pos-primary) 100%);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0 4px;
+  flex-shrink: 0;
 }
 
 .top-header-right {

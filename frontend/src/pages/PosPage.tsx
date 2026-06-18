@@ -26,6 +26,7 @@ import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import { CheckoutPanel } from '../components/CheckoutPanel';
 import { OverviewView } from '../components/OverviewView';
 import { TopHeader } from '../components/TopHeader';
+import { WorkspaceTabs } from '../components/WorkspaceTabs';
 import { PERMISSIONS } from '../permissions';
 import { PosModals } from '../components/PosModals';
 import { PurchaseTable } from '../components/PurchaseTable';
@@ -179,11 +180,6 @@ export function PosPage() {
         searchResults={p.searchResults}
         setHighlightedSearchIndex={p.setHighlightedSearchIndex}
         handleResolveProduct={p.handleResolveProduct}
-        tabs={p.tabs}
-        activeTabId={p.activeTabId}
-        setActiveTabId={p.setActiveTabId}
-        handleCreateTab={p.handleCreateTab}
-        handleCloseTab={p.handleCloseTab}
         session={session}
         isRunning={isRunning}
         startSession={startSession}
@@ -194,6 +190,13 @@ export function PosPage() {
         onOpenChangePassword={() => setChangePasswordOpen(true)}
         collapsed={checkoutCollapsed}
         onToggleCollapse={() => setCheckoutCollapsed((v) => !v)}
+      />
+      <WorkspaceTabs
+        tabs={p.tabs}
+        activeTabId={p.activeTabId}
+        setActiveTabId={p.setActiveTabId}
+        handleCreateTab={p.handleCreateTab}
+        handleCloseTab={p.handleCloseTab}
       />
       <div
         className={`pos-grid${!isOverview ? ' pos-grid-sale-mode' : ''}${checkoutCollapsed ? (!isOverview ? ' pos-grid-sale-checkout-collapsed' : ' pos-grid-checkout-collapsed') : ''}`}
