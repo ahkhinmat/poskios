@@ -121,6 +121,16 @@ export function OverviewView({
             <Empty description={LANG.overviewEmptyDetail} />
           </div>
         )}
+        {overviewDetail?.items.length ? (
+          <div className="purchase-row purchase-row-overview purchase-summary-foot">
+            <div></div>
+            <div className="purchase-name" style={{ fontWeight: 700 }}>{LANG.overviewTotalValue}</div>
+            <div></div>
+            <div style={{ fontWeight: 700 }}>{overviewDetail.items.reduce((s, i) => s + i.quantity, 0).toLocaleString('vi-VN')}</div>
+            <div></div>
+            <div className="purchase-total" style={{ fontWeight: 700, color: 'var(--pos-primary)' }}>{overviewDetail.items.reduce((s, i) => s + i.lineTotal, 0).toLocaleString('vi-VN')}{LANG.currencySuffix}</div>
+          </div>
+        ) : null}
       </div>
 
       <div className="sale-footer">

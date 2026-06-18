@@ -199,7 +199,10 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
           </div>
           <div className={`overview-grid-foot${showProfit ? '' : ' overview-grid-hide-profit'}`}>
             <div className="overview-grid-cell overview-grid-foot-label">{LANG.overviewTotalValue}</div>
-            <div className="overview-grid-cell overview-grid-foot-val"></div>
+            <div className="overview-grid-cell overview-grid-foot-val overview-grid-cell-empty"></div>
+            <div className="overview-grid-cell overview-grid-foot-val overview-grid-cell-empty">
+              <span style={{ fontWeight: 400, fontSize: 11, color: '#6b7280' }}>({filteredOverviewRecords.length} {LANG.receiptQty})</span>
+            </div>
             <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalAmount.toLocaleString('vi-VN')}</div>
             <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalDiscount.toLocaleString('vi-VN')}</div>
             <div className="overview-grid-cell overview-grid-foot-val">{overviewTotalLoyaltyDiscount.toLocaleString('vi-VN')}</div>
