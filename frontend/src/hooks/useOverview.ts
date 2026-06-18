@@ -29,6 +29,7 @@ export function useOverview(
     () => {
       if (overviewRecordTypeFilter === 'ALL') return overviewRecords;
       if (overviewRecordTypeFilter === 'CANCELLED') return overviewRecords.filter((record) => record.status === 'CANCELLED');
+      if (overviewRecordTypeFilter === 'SALE') return overviewRecords.filter((record) => record.recordType === 'SALE' && record.status !== 'CANCELLED');
       return overviewRecords.filter((record) => record.recordType === overviewRecordTypeFilter);
     },
     [overviewRecords, overviewRecordTypeFilter],

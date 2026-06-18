@@ -219,8 +219,8 @@ export function PosPage() {
                 ref={p.searchInputRef}
                 size="middle"
                 prefix={<SearchOutlined />}
-                suffix={p.searching ? <Spin size="small" /> : null}
-                placeholder={LANG.placeholderSearch}
+                suffix={p.searching ? <Spin size="small" /> : <span style={{ fontSize: 11, color: '#9ca3af', opacity: 0.6 }}>Esc</span>}
+                placeholder={`${LANG.placeholderSearch} (Ctrl+F)`}
                 value={p.searchValue}
                 onChange={(event) => p.setSearchValue(event.target.value)}
                 onKeyDown={(event) => {
@@ -274,7 +274,7 @@ export function PosPage() {
                   </button>
                 </Tooltip>
               ))}
-              <Tooltip title={LANG.addTab}>
+              <Tooltip title={`${LANG.addTab} (F1)`}>
                 <button
                   type="button"
                   className="draft-chip draft-chip-add"

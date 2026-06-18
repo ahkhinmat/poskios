@@ -660,7 +660,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
                     loading={checkingOut}
                     onClick={() => void onCheckout()}
                   >
-                    {LANG.completeReturn}
+                    {LANG.completeReturn} (F8)
                   </Button>
                 ) : (
                   <Button
@@ -670,7 +670,7 @@ export function CheckoutPanel(props: CheckoutPanelProps) {
                     loading={checkingOut}
                     onClick={() => void onCheckout()}
                   >
-                    {LANG.completePayment}
+                    {LANG.completePayment} (F8)
                   </Button>
                 )}
               </>
