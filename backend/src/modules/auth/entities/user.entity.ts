@@ -3,9 +3,11 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Role } from './role.entity';
+import { UserRole } from './user-role.entity';
 
 @Entity({ name: 'Users' })
 export class User {
@@ -45,4 +47,7 @@ export class User {
   @ManyToOne(() => Role, { eager: false })
   @JoinColumn({ name: 'RoleId' })
   role!: Role;
+
+  @OneToMany(() => UserRole, (userRole) => userRole.user)
+  userRoles!: UserRole[];
 }

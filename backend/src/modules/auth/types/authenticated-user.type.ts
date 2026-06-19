@@ -7,6 +7,7 @@ export type AuthenticatedUser = {
   username: string;
   fullName: string;
   roleCode: RoleCode;
+  roleCodes: RoleCode[];
   permissions: Permission[];
 };
 
@@ -15,5 +16,6 @@ export type AuthJwtPayload = {
   username: string;
   fullName: string;
   roleCode: RoleCode;
+  roleCodes: RoleCode[];
   permissions: Permission[];
 };

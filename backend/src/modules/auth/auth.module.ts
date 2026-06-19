@@ -9,10 +9,11 @@ import { Role } from './entities/role.entity';
 import { RolesController } from './roles.controller';
 import { RolesService } from './services/roles.service';
 import { User } from './entities/user.entity';
+import { UserRole } from './entities/user-role.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Role, User]),
+    TypeOrmModule.forFeature([Role, User, UserRole]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -9,6 +9,7 @@ export type AuthUser = {
   username: string;
   fullName: string;
   roleCode: 'STAFF' | 'MANAGER';
+  roleCodes: string[];
   permissions: string[];
 };
 

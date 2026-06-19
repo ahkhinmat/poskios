@@ -33,7 +33,7 @@ export class AuthService {
     const username = payload.username.trim();
     const user = await this.userRepository.findOne({
       where: { username, isActive: true },
-      relations: { role: true },
+      relations: { role: true, userRoles: { role: { parent: true } } },
     });
 
     if (!user || !user.role?.isActive) {
@@ -59,6 +59,7 @@ export class AuthService {
       username: authUser.username,
       fullName: authUser.fullName,
       roleCode: authUser.roleCode,
+      roleCodes: authUser.roleCodes,
       permissions: authUser.permissions,
     };
 
@@ -97,16 +98,66 @@ export class AuthService {
   }
 
   private toAuthUser(user: User): AuthenticatedUser {
-    const roleCode = user.role.code as RoleCode;
-    const dbPerms = this.parseRolePermissions(user.role);
+    const allRoles = this.collectAllRoles(user);
+    const roleCodes = allRoles.map((r) => r.code as RoleCode);
+    const primaryRole = user.role ?? allRoles[0];
+    const roleCode = (primaryRole?.code ?? 'STAFF') as RoleCode;
+    const permissions = this.resolvePermissions(allRoles);
 
     return {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
       roleCode,
-      permissions: dbPerms,
+      roleCodes: [...new Set(roleCodes)],
+      permissions,
     };
+  }
+
+  private collectAllRoles(user: User): Role[] {
+    const roles: Role[] = [];
+
+    if (user.role) {
+      roles.push(user.role);
+    }
+
+    for (const ur of user.userRoles ?? []) {
+      if (ur.role) {
+        roles.push(ur.role);
+      }
+    }
+
+    return roles;
+  }
+
+  private resolvePermissions(roles: Role[]): Permission[] {
+    const allPermissions = new Set<Permission>();
+
+    for (const role of roles) {
+      const chain = this.resolveRoleChain(role);
+      for (const r of chain) {
+        const perms = this.parseRolePermissions(r);
+        for (const p of perms) {
+          allPermissions.add(p);
+        }
+      }
+    }
+
+    return [...allPermissions];
+  }
+
+  private resolveRoleChain(role: Role): Role[] {
+    const chain: Role[] = [role];
+    let current = role;
+
+    // Prevent infinite loops (max depth = 10)
+    for (let i = 0; i < 10; i++) {
+      if (!current.parent) break;
+      chain.push(current.parent);
+      current = current.parent;
+    }
+
+    return chain;
   }
 
   private parseRolePermissions(role: Role): Permission[] {

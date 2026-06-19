@@ -50,12 +50,14 @@ export class JwtAuthGuard implements CanActivate {
       });
 
       const permissions: string[] = (payload as { permissions?: string[] }).permissions ?? [];
+      const roleCodes: string[] = (payload as { roleCodes?: string[] }).roleCodes ?? [payload.roleCode];
 
       request.user = {
         id: payload.sub,
         username: payload.username,
         fullName: payload.fullName,
         roleCode: payload.roleCode,
+        roleCodes: roleCodes as AuthenticatedUser['roleCodes'],
         permissions: permissions as AuthenticatedUser['permissions'],
       };
 
