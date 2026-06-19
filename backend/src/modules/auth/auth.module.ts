@@ -8,6 +8,8 @@ import { AuthService } from './auth.service';
 import { Role } from './entities/role.entity';
 import { RolesController } from './roles.controller';
 import { RolesService } from './services/roles.service';
+import { UsersController } from './users.controller';
+import { UsersService } from './services/users.service';
 import { User } from './entities/user.entity';
 import { UserRole } from './entities/user-role.entity';
 
@@ -25,8 +27,8 @@ import { UserRole } from './entities/user-role.entity';
       }),
     }),
   ],
-  controllers: [AuthController, RolesController],
-  providers: [AuthService, RolesService],
+  controllers: [AuthController, RolesController, UsersController],
+  providers: [AuthService, RolesService, UsersService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

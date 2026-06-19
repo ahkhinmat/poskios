@@ -5,6 +5,7 @@ import { LANG } from '../lang';
 import type { ApiEnvelope, AppSettings } from '../types';
 import { extractApiErrorMessage } from '../utils/error';
 import { RoleManager } from './RoleManager';
+import { UserManager } from './UserManager';
 
 type Props = {
   open: boolean;
@@ -57,6 +58,7 @@ export function SettingsPage({ open, onClose }: Props) {
   const [editField, setEditField] = useState<EditField>(null);
   const [editValue, setEditValue] = useState<string | number | null>('');
   const [roleManagerOpen, setRoleManagerOpen] = useState(false);
+  const [userManagerOpen, setUserManagerOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -348,6 +350,12 @@ export function SettingsPage({ open, onClose }: Props) {
                   <Button type="link" size="small">Quản lý</Button>
                 </span>
               </button>
+              <button type="button" className="settings-row" onClick={() => setUserManagerOpen(true)}>
+                <span className="settings-row-label">Người dùng</span>
+                <span className="settings-row-value">
+                  <Button type="link" size="small">Gán vai trò</Button>
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -368,6 +376,7 @@ export function SettingsPage({ open, onClose }: Props) {
       </Modal>
 
       <RoleManager open={roleManagerOpen} onClose={() => setRoleManagerOpen(false)} />
+      <UserManager open={userManagerOpen} onClose={() => setUserManagerOpen(false)} />
     </>
   );
 }

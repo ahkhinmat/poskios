@@ -448,6 +448,18 @@ export type CustomerSearchResponse = {
   items: Customer[];
 };
 
+export type Role = {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  parentId: number | null;
+  isActive: boolean;
+  permissions: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type TopProduct = {
   productId: number;
   productCode: string;
