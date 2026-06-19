@@ -110,13 +110,15 @@ export class AuthService {
   }
 
   private parseRolePermissions(role: Role): Permission[] {
+    const defaults = ROLE_PERMISSIONS[role.code] ?? [];
+
     if (role.permissions) {
-      const perms = role.permissions.split(',').filter(Boolean) as Permission[];
-      if (perms.length > 0) {
-        return perms;
+      const dbPerms = role.permissions.split(',').filter(Boolean) as Permission[];
+      if (dbPerms.length > 0) {
+        return [...new Set([...defaults, ...dbPerms])];
       }
     }
 
-    return ROLE_PERMISSIONS[role.code] ?? [];
+    return defaults;
   }
 }
