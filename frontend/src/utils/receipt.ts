@@ -137,7 +137,9 @@ export function buildReceiptViewModel(
       ? LANG.receiptReturnTitle
       : isPurchaseReceipt(receipt)
         ? LANG.receiptPurchaseTitle
-        : LANG.receiptTitle,
+        : (receipt as any)._isDraft
+          ? 'HÓA ĐƠN TẠM TÍNH'
+          : LANG.receiptTitle,
     codeLabel: isPurchaseReceipt(receipt)
       ? LANG.receiptPurchaseCode
       : LANG.receiptInvoice,

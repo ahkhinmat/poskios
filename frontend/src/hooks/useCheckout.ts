@@ -83,6 +83,7 @@ export function useCheckout(
         customerRefundAmount: refundAmount,
         footerMessage,
         receiptPoweredBy,
+        _isDraft: true,
       };
     }
 
@@ -105,6 +106,7 @@ export function useCheckout(
         debtAmount: Math.max(0, summary.total - purchasePaidAmount),
         footerMessage,
         receiptPoweredBy,
+        _isDraft: true,
       };
     }
 
@@ -124,6 +126,7 @@ export function useCheckout(
       changeAmount: Math.max(0, customerPaidAmount - summary.total),
       footerMessage,
       receiptPoweredBy,
+      _isDraft: true,
     };
   }
 

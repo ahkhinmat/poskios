@@ -399,7 +399,7 @@ export type InvoiceItemsResponse = {
 export type SaleReceiptData = CheckoutResponse['receiptData'];
 export type ReturnReceiptData = ReturnCheckoutResponse['receiptData'];
 export type PurchaseReceiptData = PurchaseCheckoutResponse['receiptData'];
-export type ReceiptPreviewData = SaleReceiptData | ReturnReceiptData | PurchaseReceiptData;
+export type ReceiptPreviewData = (SaleReceiptData | ReturnReceiptData | PurchaseReceiptData) & { _isDraft?: boolean };
 
 export type ManageProductUnit = {
   id: number;
