@@ -32,7 +32,10 @@ export class RolesService {
   }
 
   async findOne(code: string) {
-    const role = await this.roleRepository.findOneBy({ code });
+    const role = await this.roleRepository.findOne({
+      where: { code },
+      relations: { parent: true },
+    });
 
     if (!role) {
       throw new NotFoundException(`Role ${code} not found`);
@@ -87,6 +90,28 @@ export class RolesService {
   async getPermissionsByRole(roleCode: string): Promise<Permission[]> {
     const role = await this.findOne(roleCode);
     return this.parsePermissions(role);
+  }
+
+  async getEffectivePermissionsByRole(roleCode: string): Promise<Permission[]> {
+    const role = await this.findOne(roleCode);
+    const allPerms = new Set<Permission>();
+    const chain = this.resolveRoleChain(role);
+    for (const r of chain) {
+      const perms = this.parsePermissions(r);
+      for (const p of perms) allPerms.add(p);
+    }
+    return [...allPerms];
+  }
+
+  private resolveRoleChain(role: Role): Role[] {
+    const chain: Role[] = [role];
+    let current = role;
+    for (let i = 0; i < 10; i++) {
+      if (!current.parent) break;
+      chain.push(current.parent);
+      current = current.parent;
+    }
+    return chain;
   }
 
   async updatePermissions(roleCode: string, permissions: Permission[]) {

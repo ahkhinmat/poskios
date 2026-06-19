@@ -67,7 +67,7 @@ export const PERMISSION_REGISTRY: RegistryModule[] = [
   },
 ];
 
-function buildConstants() {
+export function buildPermissionConstants() {
   const PERMISSIONS: Record<string, string> = {};
   const PERMISSION_GROUPS: { label: string; permissions: string[] }[] = [];
   const PERMISSION_LABELS: Record<string, string> = {};
@@ -84,9 +84,3 @@ function buildConstants() {
 
   return { PERMISSIONS, PERMISSION_GROUPS, PERMISSION_LABELS };
 }
-
-const built = buildConstants();
-export const PERMISSIONS = built.PERMISSIONS as Record<string, string>;
-export const PERMISSION_GROUPS = built.PERMISSION_GROUPS;
-export const PERMISSION_LABELS = built.PERMISSION_LABELS;
-export type Permission = string;

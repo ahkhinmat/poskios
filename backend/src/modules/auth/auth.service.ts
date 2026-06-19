@@ -33,7 +33,7 @@ export class AuthService {
     const username = payload.username.trim();
     const user = await this.userRepository.findOne({
       where: { username, isActive: true },
-      relations: { role: true, userRoles: { role: { parent: true } } },
+      relations: { role: { parent: true }, userRoles: { role: { parent: true } } },
     });
 
     if (!user || !user.role?.isActive) {

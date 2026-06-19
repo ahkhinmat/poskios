@@ -448,6 +448,30 @@ export type CustomerSearchResponse = {
   items: Customer[];
 };
 
+export type RegistryAction = {
+  action: string;
+  label: string;
+  perm: string;
+};
+
+export type RegistryModule = {
+  key: string;
+  label: string;
+  actions: RegistryAction[];
+};
+
+export type User = {
+  id: number;
+  username: string;
+  fullName: string;
+  phoneNumber: string | null;
+  email: string | null;
+  isActive: boolean;
+  roleId: number;
+  role?: Role;
+  userRoles?: { role: Role }[];
+};
+
 export type Role = {
   id: number;
   code: string;

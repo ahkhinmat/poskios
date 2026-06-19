@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Role } from '../entities/role.entity';
 import { UserRole } from '../entities/user-role.entity';
 import { User } from '../entities/user.entity';
 
@@ -15,14 +16,14 @@ export class UsersService {
 
   async findAll(): Promise<User[]> {
     return this.userRepository.find({
-      relations: { userRoles: { role: true } },
+      relations: { role: { parent: true }, userRoles: { role: { parent: true } } },
     });
   }
 
   async findOne(id: number): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: { userRoles: { role: true } },
+      relations: { role: { parent: true }, userRoles: { role: { parent: true } } },
     });
     if (!user) throw new NotFoundException('User not found');
     return user;
@@ -31,9 +32,17 @@ export class UsersService {
   async getEffectivePermissions(id: number): Promise<string[]> {
     const user = await this.findOne(id);
     const permSet = new Set<string>();
-    for (const ur of user.userRoles) {
-      const perms = (ur.role.permissions ?? '').split(',').filter(Boolean);
+
+    const collectRolePerms = (role: Role | null | undefined) => {
+      if (!role) return;
+      const perms = (role.permissions ?? '').split(',').filter(Boolean);
       for (const p of perms) permSet.add(p);
+      if (role.parent) collectRolePerms(role.parent);
+    };
+
+    if (user.role) collectRolePerms(user.role);
+    for (const ur of user.userRoles ?? []) {
+      collectRolePerms(ur.role);
     }
     return Array.from(permSet);
   }

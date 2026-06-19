@@ -4,8 +4,7 @@ import { api } from '../api';
 import { LANG } from '../lang';
 import type { ApiEnvelope, AppSettings } from '../types';
 import { extractApiErrorMessage } from '../utils/error';
-import { RoleManager } from './RoleManager';
-import { UserManager } from './UserManager';
+import { PermissionPage } from './PermissionPage';
 
 type Props = {
   open: boolean;
@@ -57,8 +56,7 @@ export function SettingsPage({ open, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [editField, setEditField] = useState<EditField>(null);
   const [editValue, setEditValue] = useState<string | number | null>('');
-  const [roleManagerOpen, setRoleManagerOpen] = useState(false);
-  const [userManagerOpen, setUserManagerOpen] = useState(false);
+  const [permPageOpen, setPermPageOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -344,16 +342,10 @@ export function SettingsPage({ open, onClose }: Props) {
           <div className="settings-section">
             <div className="settings-section-header">PHÂN QUYỀN</div>
             <div className="settings-section-body">
-              <button type="button" className="settings-row" onClick={() => setRoleManagerOpen(true)}>
-                <span className="settings-row-label">Cấu hình quyền</span>
+              <button type="button" className="settings-row" onClick={() => setPermPageOpen(true)}>
+                <span className="settings-row-label">Phân quyền hệ thống</span>
                 <span className="settings-row-value">
                   <Button type="link" size="small">Quản lý</Button>
-                </span>
-              </button>
-              <button type="button" className="settings-row" onClick={() => setUserManagerOpen(true)}>
-                <span className="settings-row-label">Người dùng</span>
-                <span className="settings-row-value">
-                  <Button type="link" size="small">Gán vai trò</Button>
                 </span>
               </button>
             </div>
@@ -375,8 +367,7 @@ export function SettingsPage({ open, onClose }: Props) {
         {renderEditInput()}
       </Modal>
 
-      <RoleManager open={roleManagerOpen} onClose={() => setRoleManagerOpen(false)} />
-      <UserManager open={userManagerOpen} onClose={() => setUserManagerOpen(false)} />
+      <PermissionPage open={permPageOpen} onClose={() => setPermPageOpen(false)} />
     </>
   );
 }

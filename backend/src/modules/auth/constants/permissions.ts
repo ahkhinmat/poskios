@@ -1,50 +1,12 @@
-export const PERMISSIONS = {
-  PRODUCTS_VIEW: 'products.view',
-  PRODUCTS_MANAGE: 'products.manage',
-  CATEGORIES_VIEW: 'categories.view',
-  CATEGORIES_MANAGE: 'categories.manage',
-  UNITS_VIEW: 'units.view',
-  SUPPLIERS_VIEW: 'suppliers.view',
-  SUPPLIERS_MANAGE: 'suppliers.manage',
-  SALES_CREATE: 'sales.create',
-  SALES_RETURN: 'sales.return',
-  PURCHASE_CREATE: 'purchase.create',
-  PURCHASE_COMPLETE: 'purchase.complete',
-  OVERVIEW_VIEW: 'overview.view',
-  LOYALTY_CONFIGURE: 'loyalty.configure',
-  SETTINGS_MANAGE: 'settings.manage',
-  PRODUCTS_IMPORT: 'products.import',
-  SALES_CANCEL: 'sales.cancel',
-} as const;
+import { buildPermissionConstants, PERMISSION_REGISTRY } from './permission-registry';
 
-export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+const built = buildPermissionConstants();
 
-export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
-  {
-    label: 'Bán hàng',
-    permissions: [PERMISSIONS.SALES_CREATE, PERMISSIONS.SALES_CANCEL],
-  },
-  {
-    label: 'Trả hàng',
-    permissions: [PERMISSIONS.SALES_RETURN],
-  },
-  {
-    label: 'Nhập hàng',
-    permissions: [PERMISSIONS.PURCHASE_CREATE, PERMISSIONS.PURCHASE_COMPLETE],
-  },
-  {
-    label: 'Danh mục',
-    permissions: [PERMISSIONS.PRODUCTS_VIEW, PERMISSIONS.PRODUCTS_MANAGE, PERMISSIONS.PRODUCTS_IMPORT, PERMISSIONS.CATEGORIES_VIEW, PERMISSIONS.CATEGORIES_MANAGE, PERMISSIONS.UNITS_VIEW],
-  },
-  {
-    label: 'Dashboard',
-    permissions: [PERMISSIONS.OVERVIEW_VIEW, PERMISSIONS.LOYALTY_CONFIGURE],
-  },
-  {
-    label: 'Cài đặt',
-    permissions: [PERMISSIONS.SETTINGS_MANAGE, PERMISSIONS.SUPPLIERS_VIEW, PERMISSIONS.SUPPLIERS_MANAGE],
-  },
-];
+export const PERMISSIONS = built.PERMISSIONS as Record<string, string>;
+export const PERMISSION_GROUPS = built.PERMISSION_GROUPS;
+export const PERMISSION_LABELS = built.PERMISSION_LABELS;
+
+export type Permission = string;
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   STAFF: [
@@ -72,5 +34,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     PERMISSIONS.SETTINGS_MANAGE,
     PERMISSIONS.PRODUCTS_IMPORT,
     PERMISSIONS.SALES_CANCEL,
+    PERMISSIONS.ROLES_MANAGE,
+    PERMISSIONS.USERS_MANAGE,
   ],
 };

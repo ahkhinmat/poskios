@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Put } from '@nestjs/common';
 import { UsersService } from './services/users.service';
+import { Permissions } from './decorators/permissions.decorator';
+import { PERMISSIONS } from './constants/permissions';
 
 @Controller('auth/users')
 export class UsersController {
@@ -24,6 +26,7 @@ export class UsersController {
   }
 
   @Put(':id/roles')
+  @Permissions(PERMISSIONS.USERS_MANAGE)
   async updateRoles(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { roleIds: number[] },
