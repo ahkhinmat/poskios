@@ -4,6 +4,7 @@ import {
   EyeOutlined,
   PlusOutlined,
   PrinterOutlined,
+  ShoppingCartOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { LANG } from '../lang';
@@ -162,6 +163,19 @@ export function TransactionPanel({ p }: TransactionPanelProps) {
               />
             )}
           </div>
+
+          {!!p.activeTab?.items.length && (
+            <div className="cart-footer-bar">
+              <span className="cart-footer-count">
+                <ShoppingCartOutlined />
+                {p.activeTab.items.length} mặt hàng
+                <span className="cart-footer-count-val">· SL: <strong>{p.activeTab.items.reduce((s, i) => s + i.quantity, 0).toLocaleString('vi-VN')}</strong></span>
+              </span>
+              <span className="cart-footer-total">
+                {LANG.overviewTotalValue}: {p.activeTab.items.reduce((s, i) => s + i.lineTotal, 0).toLocaleString('vi-VN')}{LANG.currencySuffix}
+              </span>
+            </div>
+          )}
 
           <div className="sale-footer">
             <Input

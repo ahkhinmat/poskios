@@ -1315,6 +1315,54 @@ button {
   box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.1);
 }
 
+.cart-footer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  border-top: 1px solid #e5e9f0;
+  font-size: 12px;
+  color: #374151;
+  background: linear-gradient(to right, #f0fdf4, #f9fafb);
+}
+
+.cart-footer-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.cart-footer-count .anticon {
+  font-size: 14px;
+  color: var(--pos-primary);
+}
+
+.cart-footer-count-val {
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.cart-footer-count-val strong {
+  color: #374151;
+  font-weight: 700;
+}
+
+.cart-footer-total {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--pos-primary);
+  font-size: 15px;
+}
+
+.cart-footer-total .anticon {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
 .checkout-panel {
   display: flex;
   flex-direction: column;
